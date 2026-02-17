@@ -60,6 +60,7 @@ For each potential finding, apply this test:
 > (c) Find new issues that my fix would introduce? → **Drop it. It is net-negative.**
 
 Also apply the adversarial review gate — imagine the most critical, pedantic reviewer:
+
 1. Can they find a simpler way? → Use the simpler way.
 2. Can they point to an existing codebase pattern my fix deviates from? → Follow the pattern.
 3. Can they find an edge case I missed? → Handle it.
@@ -69,11 +70,13 @@ Also apply the adversarial review gate — imagine the most critical, pedantic r
 Only include findings where you answer "no, no, no, no, yes" to these five questions.
 
 **What to fix:**
+
 - Code that is broken: bugs, race conditions, unhandled errors, security holes
 - Code that is poor quality: tangled logic, unclear names, god functions, duplication, missing abstractions, fragile patterns, imprecise types
 - Code that is incomplete: missing edge case handling, missing validation, missing cleanup, missing tests
 
 **What to leave alone:**
+
 - Code that is already clean, robust, and precise — even if you would have written it differently
 - Lateral moves: Map vs object, early returns vs if/else, different-but-equivalent patterns
 - Speculative concerns: "this could theoretically fail if X and Y" when X and Y cannot co-occur

@@ -19,8 +19,8 @@
     "type-check:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write --cache --cache-location node_modules/.cache/.prettiercache \"**/*.{ts,tsx,json}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json}\"",
+    "format": "prettier --write --cache --cache-location node_modules/.cache/.prettiercache \"**/*.{ts,tsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "knip": "knip",
     "test": "bun test platform/",
     "test:e2e": "bunx playwright test",
@@ -61,6 +61,9 @@
     "*.{ts,tsx,json}": [
       "prettier --write",
       "eslint --fix"
+    ],
+    "*.md": [
+      "prettier --write"
     ]
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: opentabs-perfect
-description: "Systematically improve one aspect of the OpenTabs platform to production-grade quality. Use when the user wants to perfect, harden, polish, or improve a specific area. Triggers on: perfect, improve, harden, polish, make robust, review and improve."
+description: 'Systematically improve one aspect of the OpenTabs platform to production-grade quality. Use when the user wants to perfect, harden, polish, or improve a specific area. Triggers on: perfect, improve, harden, polish, make robust, review and improve.'
 ---
 
 # Perfect -- Convergent Platform Refinement
@@ -37,7 +37,7 @@ If you cannot confidently answer (a), the change is not ready.
 
 ## The Solid Fix Mandate
 
-Every fix you apply must be **solid** — not just correct, but *uncriticizable*. A solid fix is one that any competent engineer or AI session, reviewing the code with fresh eyes and a critical disposition, would confirm as the right answer and move on. If a fix can be second-guessed, it is not solid. Do not apply it.
+Every fix you apply must be **solid** — not just correct, but _uncriticizable_. A solid fix is one that any competent engineer or AI session, reviewing the code with fresh eyes and a critical disposition, would confirm as the right answer and move on. If a fix can be second-guessed, it is not solid. Do not apply it.
 
 ### What Makes a Fix Solid
 
@@ -216,6 +216,7 @@ After auditing, categorize every finding:
 Bugs, security issues, unhandled errors, race conditions, data loss risks -- but also poor abstractions, tangled logic, imprecise types, fragile patterns, missing cleanup, bad naming, and duplication. "It works" is not the bar. "It is excellent" is the bar.
 
 **Examples of things to fix:**
+
 - A WebSocket reconnection that silently drops messages
 - An error handler that catches but does not report or recover
 - A timer that is never cleaned up on component unmount
@@ -234,6 +235,7 @@ Bugs, security issues, unhandled errors, race conditions, data loss risks -- but
 Code that is already clean, well-structured, and robust. Also: changes that would produce equivalently good code in a different style -- these are lateral moves, not improvements.
 
 **Examples of things to skip:**
+
 - "I would have used a Map instead of an object" (both are clean and correct here)
 - "I prefer early returns" (the current structure is equally clear)
 - "This could theoretically fail if X and Y happen simultaneously" (if X and Y cannot actually co-occur in this system)
@@ -266,6 +268,7 @@ Every story's notes must guide the agent toward **the solution** — not **a sol
 - **The solution** is obviously correct, follows the established codebase patterns, handles edge cases, is precisely typed, is well-named, and leaves no room for "but what about..." questions. It settles the matter.
 
 For each story's notes, include:
+
 - What is the **canonical way** to solve this in this codebase? (Reference surrounding code patterns.)
 - What is the **canonical way** to solve this in the broader ecosystem? (Reference well-known best practices.)
 - What approach is so clean it is self-evidently correct?
@@ -291,6 +294,7 @@ Verification happens in two stages:
 ### During Review (this skill)
 
 Verify the audit is thorough and the ralph task file is well-formed:
+
 - Every file in the target area was read (not skimmed)
 - Every finding is triaged against the convergence test
 - The prd.json stories are right-sized (one iteration each) and ordered by dependency
@@ -322,6 +326,7 @@ One paragraph: what area was audited, how many files were reviewed, what was fou
 ### Findings (To Be Fixed via Ralph)
 
 For each finding that passed triage:
+
 - **File**: path and line range
 - **Defect**: what is wrong
 - **Proposed Fix**: what should be changed
@@ -349,9 +354,10 @@ This skill is designed to be invoked repeatedly across sessions. Each session mu
 
 ### The Termination Guarantee
 
-**This skill must terminate.** If placed in an infinite loop against the same aspect, it must — not should, *must* — reach a session that reports "this area is at the standard, nothing to change" and makes zero modifications. Every subsequent session must produce the same result: zero modifications. This is not aspirational. It is a hard requirement.
+**This skill must terminate.** If placed in an infinite loop against the same aspect, it must — not should, _must_ — reach a session that reports "this area is at the standard, nothing to change" and makes zero modifications. Every subsequent session must produce the same result: zero modifications. This is not aspirational. It is a hard requirement.
 
 The termination guarantee means:
+
 - **The number of issues found must strictly decrease across sessions** (or stay at zero). If Session N finds K issues and Session N+1 finds K or more issues in the same code, Session N failed — it either created new issues or made lateral changes that the next session treats as issues.
 - **Every fix must be a terminal fix** — one that no future session will touch. If you are not certain your fix is terminal, do not apply it. A fix that gets rewritten by the next session was not a fix; it was churn.
 - **The "already perfect" exit is the primary success path.** The skill's purpose is not to produce fixes — it is to reach a state where no fixes are needed. A session that thoroughly reviews code and reports "nothing to change" has achieved the skill's objective more completely than a session that applies ten fixes.
@@ -381,7 +387,7 @@ That is divergence. It means every session is producing work that is merely "a s
 
 ### Why Divergence Happens and How to Prevent It
 
-Divergence has one root cause: **a session applies a fix that is not the objectively best solution.** When a fix is merely *good* rather than *obviously correct*, the next session — with different aesthetic preferences, different training emphasis, or a different internal reasoning path — sees room for improvement and rewrites it. That rewrite is also merely good, so the next session rewrites it again. The loop never terminates.
+Divergence has one root cause: **a session applies a fix that is not the objectively best solution.** When a fix is merely _good_ rather than _obviously correct_, the next session — with different aesthetic preferences, different training emphasis, or a different internal reasoning path — sees room for improvement and rewrites it. That rewrite is also merely good, so the next session rewrites it again. The loop never terminates.
 
 Prevention is simple in principle and hard in practice: **only apply fixes that are so obviously correct they leave no room for a different opinion.** This means:
 

@@ -268,6 +268,7 @@ bun run test          # Unit tests
 This project runs on Bun. Always prefer Bun-native APIs over Node.js equivalents unless Bun has no equivalent.
 
 **Use Bun APIs for:**
+
 - File reading: `Bun.file(path).text()` instead of `readFile(path, 'utf-8')` from `node:fs/promises`
 - File writing: `Bun.write(path, content)` instead of `writeFile(path, content)` from `node:fs/promises`
 - File deletion: `Bun.file(path).delete()` instead of `unlinkSync(path)` from `node:fs`
@@ -279,6 +280,7 @@ This project runs on Bun. Always prefer Bun-native APIs over Node.js equivalents
 - Package execution: `bunx` instead of `npx`
 
 **Keep Node.js APIs for (no Bun-native equivalent):**
+
 - `node:path` (`join`, `resolve`, `relative`, `dirname`) — no Bun path API
 - `node:os` (`homedir`, `tmpdir`) — no Bun equivalents
 - `node:fs` `watch` / `FSWatcher` — no Bun file watching API
@@ -293,12 +295,14 @@ This project runs on Bun. Always prefer Bun-native APIs over Node.js equivalents
 Comments should describe **current behavior**, not historical context. Write comments that state facts about what the code does now.
 
 **Avoid:**
+
 - Comments explaining what code "used to do" or "was changed from"
 - Negative phrasing like "we don't do X" or "don't touch Y"
 - Historical markers like "previously", "legacy", "deprecated", "removed"
 - Comments that only make sense if you know what the code looked like before
 
 **Prefer:**
+
 - Factual descriptions of current behavior
 - Explanations of why current code works the way it does
 - Technical rationale for design decisions
@@ -310,6 +314,7 @@ Comments should describe **current behavior**, not historical context. Write com
 **Important**: This file should remain **plugin-agnostic**. Do not enumerate individual plugins or tools by name. The codebase grows by adding new plugins — documentation should describe patterns and conventions, not inventories.
 
 Guidelines for updates:
+
 - Keep additions **high-level** — avoid excessive detail that wastes context
 - Focus on **architecture, patterns, and conventions** — not per-plugin details
 - **Never list individual plugins** (e.g. "Slack, Datadog, ...") — use generic terms like "plugins" and reference the code structure for discovery

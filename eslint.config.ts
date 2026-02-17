@@ -38,7 +38,6 @@ const config: Linter.Config[] = [
       '**/*.tsbuildinfo',
       'playwright-report/**',
       'test-results/**',
-      'website/**',
     ],
   },
   // Main TypeScript/TSX rules
@@ -141,6 +140,7 @@ const config: Linter.Config[] = [
       'platform/shared/**/*.ts',
       'platform/plugin-sdk/**/*.ts',
       'e2e/**/*.ts',
+      'website/.vitepress/**/*.ts',
       '*.ts',
     ],
     languageOptions: {

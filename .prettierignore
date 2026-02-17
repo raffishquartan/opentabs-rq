@@ -1,7 +1,5 @@
 dist
 node_modules
-website
-*.md
 *.tsbuildinfo
 bun.lock
 playwright-report

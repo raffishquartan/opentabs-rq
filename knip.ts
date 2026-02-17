@@ -40,9 +40,15 @@ const config: KnipConfig = {
       ignoreBinaries: ['opentabs'],
       ignoreDependencies: ['@opentabs/cli'],
     },
+    website: {
+      ignoreDependencies: [
+        // Peer dependency required by vitepress at runtime
+        'vue',
+      ],
+    },
   },
   tags: ['+@public'],
-  ignore: ['**/dist/**', 'website/**'],
+  ignore: ['**/dist/**'],
   ignoreExportsUsedInFile: true,
 };
 

@@ -30,6 +30,7 @@ All file paths are relative to the project root (where `.ralph/` lives).
 ## Progress Report Format
 
 APPEND to `.ralph/progress.txt` (never replace, always append):
+
 ```
 ## [Date/Time] - [Story ID]
 - What was implemented
@@ -70,11 +71,13 @@ Before committing, check if any edited files have learnings worth preserving in 
    - Configuration or environment requirements
 
 **Examples of good CLAUDE.md additions:**
+
 - "When modifying X, also update Y to keep them in sync"
 - "This module uses pattern Z for all API calls"
 - "Field names must match the template exactly"
 
 **Do NOT add:**
+
 - Story-specific implementation details
 - Temporary debugging notes
 - Information already in progress.txt

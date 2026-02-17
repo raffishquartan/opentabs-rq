@@ -1,6 +1,6 @@
 ---
 name: opentabs-ralph
-description: "Plan work and generate ralph task files for autonomous execution. Use when the user wants to plan tasks, create a prd, run ralph, or fix a batch of issues. Triggers on: ralph, create tasks, plan this, run ralph, prd."
+description: 'Plan work and generate ralph task files for autonomous execution. Use when the user wants to plan tasks, create a prd, run ralph, or fix a batch of issues. Triggers on: ralph, create tasks, plan this, run ralph, prd.'
 ---
 
 # Ralph Task Planner
@@ -55,6 +55,7 @@ Write directly to `.ralph/prd.json`. Do NOT create intermediate markdown PRD fil
 ### Archive Check
 
 Before writing, check if `.ralph/prd.json` already exists:
+
 1. Read current `.ralph/prd.json`
 2. If it exists:
    - Create archive folder: `.ralph/archive/YYYY-MM-DD-<feature-slug>/`
@@ -101,6 +102,7 @@ Before writing, check if `.ralph/prd.json` already exists:
 Each story must be completable in ONE iteration (one fresh AI session with no memory of previous work).
 
 **Right-sized stories:**
+
 - Fix a bug in a single module
 - Add a new tool or endpoint
 - Refactor one file or function
@@ -108,6 +110,7 @@ Each story must be completable in ONE iteration (one fresh AI session with no me
 - Extract duplicated code into a shared helper
 
 **Too big (split these):**
+
 - "Refactor the entire module" -- split by file or concern
 - "Add a new service" -- split into: scaffold, API client, individual endpoints, tests
 - "Fix all lint errors" -- split by package or error category
@@ -119,6 +122,7 @@ Each story must be completable in ONE iteration (one fresh AI session with no me
 Stories execute in priority order (1 = first). Earlier stories must not depend on later ones.
 
 **Correct order:**
+
 1. Shared types / data model changes
 2. Backend / server changes that consume shared types
 3. Frontend / UI changes
@@ -132,6 +136,7 @@ Each criterion must be something the agent can CHECK, not something vague.
 **Bad:** "Works correctly", "Handles edge cases", "Good UX"
 
 **Always include the full verification suite** as the final acceptance criteria for every story:
+
 - `bun run build` passes
 - `bun run type-check` passes
 - `bun run lint` passes
@@ -142,6 +147,7 @@ Each criterion must be something the agent can CHECK, not something vague.
 ### Notes Field
 
 Use the `notes` field to give the agent implementation hints:
+
 - Which file and approximate line number to edit
 - What the current code looks like
 - What pattern to follow
@@ -163,6 +169,7 @@ After writing `.ralph/prd.json`:
 ### Monitoring Commands
 
 After launching, tell the user:
+
 - **Watch progress:** `tail -f /tmp/ralph-<feature>.log`
 - **Check status:** `cat .ralph/progress.txt`
 - **Kill if needed:** `pkill -f ralph.sh`
