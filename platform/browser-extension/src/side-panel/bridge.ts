@@ -79,8 +79,9 @@ const sendRequest = (method: string, params: Record<string, unknown> = {}): Prom
  * can handle it as a notification.
  */
 const handleServerResponse = (data: Record<string, unknown>): boolean => {
-  const id = data.id as string | undefined;
-  if (!id || data.method) return false;
+  const rawId = data.id as string | number | null | undefined;
+  if (rawId === undefined || rawId === null || data.method) return false;
+  const id = String(rawId);
 
   const pending = pendingRequests.get(id);
   if (!pending) return false;
