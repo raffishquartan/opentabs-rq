@@ -5,6 +5,7 @@ import { setToolEnabled, setAllToolsEnabled } from '../bridge.js';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import type { PluginState } from '../bridge.js';
+import type { Dispatch, MouseEvent, SetStateAction } from 'react';
 
 /** Extract a human-readable domain from a plugin's URL patterns */
 const extractDomain = (urlPatterns: string[]): string | null => {
@@ -37,11 +38,11 @@ const TabStateHint = ({ plugin }: { plugin: PluginState }) => {
 const PluginCard = ({
   plugin,
   activeTools,
-  onRefresh,
+  setPlugins,
 }: {
   plugin: PluginState;
   activeTools: Set<string>;
-  onRefresh: () => void;
+  setPlugins: Dispatch<SetStateAction<PluginState[]>>;
 }) => {
   const [expanded, setExpanded] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
@@ -64,18 +65,41 @@ const PluginCard = ({
   const allEnabled = plugin.tools.length > 0 && plugin.tools.every(t => t.enabled);
   const someEnabled = plugin.tools.some(t => t.enabled);
 
-  const handleToggleAll = (e: React.MouseEvent) => {
+  const handleToggleAll = (e: MouseEvent) => {
     e.stopPropagation();
     const newEnabled = !allEnabled;
-    void setAllToolsEnabled(plugin.name, newEnabled)
-      .then(onRefresh)
-      .catch(() => showToggleError('Failed to toggle all tools'));
+    setPlugins(prev =>
+      prev.map(p => (p.name === plugin.name ? { ...p, tools: p.tools.map(t => ({ ...t, enabled: newEnabled })) } : p)),
+    );
+    void setAllToolsEnabled(plugin.name, newEnabled).catch(() => {
+      setPlugins(prev =>
+        prev.map(p =>
+          p.name === plugin.name ? { ...p, tools: p.tools.map(t => ({ ...t, enabled: !newEnabled })) } : p,
+        ),
+      );
+      showToggleError('Failed to toggle all tools');
+    });
   };
 
   const handleToggleTool = (toolName: string, currentEnabled: boolean) => {
-    void setToolEnabled(plugin.name, toolName, !currentEnabled)
-      .then(onRefresh)
-      .catch(() => showToggleError(`Failed to toggle ${toolName}`));
+    const newEnabled = !currentEnabled;
+    setPlugins(prev =>
+      prev.map(p =>
+        p.name === plugin.name
+          ? { ...p, tools: p.tools.map(t => (t.name === toolName ? { ...t, enabled: newEnabled } : t)) }
+          : p,
+      ),
+    );
+    void setToolEnabled(plugin.name, toolName, newEnabled).catch(() => {
+      setPlugins(prev =>
+        prev.map(p =>
+          p.name === plugin.name
+            ? { ...p, tools: p.tools.map(t => (t.name === toolName ? { ...t, enabled: !newEnabled } : t)) }
+            : p,
+        ),
+      );
+      showToggleError(`Failed to toggle ${toolName}`);
+    });
   };
 
   return (
