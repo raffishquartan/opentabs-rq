@@ -743,6 +743,10 @@ export const handleBrowserExecuteScript = async (
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid execFile parameter' }, id });
       return;
     }
+    if (!/^[a-z0-9_-]+\.js$/.test(execFile)) {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Invalid execFile format' }, id });
+      return;
+    }
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
