@@ -10,6 +10,7 @@ import {
   handleBrowserGetConsoleLogs,
   handleBrowserGetCookies,
   handleBrowserGetNetworkRequests,
+  handleBrowserGetPageHtml,
   handleBrowserGetTabContent,
   handleBrowserGetTabInfo,
   handleBrowserListTabs,
@@ -252,6 +253,14 @@ const methodHandlers = new Map<string, MessageHandler>([
     (params, id) => {
       if (id !== undefined) {
         handleBrowserGetTabContent(params, id).catch(console.error);
+      }
+    },
+  ],
+  [
+    'browser.getPageHtml',
+    (params, id) => {
+      if (id !== undefined) {
+        handleBrowserGetPageHtml(params, id).catch(console.error);
       }
     },
   ],

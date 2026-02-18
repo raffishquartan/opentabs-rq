@@ -13,6 +13,7 @@ import { focusTab } from './focus-tab.js';
 import { getConsoleLogs } from './get-console-logs.js';
 import { getCookies } from './get-cookies.js';
 import { getNetworkRequests } from './get-network-requests.js';
+import { getPageHtml } from './get-page-html.js';
 import { getTabContent } from './get-tab-content.js';
 import { getTabInfo } from './get-tab-info.js';
 import { listTabs } from './list-tabs.js';
@@ -38,6 +39,7 @@ const browserTools: BrowserToolDefinition[] = [
   executeScript,
   screenshotTab,
   getTabContent,
+  getPageHtml,
   clickElement,
   typeText,
   selectOption,

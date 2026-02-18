@@ -248,6 +248,51 @@ export const handleBrowserGetTabContent = async (
   }
 };
 
+export const handleBrowserGetPageHtml = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
+  try {
+    const tabId = params.tabId;
+    if (typeof tabId !== 'number') {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
+      return;
+    }
+    const selector = typeof params.selector === 'string' ? params.selector : 'html';
+    const maxLength = typeof params.maxLength === 'number' ? params.maxLength : 200000;
+
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      func: (sel: string, max: number) => {
+        const el = document.querySelector(sel);
+        if (!el) return { error: `Element not found: ${sel}` };
+        const html = el.outerHTML;
+        return {
+          title: document.title,
+          url: document.URL,
+          html: html.length > max ? html.slice(0, max) + '... (truncated)' : html,
+        };
+      },
+      args: [selector, maxLength],
+    });
+
+    const result = results[0]?.result as { error?: string; title?: string; url?: string; html?: string } | undefined;
+    if (!result) {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
+      return;
+    }
+    if (result.error) {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
+      return;
+    }
+    sendToServer({ jsonrpc: '2.0', result: { title: result.title, url: result.url, html: result.html }, id });
+  } catch (err) {
+    sendToServer({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: sanitizeErrorMessage(err instanceof Error ? err.message : String(err)) },
+      id,
+    });
+  }
+};
+
 export const handleBrowserClickElement = async (
   params: Record<string, unknown>,
   id: string | number,

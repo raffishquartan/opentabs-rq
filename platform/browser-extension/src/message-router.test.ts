@@ -38,6 +38,9 @@ const mockHandleBrowserGetTabInfo = mock(
 const mockHandleBrowserGetTabContent = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
+const mockHandleBrowserGetPageHtml = mock(
+  asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+);
 const mockHandleBrowserScreenshotTab = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
@@ -93,6 +96,7 @@ await mock.module('./browser-commands.js', () => ({
   handleBrowserNavigateTab: mockHandleBrowserNavigateTab,
   handleBrowserFocusTab: mockHandleBrowserFocusTab,
   handleBrowserGetTabContent: mockHandleBrowserGetTabContent,
+  handleBrowserGetPageHtml: mockHandleBrowserGetPageHtml,
   handleBrowserGetTabInfo: mockHandleBrowserGetTabInfo,
   handleBrowserScreenshotTab: mockHandleBrowserScreenshotTab,
   handleBrowserClickElement: mockHandleBrowserClickElement,
@@ -455,6 +459,7 @@ const resetRoutingMocks = (): void => {
   mockHandleBrowserCloseTab.mockReset();
   mockHandleBrowserNavigateTab.mockReset();
   mockHandleBrowserGetTabContent.mockReset();
+  mockHandleBrowserGetPageHtml.mockReset();
   mockHandleBrowserScreenshotTab.mockReset();
   mockHandleBrowserClickElement.mockReset();
   mockHandleBrowserTypeText.mockReset();
@@ -482,6 +487,7 @@ describe('handleServerMessage', () => {
     mockHandleBrowserCloseTab.mockResolvedValue(undefined);
     mockHandleBrowserNavigateTab.mockResolvedValue(undefined);
     mockHandleBrowserGetTabContent.mockResolvedValue(undefined);
+    mockHandleBrowserGetPageHtml.mockResolvedValue(undefined);
     mockHandleBrowserScreenshotTab.mockResolvedValue(undefined);
     mockHandleBrowserClickElement.mockResolvedValue(undefined);
     mockHandleBrowserTypeText.mockResolvedValue(undefined);
@@ -679,6 +685,17 @@ describe('handleServerMessage', () => {
         { tabId: 13, selector: 'body', maxLength: 50000 },
         28,
       );
+    });
+
+    test('dispatches browser.getPageHtml to handleBrowserGetPageHtml', () => {
+      handleServerMessage({
+        method: 'browser.getPageHtml',
+        id: 29,
+        params: { tabId: 14, selector: 'html', maxLength: 200000 },
+      });
+
+      expect(mockHandleBrowserGetPageHtml).toHaveBeenCalledTimes(1);
+      expect(mockHandleBrowserGetPageHtml).toHaveBeenCalledWith({ tabId: 14, selector: 'html', maxLength: 200000 }, 29);
     });
 
     test('dispatches browser.screenshotTab to handleBrowserScreenshotTab', () => {
