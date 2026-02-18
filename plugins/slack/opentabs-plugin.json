@@ -1225,8 +1225,8 @@
           "content": {
             "type": "string",
             "minLength": 1,
-            "maxLength": 50000000,
-            "description": "File content as a UTF-8 string (text files) or base64-encoded string (binary files). Max 50MB."
+            "maxLength": 20000000,
+            "description": "File content as a UTF-8 string (text files) or base64-encoded string (binary files). Max 20MB."
           },
           "is_base64": {
             "description": "Set to true when content is base64-encoded (e.g., binary files like images or PDFs). Defaults to false (UTF-8 text).",
@@ -1539,5 +1539,5 @@
       }
     }
   ],
-  "adapterHash": "e111a0ec7a3151d45542d443baf8a6f83e1e111091d74b46cfb8f848345e1b68"
+  "adapterHash": "527ed7d02aed01627379fbde7b25b8aaf7898b7f77192a2b8f2f57da8a629ada"
 }
