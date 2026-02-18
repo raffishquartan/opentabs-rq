@@ -1,4 +1,4 @@
-import { rebuildToolLookups } from './mcp-setup.js';
+import { rebuildToolLookups, trustTierPrefix } from './mcp-setup.js';
 import { createState } from './state.js';
 import { describe, expect, test } from 'bun:test';
 import { z } from 'zod';
@@ -132,5 +132,19 @@ describe('rebuildToolLookups — cached browser tools', () => {
     // Verify the input schema has the url property
     const openTabSchema = (secondCached as NonNullable<typeof secondCached>).inputSchema;
     expect(openTabSchema).toHaveProperty('properties');
+  });
+});
+
+describe('trustTierPrefix', () => {
+  test('returns correct prefix for official tier', () => {
+    expect(trustTierPrefix('official')).toBe('[Official] ');
+  });
+
+  test('returns correct prefix for community tier', () => {
+    expect(trustTierPrefix('community')).toBe('[Community plugin — unverified] ');
+  });
+
+  test('returns correct prefix for local tier', () => {
+    expect(trustTierPrefix('local')).toBe('[Local plugin] ');
   });
 });

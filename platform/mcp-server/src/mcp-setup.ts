@@ -28,10 +28,23 @@ import { version } from './version.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import type { ServerState, CachedBrowserTool, ToolLookupEntry } from './state.js';
+import type { TrustTier } from '@opentabs-dev/shared';
 import type { ZodError } from 'zod';
 
 /** Maximum concurrent tool dispatches per plugin to prevent tab performance degradation */
 const MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 5;
+
+/** Map trust tier to a human-readable prefix for MCP tool descriptions */
+const trustTierPrefix = (tier: TrustTier): string => {
+  switch (tier) {
+    case 'official':
+      return '[Official] ';
+    case 'community':
+      return '[Community plugin — unverified] ';
+    case 'local':
+      return '[Local plugin] ';
+  }
+};
 
 /**
  * The Server constructor type, extracted without directly referencing the
@@ -140,7 +153,7 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
 
         tools.push({
           name: prefixed,
-          description: toolDef.description,
+          description: trustTierPrefix(plugin.trustTier) + toolDef.description,
           inputSchema: toolDef.input_schema,
         });
       }
@@ -348,4 +361,4 @@ const notifyToolListChanged = (server: McpServerInstance): void => {
 };
 
 export type { McpServerInstance };
-export { createMcpServer, registerMcpHandlers, rebuildToolLookups, notifyToolListChanged };
+export { createMcpServer, registerMcpHandlers, rebuildToolLookups, notifyToolListChanged, trustTierPrefix };
