@@ -88,6 +88,8 @@ const isValidWsOrigin = (wsUrl: string, httpBase: string): boolean => {
 };
 
 let mcpServerUrl = DEFAULT_MCP_SERVER_URL;
+/** WebSocket auth token — sent via Sec-WebSocket-Protocol header, not URL query */
+let wsSecret: string | null = null;
 let ws: WebSocket | null = null;
 let backoffMs = INITIAL_BACKOFF_MS;
 let pingIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -198,20 +200,23 @@ const scheduleReconnect = (): void => {
 // --- Token refresh ---
 
 /**
- * Re-fetch the authenticated WebSocket URL from /ws-info.
+ * Re-fetch the WebSocket URL and auth secret from /ws-info.
  * Called before each connection attempt so reconnects after secret rotation
  * pick up the new token automatically. Falls back to the current URL on error.
  */
 const refreshWsUrl = async (): Promise<void> => {
   try {
-    const httpBase = mcpServerUrl.replace(/^ws/, 'http').replace(/\/ws(\?.*)?$/, '');
+    const httpBase = mcpServerUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
     const res = await fetch(`${httpBase}/ws-info`, { signal: AbortSignal.timeout(3_000) });
     if (res.ok) {
-      const wsInfo = (await res.json()) as { wsUrl?: string };
+      const wsInfo = (await res.json()) as { wsUrl?: string; wsSecret?: string };
       if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '' && wsInfo.wsUrl !== mcpServerUrl) {
         if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
           mcpServerUrl = wsInfo.wsUrl;
         }
+      }
+      if (typeof wsInfo.wsSecret === 'string' && wsInfo.wsSecret !== '') {
+        wsSecret = wsInfo.wsSecret;
       }
     }
   } catch {
@@ -229,7 +234,9 @@ const connect = async (): Promise<void> => {
   connecting = true;
   try {
     await refreshWsUrl();
-    ws = new WebSocket(mcpServerUrl);
+    // Send auth token via Sec-WebSocket-Protocol header (not URL query)
+    // to keep it out of server logs, browser history, and proxy logs.
+    ws = wsSecret ? new WebSocket(mcpServerUrl, ['opentabs', wsSecret]) : new WebSocket(mcpServerUrl);
   } catch {
     scheduleReconnect();
     return;
@@ -332,12 +339,12 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, _sender, sendRes
     case 'ws:setUrl': {
       void (async () => {
         const rawUrl = message.url;
-        const httpBase = rawUrl.replace(/^ws/, 'http').replace(/\/ws(\?.*)?$/, '');
+        const httpBase = rawUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
         let resolvedUrl = rawUrl;
         try {
           const res = await fetch(`${httpBase}/ws-info`, { signal: AbortSignal.timeout(3_000) });
           if (res.ok) {
-            const wsInfo = (await res.json()) as { wsUrl?: string };
+            const wsInfo = (await res.json()) as { wsUrl?: string; wsSecret?: string };
             if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '') {
               if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
                 resolvedUrl = wsInfo.wsUrl;
@@ -347,6 +354,9 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, _sender, sendRes
               }
             } else if (typeof wsInfo.wsUrl === 'string') {
               console.warn('[opentabs:offscreen] /ws-info returned empty wsUrl, using fallback URL');
+            }
+            if (typeof wsInfo.wsSecret === 'string' && wsInfo.wsSecret !== '') {
+              wsSecret = wsInfo.wsSecret;
             }
           }
         } catch {

@@ -13,7 +13,7 @@
  * All tests use dynamic ports and are safe for parallel execution.
  */
 
-import { test, expect, fetchWsUrl, createMcpClient } from './fixtures.js';
+import { test, expect, fetchWsInfo, createMcpClient } from './fixtures.js';
 import {
   waitForLog,
   waitForExtensionConnected,
@@ -290,8 +290,8 @@ test.describe('Tool call during reconnect window', () => {
 
     // Steal the extension's WebSocket slot with a fake client to disconnect the real extension
     mcpServer.logs.length = 0;
-    const wsUrl = await fetchWsUrl(mcpServer.port);
-    const fakeWs = new WebSocket(wsUrl);
+    const { wsUrl, wsSecret } = await fetchWsInfo(mcpServer.port);
+    const fakeWs = wsSecret ? new WebSocket(wsUrl, ['opentabs', wsSecret]) : new WebSocket(wsUrl);
     await new Promise<void>((resolve, reject) => {
       fakeWs.onopen = () => resolve();
       fakeWs.onerror = () => reject(new Error('WebSocket connect failed'));
@@ -333,8 +333,8 @@ test.describe('Tool call during reconnect window', () => {
 
     // Disconnect the extension by stealing the WS slot
     mcpServer.logs.length = 0;
-    const wsUrl = await fetchWsUrl(mcpServer.port);
-    const fakeWs = new WebSocket(wsUrl);
+    const { wsUrl: fakeUrl, wsSecret: fakeSecret } = await fetchWsInfo(mcpServer.port);
+    const fakeWs = fakeSecret ? new WebSocket(fakeUrl, ['opentabs', fakeSecret]) : new WebSocket(fakeUrl);
     await new Promise<void>((resolve, reject) => {
       fakeWs.onopen = () => resolve();
       fakeWs.onerror = () => reject(new Error('WebSocket connect failed'));
@@ -496,8 +496,8 @@ test.describe('Server-side dispatch timeout', () => {
     const timeoutClient = createMcpClient(mcpServer.port, mcpServer.secret);
     await timeoutClient.initialize();
 
-    // Get the authenticated WS URL
-    const wsUrl = await fetchWsUrl(mcpServer.port);
+    // Get the authenticated WS URL and secret
+    const { wsUrl, wsSecret: timeoutWsSecret } = await fetchWsInfo(mcpServer.port);
 
     // Set the test server to a 60s delay so the adapter is blocked waiting for
     // the HTTP response when we replace the WebSocket. Without this, the echo
@@ -518,7 +518,7 @@ test.describe('Server-side dispatch timeout', () => {
     // state.extensionWs is now the fake WS, the close handler doesn't reject
     // pending dispatches. The extension's response has nowhere to go.
     mcpServer.logs.length = 0;
-    const fakeWs = new WebSocket(wsUrl);
+    const fakeWs = timeoutWsSecret ? new WebSocket(wsUrl, ['opentabs', timeoutWsSecret]) : new WebSocket(wsUrl);
     await new Promise<void>((resolve, reject) => {
       fakeWs.onopen = () => resolve();
       fakeWs.onerror = () => reject(new Error('Fake WebSocket connect failed'));
@@ -709,8 +709,8 @@ test.describe('Malformed WebSocket messages', () => {
     // The extension will reconnect and replace the raw WS in turn, so we must
     // send all malformed messages and verify the ping/pong quickly before the
     // extension's reconnect timer fires.
-    const wsUrl = await fetchWsUrl(mcpServer.port);
-    const rawWs = new WebSocket(wsUrl);
+    const { wsUrl: rawWsUrl, wsSecret: rawWsSecret } = await fetchWsInfo(mcpServer.port);
+    const rawWs = rawWsSecret ? new WebSocket(rawWsUrl, ['opentabs', rawWsSecret]) : new WebSocket(rawWsUrl);
     await new Promise<void>((resolve, reject) => {
       rawWs.onopen = () => resolve();
       rawWs.onerror = () => reject(new Error('Raw WebSocket connect failed'));

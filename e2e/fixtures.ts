@@ -999,7 +999,7 @@ const test = base.extend<TestFixtures>({
 });
 
 /**
- * Fetch the authenticated WebSocket URL from the MCP server's /ws-info endpoint.
+ * Fetch the WebSocket URL and auth secret from the MCP server's /ws-info endpoint.
  * Falls back to unauthenticated URL if the endpoint is unavailable.
  */
 const fetchWsUrl = async (port: number): Promise<string> => {
@@ -1017,12 +1017,35 @@ const fetchWsUrl = async (port: number): Promise<string> => {
   return `ws://localhost:${port}/ws`;
 };
 
+/**
+ * Fetch the WebSocket URL and auth secret as separate values from /ws-info.
+ * Used by tests that need to connect with the secret via Sec-WebSocket-Protocol.
+ */
+const fetchWsInfo = async (port: number): Promise<{ wsUrl: string; wsSecret: string | null }> => {
+  try {
+    const res = await fetch(`http://localhost:${port}/ws-info`, {
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (res.ok) {
+      const info = (await res.json()) as { wsUrl?: string; wsSecret?: string };
+      return {
+        wsUrl: typeof info.wsUrl === 'string' ? info.wsUrl : `ws://localhost:${port}/ws`,
+        wsSecret: typeof info.wsSecret === 'string' ? info.wsSecret : null,
+      };
+    }
+  } catch {
+    // Server may not support /ws-info yet
+  }
+  return { wsUrl: `ws://localhost:${port}/ws`, wsSecret: null };
+};
+
 export { expect } from '@playwright/test';
 export {
   test,
   waitForHealth,
   fetchHealth,
   fetchWsUrl,
+  fetchWsInfo,
   createTestConfigDir,
   cleanupTestConfigDir,
   readTestConfig,

@@ -76,7 +76,7 @@ const createHandleFetch =
   async (
     req: Request,
     bunServer: {
-      upgrade: (req: Request, opts: { data: unknown }) => boolean;
+      upgrade: (req: Request, opts: { data: unknown; headers?: HeadersInit }) => boolean;
       timeout: (req: Request, seconds: number) => void;
     },
   ): Promise<Response | undefined> => {
@@ -97,12 +97,25 @@ const createHandleFetch =
 
     // --- WebSocket upgrade for extension ---
     if (url.pathname === '/ws') {
-      // Authenticate WebSocket connections using a shared secret
+      // Authenticate WebSocket connections using a shared secret sent via
+      // the Sec-WebSocket-Protocol header (not URL query params, which leak
+      // into server logs, browser history, and proxy logs).
+      // The client sends protocols: ['opentabs', '<secret>'] and the server
+      // echoes 'opentabs' as the accepted subprotocol.
       if (state.wsSecret) {
-        const token = url.searchParams.get('token');
-        if (token !== state.wsSecret) {
+        const protocols = req.headers.get('sec-websocket-protocol');
+        const parts = protocols?.split(',').map(p => p.trim()) ?? [];
+        if (!parts.includes(state.wsSecret)) {
           return new Response('Unauthorized', { status: 401 });
         }
+        const upgraded = bunServer.upgrade(req, {
+          data: undefined,
+          headers: { 'sec-websocket-protocol': 'opentabs' },
+        });
+        if (!upgraded) {
+          return new Response('WebSocket upgrade failed', { status: 400 });
+        }
+        return undefined;
       }
       const upgraded = bunServer.upgrade(req, { data: undefined });
       if (!upgraded) {
@@ -112,11 +125,15 @@ const createHandleFetch =
     }
 
     // --- WebSocket info endpoint (for extension authentication) ---
+    // Returns the WebSocket URL and secret as separate fields. The secret
+    // is sent via the Sec-WebSocket-Protocol header during the upgrade,
+    // keeping it out of URLs, logs, and browser history.
     if (url.pathname === '/ws-info' && req.method === 'GET') {
-      const wsUrl = state.wsSecret
-        ? `ws://${url.host}/ws?token=${encodeURIComponent(state.wsSecret)}`
-        : `ws://${url.host}/ws`;
-      return Response.json({ wsUrl });
+      const wsUrl = `ws://${url.host}/ws`;
+      return Response.json({
+        wsUrl,
+        ...(state.wsSecret ? { wsSecret: state.wsSecret } : {}),
+      });
     }
 
     // --- Health endpoint ---
@@ -337,7 +354,7 @@ interface HotHandlers {
   fetch: (
     req: Request,
     bunServer: {
-      upgrade: (req: Request, opts: { data: unknown }) => boolean;
+      upgrade: (req: Request, opts: { data: unknown; headers?: HeadersInit }) => boolean;
       timeout: (req: Request, seconds: number) => void;
     },
   ) => Promise<Response | undefined>;
