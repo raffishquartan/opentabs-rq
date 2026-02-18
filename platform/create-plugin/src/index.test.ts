@@ -123,6 +123,47 @@ describe('create-opentabs-plugin CLI', () => {
     });
   });
 
+  describe('error handling', () => {
+    test('invalid plugin name (uppercase) exits with code 1 and prints error', () => {
+      const { exitCode, stderr } = runCli(['MyPlugin', '--domain', 'example.com'], {
+        cwd: tmpDir,
+        configDir,
+      });
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('must be lowercase alphanumeric with hyphens');
+    });
+
+    test('reserved plugin name exits with code 1 and prints error', () => {
+      const { exitCode, stderr } = runCli(['system', '--domain', 'example.com'], {
+        cwd: tmpDir,
+        configDir,
+      });
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('reserved');
+    });
+
+    test('existing directory exits with code 1 and prints "already exists" error', () => {
+      mkdirSync(join(tmpDir, 'existing-plugin'));
+
+      const { exitCode, stderr } = runCli(['existing-plugin', '--domain', 'example.com'], {
+        cwd: tmpDir,
+        configDir,
+      });
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('already exists');
+    });
+
+    test('missing --domain flag exits with code 1 and prints usage error', () => {
+      const { exitCode, stderr } = runCli(['my-plugin'], { cwd: tmpDir, configDir });
+
+      expect(exitCode).toBe(1);
+      expect(stderr).toContain('--domain');
+    });
+  });
+
   describe('domain URL pattern generation', () => {
     test("domain '.example.com' produces wildcard URL pattern '*://*.example.com/*'", async () => {
       runCli(['wildcard-test', '--domain', '.example.com'], { cwd: tmpDir, configDir });
