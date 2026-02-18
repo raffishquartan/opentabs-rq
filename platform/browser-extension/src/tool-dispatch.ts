@@ -188,6 +188,20 @@ export const handleToolDispatch = async (params: Record<string, unknown>, id: st
   }
   const input = (rawInput ?? {}) as Record<string, unknown>;
 
+  const MAX_INPUT_SIZE = 10 * 1024 * 1024;
+  const inputJson = JSON.stringify(input);
+  if (inputJson.length > MAX_INPUT_SIZE) {
+    sendToServer({
+      jsonrpc: '2.0',
+      error: {
+        code: -32602,
+        message: `Tool input too large: ${(inputJson.length / 1024 / 1024).toFixed(1)}MB (limit: 10MB)`,
+      },
+      id,
+    });
+    return;
+  }
+
   const plugin = await getPluginMeta(pluginName);
   if (!plugin) {
     sendToServer({
