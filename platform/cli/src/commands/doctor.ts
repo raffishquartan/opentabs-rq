@@ -277,5 +277,5 @@ Examples:
     .action((_options: DoctorOptions, command: Command) => handleDoctor(command.optsWithGlobals()));
 };
 
-export { checkBunVersion, checkExtensionConnected, registerDoctorCommand };
+export { checkBunVersion, checkConfigFile, checkExtensionConnected, checkPlugins, registerDoctorCommand };
 export type { CheckResult };
