@@ -5,9 +5,12 @@
 import { clickElement } from './click-element.js';
 import { closeTab } from './close-tab.js';
 import { deleteCookies } from './delete-cookies.js';
+import { disableNetworkCapture } from './disable-network-capture.js';
+import { enableNetworkCapture } from './enable-network-capture.js';
 import { executeScript } from './execute-script.js';
 import { focusTab } from './focus-tab.js';
 import { getCookies } from './get-cookies.js';
+import { getNetworkRequests } from './get-network-requests.js';
 import { getTabContent } from './get-tab-content.js';
 import { getTabInfo } from './get-tab-info.js';
 import { listTabs } from './list-tabs.js';
@@ -41,6 +44,9 @@ const browserTools: BrowserToolDefinition[] = [
   getCookies,
   setCookie,
   deleteCookies,
+  enableNetworkCapture,
+  getNetworkRequests,
+  disableNetworkCapture,
 ];
 
 export { browserTools };
