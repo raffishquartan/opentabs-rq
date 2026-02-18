@@ -6,6 +6,7 @@ import {
   handleBrowserListTabs,
   handleBrowserNavigateTab,
   handleBrowserOpenTab,
+  handleBrowserScreenshotTab,
 } from './browser-commands.js';
 import { RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
 import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs } from './iife-injection.js';
@@ -220,6 +221,14 @@ const methodHandlers = new Map<string, MessageHandler>([
     (params, id) => {
       if (id !== undefined) {
         handleBrowserGetTabInfo(params, id).catch(console.error);
+      }
+    },
+  ],
+  [
+    'browser.screenshotTab',
+    (params, id) => {
+      if (id !== undefined) {
+        handleBrowserScreenshotTab(params, id).catch(console.error);
       }
     },
   ],

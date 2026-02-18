@@ -169,6 +169,36 @@ export const handleBrowserGetTabInfo = async (params: Record<string, unknown>, i
   }
 };
 
+export const handleBrowserScreenshotTab = async (
+  params: Record<string, unknown>,
+  id: string | number,
+): Promise<void> => {
+  try {
+    const tabId = params.tabId;
+    if (typeof tabId !== 'number') {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
+      return;
+    }
+    const tab = await chrome.tabs.update(tabId, { active: true });
+    if (!tab) {
+      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: `Tab ${tabId} not found` }, id });
+      return;
+    }
+    await chrome.windows.update(tab.windowId, { focused: true });
+    // Small delay for the tab to render after focus
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+    sendToServer({ jsonrpc: '2.0', result: { image: base64 }, id });
+  } catch (err) {
+    sendToServer({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: err instanceof Error ? err.message : String(err) },
+      id,
+    });
+  }
+};
+
 export const handleBrowserExecuteScript = async (
   params: Record<string, unknown>,
   id: string | number,

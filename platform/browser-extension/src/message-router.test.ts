@@ -35,6 +35,9 @@ const mockHandleBrowserFocusTab = mock(
 const mockHandleBrowserGetTabInfo = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
+const mockHandleBrowserScreenshotTab = mock(
+  asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+);
 const mockHandleBrowserExecuteScript = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
@@ -55,6 +58,7 @@ await mock.module('./browser-commands.js', () => ({
   handleBrowserNavigateTab: mockHandleBrowserNavigateTab,
   handleBrowserFocusTab: mockHandleBrowserFocusTab,
   handleBrowserGetTabInfo: mockHandleBrowserGetTabInfo,
+  handleBrowserScreenshotTab: mockHandleBrowserScreenshotTab,
   handleBrowserExecuteScript: mockHandleBrowserExecuteScript,
 }));
 
@@ -401,6 +405,7 @@ const resetRoutingMocks = (): void => {
   mockHandleBrowserOpenTab.mockReset();
   mockHandleBrowserCloseTab.mockReset();
   mockHandleBrowserNavigateTab.mockReset();
+  mockHandleBrowserScreenshotTab.mockReset();
   mockHandleBrowserExecuteScript.mockReset();
 };
 
@@ -413,6 +418,7 @@ describe('handleServerMessage', () => {
     mockHandleBrowserOpenTab.mockResolvedValue(undefined);
     mockHandleBrowserCloseTab.mockResolvedValue(undefined);
     mockHandleBrowserNavigateTab.mockResolvedValue(undefined);
+    mockHandleBrowserScreenshotTab.mockResolvedValue(undefined);
     mockHandleBrowserExecuteScript.mockResolvedValue(undefined);
   });
 
@@ -586,6 +592,17 @@ describe('handleServerMessage', () => {
 
       expect(mockHandleBrowserGetTabInfo).toHaveBeenCalledTimes(1);
       expect(mockHandleBrowserGetTabInfo).toHaveBeenCalledWith({ tabId: 11 }, 26);
+    });
+
+    test('dispatches browser.screenshotTab to handleBrowserScreenshotTab', () => {
+      handleServerMessage({
+        method: 'browser.screenshotTab',
+        id: 27,
+        params: { tabId: 12 },
+      });
+
+      expect(mockHandleBrowserScreenshotTab).toHaveBeenCalledTimes(1);
+      expect(mockHandleBrowserScreenshotTab).toHaveBeenCalledWith({ tabId: 12 }, 27);
     });
 
     test('dispatches browser.executeScript to handleBrowserExecuteScript', () => {

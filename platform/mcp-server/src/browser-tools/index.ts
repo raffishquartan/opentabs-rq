@@ -10,6 +10,7 @@ import { listTabs } from './list-tabs.js';
 import { navigateTab } from './navigate-tab.js';
 import { openTab } from './open-tab.js';
 import { reloadExtension } from './reload-extension.js';
+import { screenshotTab } from './screenshot-tab.js';
 import type { BrowserToolDefinition } from './definition.js';
 
 const browserTools: BrowserToolDefinition[] = [
@@ -21,6 +22,7 @@ const browserTools: BrowserToolDefinition[] = [
   focusTab,
   getTabInfo,
   executeScript,
+  screenshotTab,
 ];
 
 export { browserTools };
