@@ -37,7 +37,7 @@ for (const { entrypoint, outfile, label } of entries) {
   });
 
   if (!result.success) {
-    console.error(`[${label}] Bundle failed:`);
+    console.error(`[opentabs:build:${label}] Bundle failed:`);
     for (const log of result.logs) {
       console.error(log);
     }
@@ -49,13 +49,13 @@ for (const { entrypoint, outfile, label } of entries) {
   // exact output path since we're overwriting the tsc-produced file.
   const output = result.outputs[0];
   if (!output) {
-    console.error(`[${label}] Bundle produced no output`);
+    console.error(`[opentabs:build:${label}] Bundle produced no output`);
     failed = true;
     continue;
   }
 
   await Bun.write(outfile, output);
-  console.log(`[${label}] Bundled successfully`);
+  console.log(`[opentabs:build:${label}] Bundled successfully`);
 }
 
 if (failed) {

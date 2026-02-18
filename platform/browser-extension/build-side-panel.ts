@@ -20,11 +20,11 @@ const result = await Bun.build({
 });
 
 if (!result.success) {
-  console.error('Side panel build failed:');
+  console.error('[opentabs:build:side-panel] Build failed:');
   for (const log of result.logs) {
     console.error(log);
   }
   process.exit(1);
 }
 
-console.log('[side-panel] Built successfully');
+console.log('[opentabs:build:side-panel] Built successfully');
