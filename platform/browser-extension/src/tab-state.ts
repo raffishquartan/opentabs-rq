@@ -280,7 +280,9 @@ export const checkTabStateChanges = async (
       });
       pluginLocks.set(
         plugin.name,
-        next.catch(() => {}),
+        next.catch((err: unknown) => {
+          console.warn('[opentabs] tab state check failed for plugin', plugin.name, ':', err);
+        }),
       );
       return next;
     }),
