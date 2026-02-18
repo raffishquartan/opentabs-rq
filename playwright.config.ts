@@ -2,6 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  globalTeardown: './e2e/global-teardown.ts',
   forbidOnly: !!process.env.CI,
   timeout: 120_000, // 2 min per test — hot reload + backoff needs headroom
   expect: {

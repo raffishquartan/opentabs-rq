@@ -423,6 +423,15 @@ const server = Bun.serve({
 
 console.log(`[e2e-test-server] Listening on http://localhost:${String(server.port)}`);
 
+// Ensure the process exits on SIGTERM/SIGINT so parent kill() calls
+// reliably terminate the subprocess (Bun.serve keeps the event loop alive).
+const shutdown = () => {
+  void server.stop();
+  process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
 // Export for programmatic use in tests
 export { server, state };
 export type { ServerState, Invocation };

@@ -242,6 +242,41 @@ const copyE2eTestPlugin = (): { pluginDir: string; tmpDir: string } => {
 };
 
 // ---------------------------------------------------------------------------
+// Reliable process kill helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Kill a child process reliably: send SIGTERM, wait for exit, escalate to
+ * SIGKILL after `graceMs`, and always wait for the 'exit' event before
+ * resolving. This prevents orphaned processes from surviving kill attempts.
+ */
+const killProcess = (proc: ChildProcess, graceMs = 5_000): Promise<void> => {
+  if (proc.exitCode !== null) return Promise.resolve();
+  return new Promise<void>(resolve => {
+    const onExit = () => {
+      clearTimeout(fallback);
+      resolve();
+    };
+    proc.once('exit', onExit);
+    const fallback = setTimeout(() => {
+      try {
+        proc.kill('SIGKILL');
+      } catch {
+        /* already dead */
+      }
+    }, graceMs);
+    try {
+      proc.kill('SIGTERM');
+    } catch {
+      // Process may have exited between the exitCode check and kill call
+      clearTimeout(fallback);
+      proc.removeListener('exit', onExit);
+      resolve();
+    }
+  });
+};
+
+// ---------------------------------------------------------------------------
 // MCP server subprocess manager
 // ---------------------------------------------------------------------------
 
@@ -337,7 +372,7 @@ const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: n
         const actualPort = parsePortFromLogs(logs);
         if (!actualPort) {
           resolved = true;
-          proc.kill();
+          void killProcess(proc);
           reject(new Error(`MCP server started but could not parse port from logs.\nLogs:\n${logs.join('\n')}`));
           return;
         }
@@ -382,28 +417,7 @@ const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: n
         rewriteWrapper();
       },
       async kill() {
-        if (proc.exitCode !== null) return;
-        return new Promise<void>(res => {
-          let resolved = false;
-          const done = () => {
-            if (resolved) return;
-            resolved = true;
-            res();
-          };
-          const fallback = setTimeout(() => {
-            try {
-              proc.kill('SIGKILL');
-            } catch {
-              /* already dead */
-            }
-            done();
-          }, 5_000);
-          proc.on('exit', () => {
-            clearTimeout(fallback);
-            done();
-          });
-          proc.kill('SIGTERM');
-        });
+        await killProcess(proc, 5_000);
       },
     };
 
@@ -421,7 +435,7 @@ const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: n
     setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        proc.kill();
+        void killProcess(proc);
         reject(new Error(`MCP server did not start within 15s.\nLogs:\n${logs.join('\n')}`));
       }
     }, 15_000);
@@ -471,7 +485,7 @@ const startServerProcess = (entryFile: string, label: string): Promise<TestServe
         const actualPort = parsePortFromLogs(logs);
         if (!actualPort) {
           resolved = true;
-          proc.kill();
+          void killProcess(proc);
           reject(new Error(`${label} started but could not parse port.\nLogs:\n${logs.join('\n')}`));
           return;
         }
@@ -545,35 +559,14 @@ const startServerProcess = (entryFile: string, label: string): Promise<TestServe
         return data.invocations;
       },
       async kill() {
-        if (proc.exitCode !== null) return;
-        return new Promise<void>(res => {
-          let resolved = false;
-          const done = () => {
-            if (resolved) return;
-            resolved = true;
-            res();
-          };
-          const fallback = setTimeout(() => {
-            try {
-              proc.kill('SIGKILL');
-            } catch {
-              /* */
-            }
-            done();
-          }, 3_000);
-          proc.on('exit', () => {
-            clearTimeout(fallback);
-            done();
-          });
-          proc.kill('SIGTERM');
-        });
+        await killProcess(proc, 3_000);
       },
     };
 
     setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        proc.kill();
+        void killProcess(proc);
         reject(new Error(`${label} did not start within 10s`));
       }
     }, 10_000);

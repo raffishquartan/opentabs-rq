@@ -391,27 +391,54 @@ export const setupIsolatedIifeTest = async (configDirPrefix: string): Promise<Is
   }
   writeTestConfig(configDir, { plugins: [pluginDir], tools });
 
-  const server = await startMcpServer(configDir, true);
-  const testSrv = await startTestServer();
+  // Track resources as they're created so partial failures clean up
+  // everything that was started before the throw.
+  let server: McpServer | undefined;
+  let testSrv: TestServer | undefined;
+  let context: BrowserContext | undefined;
+  let cleanupDir: string | undefined;
 
-  const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port);
-  setupAdapterSymlink(configDir, extensionDir);
+  try {
+    server = await startMcpServer(configDir, true);
+    testSrv = await startTestServer();
 
-  const client = createMcpClient(server.port);
+    const ext = await launchExtensionContext(server.port);
+    context = ext.context;
+    cleanupDir = ext.cleanupDir;
+    setupAdapterSymlink(configDir, ext.extensionDir);
 
-  await client.initialize();
-  await waitForExtensionConnected(server);
-  await waitForLog(server, 'tab.syncAll received');
+    const client = createMcpClient(server.port);
 
-  const cleanup = async () => {
-    await client.close();
-    await context.close();
-    await server.kill();
-    await testSrv.kill();
+    await client.initialize();
+    await waitForExtensionConnected(server);
+    await waitForLog(server, 'tab.syncAll received');
+
+    // Capture definite values for the cleanup closure (avoids non-null assertions
+    // since the outer let bindings are typed as T | undefined).
+    const finalContext = context;
+    const finalServer = server;
+    const finalTestSrv = testSrv;
+    const finalCleanupDir = cleanupDir;
+
+    const cleanup = async () => {
+      await client.close();
+      await finalContext.close();
+      await finalServer.kill();
+      await finalTestSrv.kill();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      fs.rmSync(finalCleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    };
+
+    return { pluginDir, configDir, server, testServer: testSrv, context, client, cleanup };
+  } catch (error) {
+    // Clean up any resources that were successfully created before the failure
+    if (context) await context.close().catch(() => {});
+    if (testSrv) await testSrv.kill().catch(() => {});
+    if (server) await server.kill().catch(() => {});
+    if (cleanupDir) fs.rmSync(cleanupDir, { recursive: true, force: true });
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    fs.rmSync(cleanupDir, { recursive: true, force: true });
     cleanupTestConfigDir(configDir);
-  };
-
-  return { pluginDir, configDir, server, testServer: testSrv, context, client, cleanup };
+    throw error;
+  }
 };
