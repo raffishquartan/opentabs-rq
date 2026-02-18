@@ -35,6 +35,23 @@ import type { ZodError } from 'zod';
 /** Maximum concurrent tool dispatches per plugin to prevent tab performance degradation */
 const MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 5;
 
+/** Keys that could trigger prototype pollution in JSON deserialization */
+const DANGEROUS_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/**
+ * Recursively remove dangerous keys from objects to prevent prototype pollution
+ * in MCP clients that use naive JSON deserialization.
+ */
+const sanitizeOutput = (obj: unknown, depth = 0): unknown => {
+  if (depth > 50 || obj === null || obj === undefined || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(item => sanitizeOutput(item, depth + 1));
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (!DANGEROUS_KEYS.has(key)) result[key] = sanitizeOutput(value, depth + 1);
+  }
+  return result;
+};
+
 /** Map trust tier to a human-readable prefix for MCP tool descriptions */
 const trustTierPrefix = (tier: TrustTier): string => {
   switch (tier) {
@@ -238,7 +255,7 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
       try {
         const result = await cachedBt.tool.handler(parseResult.data, state);
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(sanitizeOutput(result), null, 2) }],
         };
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -347,7 +364,7 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
       const output = (result as Record<string, unknown>).output ?? result;
 
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(sanitizeOutput(output), null, 2) }],
       };
     } catch (err) {
       success = false;
