@@ -200,16 +200,15 @@ const connect = async (): Promise<void> => {
   }
 
   connecting = true;
-  await refreshWsUrl();
-
   try {
+    await refreshWsUrl();
     ws = new WebSocket(mcpServerUrl);
   } catch {
-    connecting = false;
     scheduleReconnect();
     return;
+  } finally {
+    connecting = false;
   }
-  connecting = false;
 
   ws.onopen = () => {
     backoffMs = INITIAL_BACKOFF_MS; // Reset backoff on success
