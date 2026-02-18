@@ -1,4 +1,4 @@
-import { checkBrowserToolReferences, pluginNameFromPackage } from './discovery.js';
+import { checkBrowserToolReferences, determineTrustTier, pluginNameFromPackage } from './discovery.js';
 import { describe, expect, test } from 'bun:test';
 
 describe('pluginNameFromPackage', () => {
@@ -32,6 +32,32 @@ describe('pluginNameFromPackage', () => {
 
   test('handles empty scope', () => {
     expect(pluginNameFromPackage('@/opentabs-plugin-test')).toBe('-test');
+  });
+});
+
+describe('determineTrustTier', () => {
+  test('returns local when isLocal is true with a package name', () => {
+    expect(determineTrustTier('some-package', true)).toBe('local');
+  });
+
+  test('returns local when isLocal is true with null package name', () => {
+    expect(determineTrustTier(null, true)).toBe('local');
+  });
+
+  test('returns official for @opentabs-dev scoped package', () => {
+    expect(determineTrustTier('@opentabs-dev/plugin-name', false)).toBe('official');
+  });
+
+  test('returns community for unscoped package', () => {
+    expect(determineTrustTier('some-random-package', false)).toBe('community');
+  });
+
+  test('returns community for null package name when not local', () => {
+    expect(determineTrustTier(null, false)).toBe('community');
+  });
+
+  test('returns community for non-opentabs-dev scoped package', () => {
+    expect(determineTrustTier('@other-scope/plugin', false)).toBe('community');
   });
 });
 
