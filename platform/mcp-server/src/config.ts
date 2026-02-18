@@ -59,6 +59,13 @@ const atomicWriteConfig = async (configPath: string, content: string): Promise<v
   }
 };
 
+/** Generate a 256-bit cryptographic random secret as a 64-character hex string. */
+const generateSecret = (): string => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+};
+
 /** Returned when config cannot be loaded (file corrupted, permissions error, etc.) */
 const FALLBACK_CONFIG: OpentabsConfig = {
   plugins: [],
@@ -80,7 +87,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
     const configFile = Bun.file(configPath);
     if (!(await configFile.exists())) {
       // First run — create default config with a fresh shared secret
-      const config: OpentabsConfig = { plugins: [], tools: {}, secret: crypto.randomUUID(), npmPlugins: [] };
+      const config: OpentabsConfig = { plugins: [], tools: {}, secret: generateSecret(), npmPlugins: [] };
       await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
       log.info(`Created default config at ${configPath}`);
       return config;
@@ -93,7 +100,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
     // Guard against non-object JSON values (arrays, primitives, null)
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
       log.warn(`Config at ${configPath} is not a JSON object — using fallback`);
-      return { ...FALLBACK_CONFIG, secret: crypto.randomUUID() };
+      return { ...FALLBACK_CONFIG, secret: generateSecret() };
     }
 
     const record = parsed as Record<string, unknown>;
@@ -120,7 +127,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
 
     // Generate secret if missing (upgrade from older config)
     if (!secret) {
-      secret = crypto.randomUUID();
+      secret = generateSecret();
       const updated: OpentabsConfig = { plugins, tools, secret, npmPlugins };
       await atomicWriteConfig(configPath, JSON.stringify(updated, null, 2) + '\n');
       log.info(`Generated WebSocket authentication secret in ${configPath}`);
@@ -129,7 +136,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
     return { plugins, tools, secret, npmPlugins };
   } catch (err) {
     log.warn(`Failed to load config from ${configPath}, using fallback:`, err);
-    return { ...FALLBACK_CONFIG, secret: crypto.randomUUID() };
+    return { ...FALLBACK_CONFIG, secret: generateSecret() };
   }
 };
 
