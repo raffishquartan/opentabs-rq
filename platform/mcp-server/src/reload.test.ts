@@ -190,8 +190,8 @@ describe('performReload', () => {
 
     await performReload(state, [srv], emptyTransports(), true);
 
-    // registerMcpHandlers calls setRequestHandler for tools/list and tools/call
-    expect(registerCalled).toBeGreaterThanOrEqual(2);
+    // registerMcpHandlers calls setRequestHandler exactly twice (tools/list + tools/call)
+    expect(registerCalled).toBe(2);
   });
 
   test('does NOT re-register MCP handlers on initial load', async () => {
@@ -235,8 +235,8 @@ describe('performReload', () => {
 
     await performReload(state, [srv], emptyTransports(), true);
 
-    // notifyToolListChanged is called from reloadCore and again from the hot reload path
-    expect(notifyCalled).toBeGreaterThanOrEqual(1);
+    // notifyToolListChanged is called once from reloadCore and once from the hot reload path
+    expect(notifyCalled).toBe(2);
   });
 });
 
