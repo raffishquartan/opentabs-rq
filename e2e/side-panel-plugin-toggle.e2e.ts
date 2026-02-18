@@ -24,7 +24,14 @@ import {
   launchExtensionContext,
   E2E_TEST_PLUGIN_DIR,
 } from './fixtures.js';
-import { waitForExtensionConnected, waitForLog, openSidePanel, setupAdapterSymlink } from './helpers.js';
+import {
+  waitForExtensionConnected,
+  waitForLog,
+  openSidePanel,
+  setupAdapterSymlink,
+  waitForToolResult,
+  openTestAppTab,
+} from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -229,6 +236,112 @@ test.describe('Side panel — tool toggle', () => {
       await mcpClient.close();
       await context.close();
       await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Disabled tool dispatch rejection
+// ---------------------------------------------------------------------------
+
+test.describe('Side panel — disabled tool dispatch rejection', () => {
+  test('calling a disabled tool via MCP client returns isError with "disabled"', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-dispatch-'));
+    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const testServer = await startTestServer();
+    const mcpClient = createMcpClient(server.port, server.secret);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await mcpClient.initialize();
+
+      // Open a matching tab so the plugin reaches 'ready' state
+      const appTab = await openTestAppTab(context, testServer.url, server, testServer);
+
+      // Wait until the echo tool is callable (tab state = ready)
+      await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'hello' }, { isError: false }, 15_000);
+
+      // Verify tool call succeeds initially
+      const successResult = await mcpClient.callTool('e2e-test_echo', { message: 'hello' });
+      expect(successResult.isError).toBe(false);
+
+      // Open side panel and disable the echo tool
+      const sidePanelPage = await openSidePanel(context);
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Expand the plugin card
+      const pluginCard = sidePanelPage.locator('button[aria-expanded]').first();
+      await pluginCard.click();
+
+      // Find and click the echo tool toggle to disable it
+      const echoToggle = sidePanelPage.locator('button[role="switch"][aria-label="Toggle echo tool"]');
+      await expect(echoToggle).toBeVisible({ timeout: 5_000 });
+      await expect(echoToggle).toHaveAttribute('aria-checked', 'true', { timeout: 5_000 });
+      await echoToggle.click();
+      await expect(echoToggle).toHaveAttribute('aria-checked', 'false', { timeout: 5_000 });
+
+      // Wait for tools/list to no longer include e2e-test_echo
+      await expect
+        .poll(
+          async () => {
+            const toolList = await mcpClient.listTools();
+            return toolList.some(t => t.name === 'e2e-test_echo');
+          },
+          { timeout: 15_000, message: 'e2e-test_echo should not appear in tools/list after being disabled' },
+        )
+        .toBe(false);
+
+      // Call the disabled tool — should return isError: true with "disabled"
+      const disabledResult = await mcpClient.callTool('e2e-test_echo', { message: 'hello' });
+      expect(disabledResult.isError).toBe(true);
+      expect(disabledResult.content).toContain('disabled');
+
+      // Re-enable the echo tool
+      await echoToggle.click();
+      await expect(echoToggle).toHaveAttribute('aria-checked', 'true', { timeout: 5_000 });
+
+      // Wait for tool to reappear in tools/list
+      await expect
+        .poll(
+          async () => {
+            const toolList = await mcpClient.listTools();
+            return toolList.some(t => t.name === 'e2e-test_echo');
+          },
+          { timeout: 15_000, message: 'e2e-test_echo should reappear in tools/list after being re-enabled' },
+        )
+        .toBe(true);
+
+      // Verify tool call succeeds again after re-enabling
+      const reenabledResult = await waitForToolResult(
+        mcpClient,
+        'e2e-test_echo',
+        { message: 'world' },
+        { isError: false },
+        15_000,
+      );
+      expect(reenabledResult.isError).toBe(false);
+
+      await sidePanelPage.close();
+      await appTab.close();
+    } finally {
+      await mcpClient.close();
+      await context.close();
+      await server.kill();
+      await testServer.kill();
       fs.rmSync(cleanupDir, { recursive: true, force: true });
       cleanupTestConfigDir(configDir);
     }
