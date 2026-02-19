@@ -407,7 +407,12 @@ const slackApi = async <T extends Record<string, unknown>>(
     throw new ToolError(`Slack API HTTP ${response.status}: ${errorText}`, 'http_error');
   }
 
-  const data: unknown = await response.json();
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new ToolError('Failed to parse Slack API response', 'invalid_response');
+  }
 
   if (typeof data !== 'object' || data === null) {
     throw new ToolError('Invalid API response format', 'invalid_response');

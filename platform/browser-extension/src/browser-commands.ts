@@ -75,6 +75,36 @@ const findFrameForResource = (
   return null;
 };
 
+/**
+ * Manages Chrome debugger attach/detach lifecycle for commands that need CDP access.
+ * Reuses an existing debugger session (from network capture) if one is active,
+ * otherwise temporarily attaches and detaches in the finally block.
+ */
+const withDebugger = async <T>(tabId: number, fn: () => Promise<T>): Promise<T> => {
+  const alreadyAttached = isCapturing(tabId);
+  if (!alreadyAttached) {
+    try {
+      await chrome.debugger.attach({ tabId }, '1.3');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        msg.includes('Another debugger')
+          ? 'Failed to attach debugger — another debugger (e.g., DevTools) is already attached. ' +
+              'Close DevTools or enable network capture first (browser_enable_network_capture) ' +
+              'so this tool can reuse the existing debugger session.'
+          : `Failed to attach debugger: ${sanitizeErrorMessage(msg)}`,
+      );
+    }
+  }
+  try {
+    return await fn();
+  } finally {
+    if (!alreadyAttached) {
+      await chrome.debugger.detach({ tabId }).catch(() => {});
+    }
+  }
+};
+
 export const handleBrowserListTabs = async (id: string | number): Promise<void> => {
   try {
     const tabs = await chrome.tabs.query({});
@@ -523,16 +553,39 @@ export const handleBrowserTypeText = async (params: Record<string, unknown>, id:
       func: (sel: string, txt: string, clr: boolean) => {
         const el = document.querySelector(sel);
         if (!el) return { error: `Element not found: ${sel}` };
-        const input = el as HTMLInputElement | HTMLTextAreaElement;
-        input.focus();
-        input.value = clr ? txt : input.value + txt;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        return {
-          typed: true,
-          tagName: el.tagName.toLowerCase(),
-          value: input.value,
-        };
+        const tag = el.tagName.toLowerCase();
+        const isEditable = tag === 'input' || tag === 'textarea' || (el as HTMLElement).isContentEditable;
+        if (!isEditable) return { error: `Element is not a text input (found <${tag}>)` };
+        if (tag === 'input' || tag === 'textarea') {
+          const input = el as HTMLInputElement | HTMLTextAreaElement;
+          input.focus();
+          input.value = clr ? txt : input.value + txt;
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          return { typed: true, tagName: tag, value: input.value };
+        }
+        // contentEditable element — insert via Selection/Range API
+        const htmlEl = el as HTMLElement;
+        htmlEl.focus();
+        if (clr) htmlEl.textContent = '';
+        const selection = window.getSelection();
+        if (selection) {
+          if (selection.rangeCount === 0) {
+            const range = document.createRange();
+            range.selectNodeContents(htmlEl);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(txt));
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        htmlEl.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: txt }));
+        return { typed: true, tagName: tag, value: htmlEl.textContent || '' };
       },
       args: [selector, text, clear],
     });
@@ -579,7 +632,7 @@ export const handleBrowserSelectOption = async (
     if (value === undefined && label === undefined) {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: 'Either value or label must be provided' },
+        error: { code: -32602, message: 'At least one of value or label must be provided' },
         id,
       });
       return;
@@ -1252,11 +1305,29 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
 
         target.dispatchEvent(new KeyboardEvent('keyup', eventInit));
 
-        // For printable characters, dispatch InputEvent on editable elements
+        // For printable characters, insert the character and dispatch InputEvent on editable elements
         if (isPrintable) {
           const tag = target.tagName.toLowerCase();
           const isEditable = tag === 'input' || tag === 'textarea' || (target as HTMLElement).isContentEditable;
           if (isEditable) {
+            if (tag === 'input' || tag === 'textarea') {
+              const input = target as HTMLInputElement | HTMLTextAreaElement;
+              const start = input.selectionStart ?? input.value.length;
+              const end = input.selectionEnd ?? start;
+              input.value = input.value.slice(0, start) + k + input.value.slice(end);
+              input.selectionStart = input.selectionEnd = start + 1;
+            } else {
+              // contentEditable — insert via Selection/Range API
+              const selection = window.getSelection();
+              if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(document.createTextNode(k));
+                range.collapse(false);
+                selection.removeAllRanges();
+                selection.addRange(range);
+              }
+            }
             target.dispatchEvent(
               new InputEvent('input', {
                 bubbles: true,
@@ -1549,56 +1620,27 @@ export const handleBrowserHandleDialog = async (
     const accept = action === 'accept';
     const promptText = typeof params.promptText === 'string' ? params.promptText : undefined;
 
-    const alreadyAttached = isCapturing(tabId);
-    if (!alreadyAttached) {
+    await withDebugger(tabId, async () => {
+      await chrome.debugger.sendCommand({ tabId }, 'Page.enable');
       try {
-        await chrome.debugger.attach({ tabId }, '1.3');
+        await chrome.debugger.sendCommand({ tabId }, 'Page.handleJavaScriptDialog', {
+          accept,
+          ...(promptText !== undefined ? { promptText } : {}),
+        });
+        sendToServer({ jsonrpc: '2.0', result: { handled: true, action }, id });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
+        const isNoDialog = msg.includes('No dialog is showing') || msg.includes('no dialog');
         sendToServer({
           jsonrpc: '2.0',
           error: {
             code: -32603,
-            message: msg.includes('Another debugger')
-              ? 'Failed to attach debugger — another debugger (e.g., DevTools) is already attached. ' +
-                'Close DevTools or enable network capture first (browser_enable_network_capture) ' +
-                'so this tool can reuse the existing debugger session.'
-              : `Failed to attach debugger: ${sanitizeErrorMessage(msg)}`,
+            message: isNoDialog ? 'No JavaScript dialog is currently open on this tab' : sanitizeErrorMessage(msg),
           },
           id,
         });
-        return;
       }
-    }
-
-    try {
-      await chrome.debugger.sendCommand({ tabId }, 'Page.enable');
-      await chrome.debugger.sendCommand({ tabId }, 'Page.handleJavaScriptDialog', {
-        accept,
-        ...(promptText !== undefined ? { promptText } : {}),
-      });
-
-      sendToServer({
-        jsonrpc: '2.0',
-        result: { handled: true, action },
-        id,
-      });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isNoDialog = msg.includes('No dialog is showing') || msg.includes('no dialog');
-      sendToServer({
-        jsonrpc: '2.0',
-        error: {
-          code: -32603,
-          message: isNoDialog ? 'No JavaScript dialog is currently open on this tab' : sanitizeErrorMessage(msg),
-        },
-        id,
-      });
-    } finally {
-      if (!alreadyAttached) {
-        await chrome.debugger.detach({ tabId }).catch(() => {});
-      }
-    }
+    });
   } catch (err) {
     sendToServer({
       jsonrpc: '2.0',
@@ -1620,29 +1662,7 @@ export const handleBrowserListResources = async (
     }
     const typeFilter = typeof params.type === 'string' ? params.type : undefined;
 
-    const alreadyAttached = isCapturing(tabId);
-    if (!alreadyAttached) {
-      try {
-        await chrome.debugger.attach({ tabId }, '1.3');
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        sendToServer({
-          jsonrpc: '2.0',
-          error: {
-            code: -32603,
-            message: msg.includes('Another debugger')
-              ? 'Failed to attach debugger — another debugger (e.g., DevTools) is already attached. ' +
-                'Close DevTools or enable network capture first (browser_enable_network_capture) ' +
-                'so this tool can reuse the existing debugger session.'
-              : `Failed to attach debugger: ${sanitizeErrorMessage(msg)}`,
-          },
-          id,
-        });
-        return;
-      }
-    }
-
-    try {
+    await withDebugger(tabId, async () => {
       await chrome.debugger.sendCommand({ tabId }, 'Page.enable');
       const treeResult = (await chrome.debugger.sendCommand({ tabId }, 'Page.getResourceTree')) as {
         frameTree: CdpFrameResourceTree;
@@ -1672,11 +1692,7 @@ export const handleBrowserListResources = async (
       resources.sort((a, b) => a.type.localeCompare(b.type) || a.url.localeCompare(b.url));
 
       sendToServer({ jsonrpc: '2.0', result: { frames, resources }, id });
-    } finally {
-      if (!alreadyAttached) {
-        await chrome.debugger.detach({ tabId }).catch(() => {});
-      }
-    }
+    });
   } catch (err) {
     sendToServer({
       jsonrpc: '2.0',
@@ -1703,29 +1719,7 @@ export const handleBrowserGetResourceContent = async (
     }
     const maxLength = typeof params.maxLength === 'number' ? params.maxLength : 500_000;
 
-    const alreadyAttached = isCapturing(tabId);
-    if (!alreadyAttached) {
-      try {
-        await chrome.debugger.attach({ tabId }, '1.3');
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        sendToServer({
-          jsonrpc: '2.0',
-          error: {
-            code: -32603,
-            message: msg.includes('Another debugger')
-              ? 'Failed to attach debugger — another debugger (e.g., DevTools) is already attached. ' +
-                'Close DevTools or enable network capture first (browser_enable_network_capture) ' +
-                'so this tool can reuse the existing debugger session.'
-              : `Failed to attach debugger: ${sanitizeErrorMessage(msg)}`,
-          },
-          id,
-        });
-        return;
-      }
-    }
-
-    try {
+    await withDebugger(tabId, async () => {
       await chrome.debugger.sendCommand({ tabId }, 'Page.enable');
 
       // Get the resource tree to find which frame owns the requested resource
@@ -1776,11 +1770,7 @@ export const handleBrowserGetResourceContent = async (
         result: { url, content, base64Encoded, mimeType: match.mimeType, truncated },
         id,
       });
-    } finally {
-      if (!alreadyAttached) {
-        await chrome.debugger.detach({ tabId }).catch(() => {});
-      }
-    }
+    });
   } catch (err) {
     sendToServer({
       jsonrpc: '2.0',

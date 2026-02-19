@@ -47,6 +47,22 @@ import type { TrustTier, WireToolDef } from '@opentabs-dev/shared';
 
 type MessageHandler = (params: Record<string, unknown>, id?: string | number) => void;
 
+/** Wraps an async request handler with the id !== undefined guard and .catch logging */
+const wrapAsync =
+  (method: string, fn: (params: Record<string, unknown>, id: string | number) => Promise<void>): MessageHandler =>
+  (params, id) => {
+    if (id !== undefined) {
+      fn(params, id).catch((err: unknown) => console.warn(`[opentabs] ${method} handler failed:`, err));
+    }
+  };
+
+/** Wraps a sync request handler with the id !== undefined guard */
+const wrapSync =
+  (fn: (params: Record<string, unknown>, id: string | number) => void): MessageHandler =>
+  (params, id) => {
+    if (id !== undefined) fn(params, id);
+  };
+
 /**
  * Methods whose notifications the side panel processes. Messages with other
  * methods are not forwarded — this avoids sending payloads like sync.full
@@ -198,357 +214,44 @@ const methodHandlers = new Map<string, MessageHandler>([
       }
     },
   ],
-  [
-    'tool.dispatch',
-    (params, id) => {
-      if (id !== undefined) {
-        handleToolDispatch(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] tool.dispatch handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.listTabs',
-    (_params, id) => {
-      if (id !== undefined) {
-        handleBrowserListTabs(id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.listTabs handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.openTab',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserOpenTab(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.openTab handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.closeTab',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserCloseTab(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.closeTab handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.navigateTab',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserNavigateTab(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.navigateTab handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.focusTab',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserFocusTab(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.focusTab handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getTabInfo',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetTabInfo(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getTabInfo handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.screenshotTab',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserScreenshotTab(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.screenshotTab handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getTabContent',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetTabContent(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getTabContent handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getPageHtml',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetPageHtml(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getPageHtml handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getStorage',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetStorage(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getStorage handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.clickElement',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserClickElement(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.clickElement handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.typeText',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserTypeText(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.typeText handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.selectOption',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserSelectOption(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.selectOption handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.waitForElement',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserWaitForElement(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.waitForElement handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.queryElements',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserQueryElements(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.queryElements handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getCookies',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetCookies(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getCookies handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.setCookie',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserSetCookie(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.setCookie handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.deleteCookies',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserDeleteCookies(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.deleteCookies handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.enableNetworkCapture',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserEnableNetworkCapture(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.enableNetworkCapture handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getNetworkRequests',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetNetworkRequests(params, id);
-      }
-    },
-  ],
-  [
-    'browser.disableNetworkCapture',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserDisableNetworkCapture(params, id);
-      }
-    },
-  ],
-  [
-    'browser.getConsoleLogs',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetConsoleLogs(params, id);
-      }
-    },
-  ],
-  [
-    'browser.clearConsoleLogs',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserClearConsoleLogs(params, id);
-      }
-    },
-  ],
-  [
-    'browser.executeScript',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserExecuteScript(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.executeScript handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.listResources',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserListResources(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.listResources handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.getResourceContent',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserGetResourceContent(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.getResourceContent handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.pressKey',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserPressKey(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.pressKey handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.scroll',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserScroll(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.scroll handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.hoverElement',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserHoverElement(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.hoverElement handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'browser.handleDialog',
-    (params, id) => {
-      if (id !== undefined) {
-        handleBrowserHandleDialog(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] browser.handleDialog handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'extension.getState',
-    (_params, id) => {
-      if (id !== undefined) {
-        handleExtensionGetState(id).catch((err: unknown) =>
-          console.warn('[opentabs] extension.getState handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'extension.getLogs',
-    (params, id) => {
-      if (id !== undefined) {
-        handleExtensionGetLogs(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] extension.getLogs handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'extension.getSidePanel',
-    (_params, id) => {
-      if (id !== undefined) {
-        handleExtensionGetSidePanel(id).catch((err: unknown) =>
-          console.warn('[opentabs] extension.getSidePanel handler failed:', err),
-        );
-      }
-    },
-  ],
-  [
-    'extension.checkAdapter',
-    (params, id) => {
-      if (id !== undefined) {
-        handleExtensionCheckAdapter(params, id).catch((err: unknown) =>
-          console.warn('[opentabs] extension.checkAdapter handler failed:', err),
-        );
-      }
-    },
-  ],
+  ['tool.dispatch', wrapAsync('tool.dispatch', handleToolDispatch)],
+  ['browser.listTabs', wrapAsync('browser.listTabs', (_params, id) => handleBrowserListTabs(id))],
+  ['browser.openTab', wrapAsync('browser.openTab', handleBrowserOpenTab)],
+  ['browser.closeTab', wrapAsync('browser.closeTab', handleBrowserCloseTab)],
+  ['browser.navigateTab', wrapAsync('browser.navigateTab', handleBrowserNavigateTab)],
+  ['browser.focusTab', wrapAsync('browser.focusTab', handleBrowserFocusTab)],
+  ['browser.getTabInfo', wrapAsync('browser.getTabInfo', handleBrowserGetTabInfo)],
+  ['browser.screenshotTab', wrapAsync('browser.screenshotTab', handleBrowserScreenshotTab)],
+  ['browser.getTabContent', wrapAsync('browser.getTabContent', handleBrowserGetTabContent)],
+  ['browser.getPageHtml', wrapAsync('browser.getPageHtml', handleBrowserGetPageHtml)],
+  ['browser.getStorage', wrapAsync('browser.getStorage', handleBrowserGetStorage)],
+  ['browser.clickElement', wrapAsync('browser.clickElement', handleBrowserClickElement)],
+  ['browser.typeText', wrapAsync('browser.typeText', handleBrowserTypeText)],
+  ['browser.selectOption', wrapAsync('browser.selectOption', handleBrowserSelectOption)],
+  ['browser.waitForElement', wrapAsync('browser.waitForElement', handleBrowserWaitForElement)],
+  ['browser.queryElements', wrapAsync('browser.queryElements', handleBrowserQueryElements)],
+  ['browser.getCookies', wrapAsync('browser.getCookies', handleBrowserGetCookies)],
+  ['browser.setCookie', wrapAsync('browser.setCookie', handleBrowserSetCookie)],
+  ['browser.deleteCookies', wrapAsync('browser.deleteCookies', handleBrowserDeleteCookies)],
+  ['browser.enableNetworkCapture', wrapAsync('browser.enableNetworkCapture', handleBrowserEnableNetworkCapture)],
+  ['browser.getNetworkRequests', wrapSync(handleBrowserGetNetworkRequests)],
+  ['browser.disableNetworkCapture', wrapSync(handleBrowserDisableNetworkCapture)],
+  ['browser.getConsoleLogs', wrapSync(handleBrowserGetConsoleLogs)],
+  ['browser.clearConsoleLogs', wrapSync(handleBrowserClearConsoleLogs)],
+  ['browser.executeScript', wrapAsync('browser.executeScript', handleBrowserExecuteScript)],
+  ['browser.listResources', wrapAsync('browser.listResources', handleBrowserListResources)],
+  ['browser.getResourceContent', wrapAsync('browser.getResourceContent', handleBrowserGetResourceContent)],
+  ['browser.pressKey', wrapAsync('browser.pressKey', handleBrowserPressKey)],
+  ['browser.scroll', wrapAsync('browser.scroll', handleBrowserScroll)],
+  ['browser.hoverElement', wrapAsync('browser.hoverElement', handleBrowserHoverElement)],
+  ['browser.handleDialog', wrapAsync('browser.handleDialog', handleBrowserHandleDialog)],
+  ['extension.getState', wrapAsync('extension.getState', (_params, id) => handleExtensionGetState(id))],
+  ['extension.getLogs', wrapAsync('extension.getLogs', handleExtensionGetLogs)],
+  ['extension.getSidePanel', wrapAsync('extension.getSidePanel', (_params, id) => handleExtensionGetSidePanel(id))],
+  ['extension.checkAdapter', wrapAsync('extension.checkAdapter', handleExtensionCheckAdapter)],
   [
     'extension.forceReconnect',
-    (_params, id) => {
-      if (id !== undefined) {
-        handleExtensionForceReconnect(id).catch((err: unknown) =>
-          console.warn('[opentabs] extension.forceReconnect handler failed:', err),
-        );
-      }
-    },
+    wrapAsync('extension.forceReconnect', (_params, id) => handleExtensionForceReconnect(id)),
   ],
 ]);
 
