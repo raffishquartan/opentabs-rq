@@ -235,8 +235,9 @@ describe('performReload', () => {
 
     await performReload(state, [srv], emptyTransports(), true);
 
-    // notifyToolListChanged is called once from reloadCore and once from the hot reload path
-    expect(notifyCalled).toBe(2);
+    // notifyToolListChanged is called exactly once from the hot reload path
+    // (reloadCore does not notify — each caller is responsible)
+    expect(notifyCalled).toBe(1);
   });
 });
 

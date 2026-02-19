@@ -57,8 +57,9 @@ interface ReloadCoreArgs {
 
 /**
  * Shared reload core: discovery, state swap, pruning, file watcher restart,
- * extension sync, and client notification. Both performReload and
- * performConfigReload delegate to this function.
+ * and extension sync. Both performReload and performConfigReload delegate to
+ * this function. Callers are responsible for notifying MCP clients of tool
+ * list changes after this function returns.
  *
  * Wraps discovery in an inner try/catch so file watchers are always restarted
  * regardless of discovery success or failure.
@@ -172,8 +173,6 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     state.outdatedPlugins = state.outdatedPlugins.filter(o =>
       Array.from(state.plugins.values()).some(p => p.npmPackageName === o.name),
     );
-
-    notifyAllClients();
   } catch (err) {
     // Discovery or config loading failed. State retains whatever plugins
     // it had before this reload attempt (old set on hot reload, empty on
@@ -344,6 +343,13 @@ const performConfigReload = async (
     restartSweepTimer(state, transports, sessionServers);
 
     await reloadCore({ state, sessionServers, transports });
+
+    // Notify all MCP clients that the tool list changed after config reload.
+    // (performReload handles its own notification after handler re-registration,
+    // so reloadCore itself does not notify — each caller is responsible.)
+    for (const srv of sessionServers) {
+      notifyToolListChanged(srv);
+    }
 
     log.info(`Config reload complete: ${state.plugins.size} plugin(s) in ${Date.now() - startTs}ms`);
 
