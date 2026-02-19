@@ -179,6 +179,8 @@ const createHttpServer = (): ReturnType<typeof Bun.serve> => {
         return hs.handlers.fetch(req, server);
       },
       websocket: {
+        /** Matches MAX_MESSAGE_SIZE in extension-protocol.ts (10MB) */
+        maxPayloadLength: 10 * 1024 * 1024,
         open(ws) {
           getHotState()?.handlers.wsOpen(ws);
         },
