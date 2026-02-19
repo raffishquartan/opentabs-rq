@@ -11,7 +11,7 @@ const DisconnectedState = () => (
       <Empty.Title>Not Connected</Empty.Title>
       <Empty.Separator />
       <Empty.Description>Start the MCP server:</Empty.Description>
-      <code className="border-border bg-muted rounded border-2 px-3 py-2 text-sm">
+      <code className="border-border bg-muted rounded border-2 px-3 py-2 font-mono text-sm">
         bun --hot platform/mcp-server/dist/index.js
       </code>
     </Empty.Content>

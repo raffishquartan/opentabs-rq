@@ -4,6 +4,7 @@
 @theme {
   --font-head: 'Archivo Black', sans-serif;
   --font-sans: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
   --radius: var(--radius);
 
   --shadow-xs: 1px 1px 0 0 var(--border);
