@@ -1,14 +1,11 @@
+import { bgLogCollector } from './bg-log-state.js';
 import { KEEPALIVE_ALARM, KEEPALIVE_INTERVAL_MINUTES, PLUGINS_META_KEY, WS_CONNECTED_KEY } from './constants.js';
 import { injectPluginsIntoTab, reinjectStoredPlugins } from './iife-injection.js';
-import { installLogCollector } from './log-collector.js';
 import { handleServerMessage } from './message-router.js';
 import { forwardToSidePanel, sendToServer } from './messaging.js';
 import { invalidatePluginCache } from './plugin-storage.js';
 import { checkTabStateChanges, clearTabStateCache, sendTabSyncAll } from './tab-state.js';
 import type { InternalMessage } from './types.js';
-
-/** Capture console output in a ring buffer for retrieval by debugging tools */
-const bgLogCollector = installLogCollector('background');
 
 /**
  * In-memory cache of wsConnected. Authoritative state is in chrome.storage.session
@@ -225,5 +222,3 @@ chrome.storage.onChanged.addListener((changes, area) => {
     invalidatePluginCache();
   }
 });
-
-export { bgLogCollector };

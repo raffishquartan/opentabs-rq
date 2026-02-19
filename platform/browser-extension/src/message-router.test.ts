@@ -101,6 +101,9 @@ const mockHandleBrowserHandleDialog = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
 const mockHandleExtensionGetState = mock(asyncNoop as (id: string | number) => Promise<void>);
+const mockHandleExtensionGetLogs = mock(
+  asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+);
 
 await mock.module('./messaging.js', () => ({
   sendToServer: mockSendToServer,
@@ -143,6 +146,7 @@ await mock.module('./browser-commands.js', () => ({
   handleBrowserHoverElement: mockHandleBrowserHoverElement,
   handleBrowserHandleDialog: mockHandleBrowserHandleDialog,
   handleExtensionGetState: mockHandleExtensionGetState,
+  handleExtensionGetLogs: mockHandleExtensionGetLogs,
 }));
 
 // Chrome API stubs for modules that are NOT mocked (plugin-storage, iife-injection,
@@ -512,6 +516,7 @@ const resetRoutingMocks = (): void => {
   mockHandleBrowserHoverElement.mockReset();
   mockHandleBrowserHandleDialog.mockReset();
   mockHandleExtensionGetState.mockReset();
+  mockHandleExtensionGetLogs.mockReset();
 };
 
 describe('handleServerMessage', () => {
@@ -543,6 +548,7 @@ describe('handleServerMessage', () => {
     mockHandleBrowserHoverElement.mockResolvedValue(undefined);
     mockHandleBrowserHandleDialog.mockResolvedValue(undefined);
     mockHandleExtensionGetState.mockResolvedValue(undefined);
+    mockHandleExtensionGetLogs.mockResolvedValue(undefined);
   });
 
   describe('sync.full routing', () => {
@@ -1004,6 +1010,13 @@ describe('handleServerMessage', () => {
 
       expect(mockHandleExtensionGetState).toHaveBeenCalledTimes(1);
       expect(mockHandleExtensionGetState).toHaveBeenCalledWith(49);
+    });
+
+    test('dispatches extension.getLogs to handleExtensionGetLogs', () => {
+      handleServerMessage({ method: 'extension.getLogs', id: 50, params: { level: 'error' } });
+
+      expect(mockHandleExtensionGetLogs).toHaveBeenCalledTimes(1);
+      expect(mockHandleExtensionGetLogs).toHaveBeenCalledWith({ level: 'error' }, 50);
     });
   });
 

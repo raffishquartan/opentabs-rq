@@ -44,6 +44,7 @@ export const DISPATCH_METHODS = [
   'browser.handleDialog',
   'extension.reload',
   'extension.getState',
+  'extension.getLogs',
 ] as const;
 
 /**

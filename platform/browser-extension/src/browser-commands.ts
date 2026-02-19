@@ -1,3 +1,4 @@
+import { bgLogCollector } from './bg-log-state.js';
 import { SCRIPT_TIMEOUT_MS, WS_CONNECTED_KEY } from './constants.js';
 import { sendToServer } from './messaging.js';
 import {
@@ -13,6 +14,8 @@ import { getAllPluginMeta } from './plugin-storage.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import { getLastKnownStates } from './tab-state.js';
 import { isBlockedUrlScheme } from '@opentabs-dev/shared';
+import type { LogEntry, LogFilterOptions, LogStats } from './log-collector.js';
+import type { BgGetLogsMessage } from './types.js';
 
 interface CdpFrame {
   id: string;
@@ -1834,6 +1837,78 @@ export const handleExtensionGetState = async (id: string | number): Promise<void
         plugins,
         networkCaptures,
         offscreen: { exists: offscreenExists },
+      },
+      id,
+    });
+  } catch (err) {
+    sendToServer({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: sanitizeErrorMessage(err instanceof Error ? err.message : String(err)) },
+      id,
+    });
+  }
+};
+
+export const handleExtensionGetLogs = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
+  try {
+    const filterOptions: LogFilterOptions = {};
+    if (typeof params.level === 'string' && params.level !== 'all') {
+      filterOptions.level = params.level as LogFilterOptions['level'];
+    }
+    if (typeof params.source === 'string' && params.source !== 'all') {
+      filterOptions.source = params.source as LogFilterOptions['source'];
+    }
+    if (typeof params.limit === 'number') {
+      filterOptions.limit = params.limit;
+    }
+    if (typeof params.since === 'number') {
+      filterOptions.since = params.since;
+    }
+
+    // Get background logs directly from the local collector
+    const bgEntries = bgLogCollector.getEntries(filterOptions);
+    const bgStats = bgLogCollector.getStats();
+
+    // Get offscreen logs via internal message
+    let offscreenEntries: LogEntry[] = [];
+    let offscreenStats: LogStats = {
+      totalCaptured: 0,
+      bufferSize: 0,
+      oldestTimestamp: null,
+      newestTimestamp: null,
+    };
+    try {
+      const raw: unknown = await chrome.runtime.sendMessage({
+        type: 'bg:getLogs',
+        options: Object.keys(filterOptions).length > 0 ? filterOptions : undefined,
+      } satisfies BgGetLogsMessage);
+      const response = raw as { entries?: LogEntry[]; stats?: LogStats } | undefined;
+      if (response && Array.isArray(response.entries)) {
+        offscreenEntries = response.entries;
+      }
+      if (response?.stats) {
+        offscreenStats = response.stats;
+      }
+    } catch {
+      // Offscreen document may not be running
+    }
+
+    // Merge entries by timestamp (newest first — both arrays are already newest-first)
+    const merged = [...bgEntries, ...offscreenEntries].sort((a, b) => b.timestamp - a.timestamp);
+
+    // Apply limit to the merged result
+    const limit = filterOptions.limit ?? 100;
+    const entries = merged.slice(0, limit);
+
+    sendToServer({
+      jsonrpc: '2.0',
+      result: {
+        entries,
+        stats: {
+          totalBackground: bgStats.totalCaptured,
+          totalOffscreen: offscreenStats.totalCaptured,
+          bufferSize: bgStats.bufferSize + offscreenStats.bufferSize,
+        },
       },
       id,
     });

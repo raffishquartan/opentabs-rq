@@ -29,6 +29,7 @@ import {
   handleBrowserSetCookie,
   handleBrowserTypeText,
   handleBrowserWaitForElement,
+  handleExtensionGetLogs,
   handleExtensionGetState,
 } from './browser-commands.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
@@ -502,6 +503,16 @@ const methodHandlers = new Map<string, MessageHandler>([
       if (id !== undefined) {
         handleExtensionGetState(id).catch((err: unknown) =>
           console.warn('[opentabs] extension.getState handler failed:', err),
+        );
+      }
+    },
+  ],
+  [
+    'extension.getLogs',
+    (params, id) => {
+      if (id !== undefined) {
+        handleExtensionGetLogs(params, id).catch((err: unknown) =>
+          console.warn('[opentabs] extension.getLogs handler failed:', err),
         );
       }
     },

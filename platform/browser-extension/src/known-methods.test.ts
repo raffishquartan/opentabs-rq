@@ -49,6 +49,7 @@ await mock.module('./browser-commands.js', () => ({
   handleBrowserHoverElement: mock(asyncNoop),
   handleBrowserHandleDialog: mock(asyncNoop),
   handleExtensionGetState: mock(asyncNoop),
+  handleExtensionGetLogs: mock(asyncNoop),
 }));
 
 // Chrome API stubs needed by modules that message-router imports
