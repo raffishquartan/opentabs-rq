@@ -84,7 +84,7 @@ export function RetroCodeBlock({
       data-line-numbers-start={lineNumbersStart}
       {...props}
       className={cn(
-        'shiki not-prose relative my-4 overflow-hidden border-2 text-sm shadow-md',
+        'shiki not-prose relative my-6 overflow-hidden border-2 text-sm shadow-md',
         keepBackground && 'bg-(--shiki-light-bg) dark:bg-(--shiki-dark-bg)',
         className,
       )}>

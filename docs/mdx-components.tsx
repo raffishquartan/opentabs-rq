@@ -131,7 +131,10 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     ),
     // Inline code — does not affect fenced code blocks (those are handled by the pre override)
     code: ({ className, ...props }: ComponentPropsWithoutRef<'code'>) => (
-      <code className={cn('bg-muted border-border border px-1.5 py-0.5 font-mono text-sm', className)} {...props} />
+      <code
+        className={cn('bg-muted border-border border-2 px-1.5 py-0.5 font-mono text-sm font-semibold', className)}
+        {...props}
+      />
     ),
     table: ({ className, ...props }: ComponentPropsWithoutRef<'table'>) => (
       <div className="relative my-6 w-full overflow-auto">
