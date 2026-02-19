@@ -495,4 +495,11 @@ export const checkToolCallable = (state: ServerState, prefixedToolName: string):
 };
 
 export type { McpServerInstance };
-export { createMcpServer, registerMcpHandlers, rebuildToolLookups, notifyToolListChanged, trustTierPrefix };
+export {
+  createMcpServer,
+  registerMcpHandlers,
+  rebuildToolLookups,
+  notifyToolListChanged,
+  trustTierPrefix,
+  sanitizeOutput,
+};

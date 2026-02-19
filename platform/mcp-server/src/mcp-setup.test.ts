@@ -3,6 +3,7 @@ import {
   getEnabledToolsList,
   rebuildToolLookups,
   registerMcpHandlers,
+  sanitizeOutput,
   trustTierPrefix,
 } from './mcp-setup.js';
 import { createState } from './state.js';
@@ -560,5 +561,133 @@ describe('checkToolCallable', () => {
     if (!result.ok) {
       expect(result.error).toContain('not found');
     }
+  });
+});
+
+describe('sanitizeOutput', () => {
+  // Use JSON.parse to create objects with literal "__proto__" string keys —
+  // object literals ({ __proto__: ... }) set the prototype chain rather than
+  // creating an own property, so JSON.parse is the correct way to simulate
+  // the attack vector (deserialized JSON with dangerous key names).
+  test('strips __proto__, constructor, prototype from flat object', () => {
+    const input = JSON.parse(
+      '{"a":1,"__proto__":{"evil":true},"constructor":"bad","prototype":"also bad","b":2}',
+    ) as Record<string, unknown>;
+    const result = sanitizeOutput(input) as Record<string, unknown>;
+    expect(result['a']).toBe(1);
+    expect(result['b']).toBe(2);
+    expect(Object.hasOwn(result, '__proto__')).toBe(false);
+    expect(Object.hasOwn(result, 'constructor')).toBe(false);
+    expect(Object.hasOwn(result, 'prototype')).toBe(false);
+  });
+
+  test('strips dangerous keys from nested objects at multiple depths', () => {
+    const input = JSON.parse(
+      '{"safe":{"__proto__":{"evil":true},"nested":{"constructor":"bad","value":42}}}',
+    ) as Record<string, unknown>;
+    const result = sanitizeOutput(input) as Record<string, unknown>;
+    const safe = result['safe'] as Record<string, unknown>;
+    expect(Object.hasOwn(safe, '__proto__')).toBe(false);
+    const nested = safe['nested'] as Record<string, unknown>;
+    expect(Object.hasOwn(nested, 'constructor')).toBe(false);
+    expect(nested['value']).toBe(42);
+  });
+
+  test('strips dangerous keys from objects inside arrays', () => {
+    const input = JSON.parse(
+      '[{"name":"alice","__proto__":{"evil":true}},{"name":"bob","constructor":"bad"}]',
+    ) as Array<Record<string, unknown>>;
+    const result = sanitizeOutput(input) as Array<Record<string, unknown>>;
+    expect(result[0]?.['name']).toBe('alice');
+    expect(Object.hasOwn(result[0] ?? {}, '__proto__')).toBe(false);
+    expect(result[1]?.['name']).toBe('bob');
+    expect(Object.hasOwn(result[1] ?? {}, 'constructor')).toBe(false);
+  });
+
+  test('handles mixed arrays of primitives and objects correctly', () => {
+    const input = JSON.parse('[1,"hello",null,{"__proto__":"bad","x":10},true]') as unknown[];
+    const result = sanitizeOutput(input) as unknown[];
+    expect(result[0]).toBe(1);
+    expect(result[1]).toBe('hello');
+    expect(result[2]).toBe(null);
+    const obj = result[3] as Record<string, unknown>;
+    expect(obj['x']).toBe(10);
+    expect(Object.hasOwn(obj, '__proto__')).toBe(false);
+    expect(result[4]).toBe(true);
+  });
+
+  test('depth limit boundary — object at depth 51 is returned raw', () => {
+    // Build an object nested exactly 51 levels deep:
+    // sanitizeOutput is called on root at depth=0; it recurses into children at depth+1.
+    // At depth 50, recursion still processes (depth <= 50 is false only at depth > 50).
+    // At depth 51, the check `depth > 50` triggers and returns obj unchanged.
+    let deep: unknown = { __proto__: 'should be stripped at depth 50', value: 'leaf' };
+    for (let i = 0; i < 50; i++) {
+      deep = { child: deep };
+    }
+    // Navigate 50 levels of "child" to reach the innermost object
+    let result = sanitizeOutput(deep) as Record<string, unknown>;
+    for (let i = 0; i < 50; i++) {
+      result = result['child'] as Record<string, unknown>;
+    }
+    // At depth 50 we have an object; sanitizeOutput processes it (depth=50 is not > 50)
+    // but the inner __proto__ key should be stripped since we're at depth=50 recursing to depth=51
+    // At depth=51, depth > 50 triggers — but the key-stripping happens at depth=50 in the loop,
+    // so the value is still sanitized. The raw return only affects the VALUE at depth > 50.
+    expect(result['value']).toBe('leaf');
+  });
+
+  test('depth limit — raw value returned at depth 51 prevents further sanitization', () => {
+    // Create an object so deep that the leaf is returned verbatim at depth > 50
+    const leaf = { __proto__: 'unsanitized-at-depth-51', safe: 'yes' };
+    let deep: unknown = leaf;
+    // We need a chain of 51 wrappers to push leaf to depth 51:
+    // wrapper[0] → child: wrapper[1] → ... → child: wrapper[50] → child: leaf
+    // sanitizeOutput(wrapper[0], 0) → sanitizeOutput(wrapper[1], 1) → ... → sanitizeOutput(leaf, 51)
+    // At depth 51, depth > 50 → return leaf unchanged
+    for (let i = 0; i < 51; i++) {
+      deep = { child: deep };
+    }
+    let result = sanitizeOutput(deep) as Record<string, unknown>;
+    for (let i = 0; i < 51; i++) {
+      result = result['child'] as Record<string, unknown>;
+    }
+    // The leaf is returned verbatim at depth 51 — dangerous keys are NOT stripped
+    expect(result).toBe(leaf);
+  });
+
+  test('null passes through unchanged', () => {
+    expect(sanitizeOutput(null)).toBe(null);
+  });
+
+  test('undefined passes through unchanged', () => {
+    expect(sanitizeOutput(undefined)).toBe(undefined);
+  });
+
+  test('string primitive passes through unchanged', () => {
+    expect(sanitizeOutput('hello')).toBe('hello');
+  });
+
+  test('number primitive passes through unchanged', () => {
+    expect(sanitizeOutput(42)).toBe(42);
+  });
+
+  test('boolean primitive passes through unchanged', () => {
+    expect(sanitizeOutput(true)).toBe(true);
+    expect(sanitizeOutput(false)).toBe(false);
+  });
+
+  test('empty object returns empty object', () => {
+    const result = sanitizeOutput({});
+    expect(result).toEqual({});
+  });
+
+  test('partial-match keys are NOT stripped (__proto__x, constructorHelper)', () => {
+    const input = JSON.parse('{"__proto__x":1,"myConstructor":2,"prototypeX":3,"safe":4}') as Record<string, unknown>;
+    const result = sanitizeOutput(input) as Record<string, unknown>;
+    expect(result['__proto__x']).toBe(1);
+    expect(result['myConstructor']).toBe(2);
+    expect(result['prototypeX']).toBe(3);
+    expect(result['safe']).toBe(4);
   });
 });
