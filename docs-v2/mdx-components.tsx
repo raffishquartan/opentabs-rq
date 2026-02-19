@@ -1,7 +1,79 @@
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+
+// Mapping from Fumadocs callout type to RetroUI Alert status color classes
+const calloutStatusClasses: Record<string, string> = {
+  info: 'bg-blue-300 text-blue-800 border-blue-800',
+  warn: 'bg-yellow-300 text-yellow-800 border-yellow-800',
+  warning: 'bg-yellow-300 text-yellow-800 border-yellow-800',
+  error: 'bg-red-300 text-red-800 border-red-800',
+  success: 'bg-green-300 text-green-800 border-green-800',
+  idea: 'bg-blue-300 text-blue-800 border-blue-800',
+};
+
+interface CalloutProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
+  type?: string;
+  title?: ReactNode;
+  icon?: ReactNode;
+}
+
+const RetroCallout = ({ className, type = 'info', title, icon: _icon, children, ...props }: CalloutProps) => {
+  const statusClasses = calloutStatusClasses[type] ?? calloutStatusClasses.info;
+  return (
+    <div role="alert" className={cn('relative w-full rounded border-2 p-4', statusClasses, className)} {...props}>
+      {title && <p className="font-head mb-1 text-lg font-semibold">{title}</p>}
+      <div className="font-sans text-sm">{children}</div>
+    </div>
+  );
+};
+
+interface FumadocsCardProps extends Omit<ComponentPropsWithoutRef<'div'>, 'title'> {
+  title: ReactNode;
+  description?: ReactNode;
+  icon?: ReactNode;
+  href?: string;
+  external?: boolean;
+}
+
+const RetroCard = ({ className, title, description, icon, href, external, children, ...props }: FumadocsCardProps) => {
+  const content = (
+    <>
+      {icon && <div className="mb-2 text-2xl">{icon}</div>}
+      <h3 className="font-head mb-1 text-xl font-medium">{title}</h3>
+      {description && <p className="text-muted-foreground font-sans text-sm">{description}</p>}
+      {children}
+    </>
+  );
+
+  if (href) {
+    return (
+      <a
+        href={href}
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
+        className={cn(
+          'bg-card block rounded border-2 p-4 shadow-md transition-all hover:translate-y-0.5 hover:shadow-none',
+          className,
+        )}>
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <div
+      className={cn('bg-card rounded border-2 p-4 shadow-md transition-all hover:shadow-none', className)}
+      {...props}>
+      {content}
+    </div>
+  );
+};
+
+const RetroCards = ({ className, ...props }: ComponentPropsWithoutRef<'div'>) => (
+  <div className={cn('my-6 grid grid-cols-1 gap-4 sm:grid-cols-2', className)} {...props} />
+);
 
 export function getMDXComponents(components?: MDXComponents): MDXComponents {
   return {
@@ -72,6 +144,10 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     td: ({ className, ...props }: ComponentPropsWithoutRef<'td'>) => (
       <td className={cn('p-2 align-middle md:p-3', className)} {...props} />
     ),
+    // Fumadocs MDX special components — overridden with RetroUI styling
+    Callout: RetroCallout,
+    Card: RetroCard,
+    Cards: RetroCards,
     ...components,
   };
 }

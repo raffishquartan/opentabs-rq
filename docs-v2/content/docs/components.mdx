@@ -1,0 +1,73 @@
+---
+title: Components
+description: Fumadocs MDX components styled with RetroUI neobrutalism design.
+---
+
+# Components
+
+This page demonstrates Fumadocs MDX components styled with the RetroUI neobrutalist design system.
+
+## Callout Variants
+
+<Callout type="info" title="Info Callout">
+  This is an **info** callout. Use it to highlight useful information for the reader.
+</Callout>
+
+<Callout type="warn" title="Warning Callout">
+  This is a **warning** callout. Use it to alert the reader to something important.
+</Callout>
+
+<Callout type="error" title="Error Callout">
+  This is an **error** callout. Use it to highlight critical issues or breaking changes.
+</Callout>
+
+<Callout type="success" title="Success Callout">
+  This is a **success** callout. Use it to confirm that something worked correctly.
+</Callout>
+
+<Callout type="idea" title="Idea Callout">
+  This is an **idea** callout — useful for tips, suggestions, and creative notes.
+</Callout>
+
+<Callout>
+  This callout has no type (defaults to **info**) and no title — just a body message.
+</Callout>
+
+## Cards
+
+<Cards>
+  <Card
+    title="Getting Started"
+    description="Set up OpenTabs in your project in minutes."
+    href="/docs"
+  />
+  <Card
+    title="Plugin SDK"
+    description="Build and publish your own OpenTabs plugins."
+    href="/docs"
+  />
+  <Card
+    title="MCP Server"
+    description="Connect AI agents to authenticated web sessions."
+    href="/docs"
+  />
+  <Card
+    title="Browser Extension"
+    description="The Chrome extension that powers tab control."
+    href="/docs"
+  />
+</Cards>
+
+## Card Without Link
+
+<Cards>
+  <Card title="Feature One" description="A card without an href renders as a static element." />
+  <Card title="Feature Two" description="Cards with a hover shadow reduction create a physical press feel." />
+</Cards>
+
+## Card With Icon
+
+<Cards>
+  <Card title="Extensions" icon="🔌" description="Extend OpenTabs with the plugin system." href="/docs" />
+  <Card title="Security" icon="🔒" description="All traffic goes through your own browser session." href="/docs" />
+</Cards>
