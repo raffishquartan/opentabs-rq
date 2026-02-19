@@ -699,7 +699,7 @@ test.describe.serial('Hot reload — empty to populated', () => {
 
       // Initially only browser tools should be present
       const toolsBefore = await client.listTools();
-      const pluginTools = toolsBefore.filter(t => !t.name.startsWith('browser_') && t.name !== 'extension_reload');
+      const pluginTools = toolsBefore.filter(t => !t.name.startsWith('browser_') && !t.name.startsWith('extension_'));
       expect(pluginTools.length).toBe(0);
 
       for (const bt of BROWSER_TOOL_NAMES) {

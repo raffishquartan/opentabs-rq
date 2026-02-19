@@ -29,6 +29,7 @@ import {
   handleBrowserSetCookie,
   handleBrowserTypeText,
   handleBrowserWaitForElement,
+  handleExtensionGetState,
 } from './browser-commands.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
 import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs } from './iife-injection.js';
@@ -491,6 +492,16 @@ const methodHandlers = new Map<string, MessageHandler>([
       if (id !== undefined) {
         handleBrowserHandleDialog(params, id).catch((err: unknown) =>
           console.warn('[opentabs] browser.handleDialog handler failed:', err),
+        );
+      }
+    },
+  ],
+  [
+    'extension.getState',
+    (_params, id) => {
+      if (id !== undefined) {
+        handleExtensionGetState(id).catch((err: unknown) =>
+          console.warn('[opentabs] extension.getState handler failed:', err),
         );
       }
     },

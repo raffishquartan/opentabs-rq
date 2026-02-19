@@ -1,4 +1,4 @@
-import { SCRIPT_TIMEOUT_MS } from './constants.js';
+import { SCRIPT_TIMEOUT_MS, WS_CONNECTED_KEY } from './constants.js';
 import { sendToServer } from './messaging.js';
 import {
   isCapturing,
@@ -7,8 +7,11 @@ import {
   getRequests,
   getConsoleLogs,
   clearConsoleLogs,
+  getActiveCapturesSummary,
 } from './network-capture.js';
+import { getAllPluginMeta } from './plugin-storage.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
+import { getLastKnownStates } from './tab-state.js';
 import { isBlockedUrlScheme } from '@opentabs-dev/shared';
 
 interface CdpFrame {
@@ -1775,6 +1778,65 @@ export const handleBrowserGetResourceContent = async (
         await chrome.debugger.detach({ tabId }).catch(() => {});
       }
     }
+  } catch (err) {
+    sendToServer({
+      jsonrpc: '2.0',
+      error: { code: -32603, message: sanitizeErrorMessage(err instanceof Error ? err.message : String(err)) },
+      id,
+    });
+  }
+};
+
+export const handleExtensionGetState = async (id: string | number): Promise<void> => {
+  try {
+    // Connection state from chrome.storage.session
+    const sessionData: Record<string, unknown> = await chrome.storage.session
+      .get(WS_CONNECTED_KEY)
+      .catch(() => ({}) as Record<string, unknown>);
+    const wsConnected = typeof sessionData[WS_CONNECTED_KEY] === 'boolean' ? sessionData[WS_CONNECTED_KEY] : false;
+
+    // MCP server URL from chrome.storage.local
+    const localData: Record<string, unknown> = await chrome.storage.local
+      .get('mcpServerUrl')
+      .catch(() => ({}) as Record<string, unknown>);
+    const mcpServerUrl = typeof localData.mcpServerUrl === 'string' ? localData.mcpServerUrl : 'ws://localhost:9515/ws';
+
+    // Plugin metadata with tab states
+    const pluginIndex = await getAllPluginMeta();
+    const lastKnownStates = getLastKnownStates();
+    const plugins = Object.values(pluginIndex).map(meta => ({
+      name: meta.name,
+      version: meta.version,
+      displayName: meta.displayName,
+      urlPatterns: meta.urlPatterns,
+      toolCount: meta.tools.length,
+      tabState: lastKnownStates.get(meta.name) ?? 'closed',
+    }));
+
+    // Active network captures
+    const networkCaptures = getActiveCapturesSummary();
+
+    // Offscreen document existence
+    let offscreenExists = false;
+    try {
+      const contexts = await chrome.runtime.getContexts({
+        contextTypes: ['OFFSCREEN_DOCUMENT' as chrome.runtime.ContextType],
+      });
+      offscreenExists = contexts.length > 0;
+    } catch {
+      // chrome.runtime.getContexts may not be available in all Chrome versions
+    }
+
+    sendToServer({
+      jsonrpc: '2.0',
+      result: {
+        connection: { wsConnected, mcpServerUrl },
+        plugins,
+        networkCaptures,
+        offscreen: { exists: offscreenExists },
+      },
+      id,
+    });
   } catch (err) {
     sendToServer({
       jsonrpc: '2.0',

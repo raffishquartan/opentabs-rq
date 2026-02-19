@@ -52,7 +52,7 @@ test.describe('Config watcher — auto-discovery', () => {
       // Initially only browser tools should be present
       const toolsBefore = await client.listTools();
       const pluginToolsBefore = toolsBefore.filter(
-        t => !t.name.startsWith('browser_') && t.name !== 'extension_reload',
+        t => !t.name.startsWith('browser_') && !t.name.startsWith('extension_'),
       );
       expect(pluginToolsBefore.length).toBe(0);
 

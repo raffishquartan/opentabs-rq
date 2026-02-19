@@ -43,6 +43,7 @@ export const DISPATCH_METHODS = [
   'browser.hoverElement',
   'browser.handleDialog',
   'extension.reload',
+  'extension.getState',
 ] as const;
 
 /**

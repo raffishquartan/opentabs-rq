@@ -233,6 +233,7 @@ export const BROWSER_TOOL_NAMES = [
   'browser_scroll',
   'browser_hover_element',
   'browser_handle_dialog',
+  'extension_get_state',
 ];
 
 // ---------------------------------------------------------------------------

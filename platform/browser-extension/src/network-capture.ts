@@ -309,3 +309,11 @@ export const clearConsoleLogs = (tabId: number): void => {
     state.consoleLogs = [];
   }
 };
+
+/** Return a summary of all active network captures for state inspection. */
+export const getActiveCapturesSummary = (): Array<{ tabId: number; requestCount: number; isCapturing: boolean }> =>
+  Array.from(captures.entries()).map(([tabId, state]) => ({
+    tabId,
+    requestCount: state.requests.length,
+    isCapturing: true,
+  }));

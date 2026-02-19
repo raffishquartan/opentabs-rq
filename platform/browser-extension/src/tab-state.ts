@@ -168,6 +168,9 @@ export const clearPluginTabState = (pluginName: string): void => {
   pluginLocks.delete(pluginName);
 };
 
+/** Return a snapshot of last-known tab states for all plugins. */
+export const getLastKnownStates = (): ReadonlyMap<string, TabState> => lastKnownState;
+
 /**
  * Check if a tab change (URL update or removal) affects any plugin's tab state,
  * and send tab.stateChanged notifications for affected plugins whose state has

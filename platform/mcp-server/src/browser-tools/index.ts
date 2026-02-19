@@ -9,6 +9,7 @@ import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
 import { enableNetworkCapture } from './enable-network-capture.js';
 import { executeScript } from './execute-script.js';
+import { extensionGetState } from './extension-get-state.js';
 import { focusTab } from './focus-tab.js';
 import { getConsoleLogs } from './get-console-logs.js';
 import { getCookies } from './get-cookies.js';
@@ -67,6 +68,7 @@ const browserTools: BrowserToolDefinition[] = [
   scroll,
   hoverElement,
   handleDialog,
+  extensionGetState,
 ];
 
 export { browserTools };

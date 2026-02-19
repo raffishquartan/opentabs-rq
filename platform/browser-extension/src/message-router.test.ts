@@ -100,6 +100,7 @@ const mockHandleBrowserHoverElement = mock(
 const mockHandleBrowserHandleDialog = mock(
   asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
 );
+const mockHandleExtensionGetState = mock(asyncNoop as (id: string | number) => Promise<void>);
 
 await mock.module('./messaging.js', () => ({
   sendToServer: mockSendToServer,
@@ -141,6 +142,7 @@ await mock.module('./browser-commands.js', () => ({
   handleBrowserScroll: mockHandleBrowserScroll,
   handleBrowserHoverElement: mockHandleBrowserHoverElement,
   handleBrowserHandleDialog: mockHandleBrowserHandleDialog,
+  handleExtensionGetState: mockHandleExtensionGetState,
 }));
 
 // Chrome API stubs for modules that are NOT mocked (plugin-storage, iife-injection,
@@ -509,6 +511,7 @@ const resetRoutingMocks = (): void => {
   mockHandleBrowserScroll.mockReset();
   mockHandleBrowserHoverElement.mockReset();
   mockHandleBrowserHandleDialog.mockReset();
+  mockHandleExtensionGetState.mockReset();
 };
 
 describe('handleServerMessage', () => {
@@ -539,6 +542,7 @@ describe('handleServerMessage', () => {
     mockHandleBrowserScroll.mockResolvedValue(undefined);
     mockHandleBrowserHoverElement.mockResolvedValue(undefined);
     mockHandleBrowserHandleDialog.mockResolvedValue(undefined);
+    mockHandleExtensionGetState.mockResolvedValue(undefined);
   });
 
   describe('sync.full routing', () => {
@@ -993,6 +997,13 @@ describe('handleServerMessage', () => {
 
       expect(mockHandleBrowserHandleDialog).toHaveBeenCalledTimes(1);
       expect(mockHandleBrowserHandleDialog).toHaveBeenCalledWith({ tabId: 10, action: 'accept' }, 48);
+    });
+
+    test('dispatches extension.getState to handleExtensionGetState', () => {
+      handleServerMessage({ method: 'extension.getState', id: 49 });
+
+      expect(mockHandleExtensionGetState).toHaveBeenCalledTimes(1);
+      expect(mockHandleExtensionGetState).toHaveBeenCalledWith(49);
     });
   });
 
