@@ -88,10 +88,10 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
       <h1 className={cn('font-head mt-8 mb-4 text-4xl font-bold lg:text-5xl', className)} {...props} />
     ),
     h2: ({ className, ...props }: ComponentPropsWithoutRef<'h2'>) => (
-      <h2 className={cn('font-head mt-8 mb-3 text-3xl font-semibold lg:text-4xl', className)} {...props} />
+      <h2 className={cn('font-head mt-10 mb-3 text-3xl font-semibold lg:text-4xl', className)} {...props} />
     ),
     h3: ({ className, ...props }: ComponentPropsWithoutRef<'h3'>) => (
-      <h3 className={cn('font-head mt-6 mb-2 text-2xl font-medium', className)} {...props} />
+      <h3 className={cn('font-head mt-8 mb-2 text-2xl font-medium', className)} {...props} />
     ),
     h4: ({ className, ...props }: ComponentPropsWithoutRef<'h4'>) => (
       <h4 className={cn('font-head mt-4 mb-2 text-xl font-normal', className)} {...props} />
@@ -103,20 +103,23 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
       <h6 className={cn('font-head mt-4 mb-2 text-base font-normal', className)} {...props} />
     ),
     p: ({ className, ...props }: ComponentPropsWithoutRef<'p'>) => (
-      <p className={cn('mb-4 font-sans text-base', className)} {...props} />
+      <p className={cn('mb-4 font-sans text-base leading-relaxed', className)} {...props} />
     ),
     ul: ({ className, ...props }: ComponentPropsWithoutRef<'ul'>) => (
-      <ul className={cn('mb-4 list-outside list-disc space-y-1 pl-6 font-sans', className)} {...props} />
+      <ul className={cn('mb-4 list-outside list-disc space-y-2 pl-6 font-sans', className)} {...props} />
     ),
     ol: ({ className, ...props }: ComponentPropsWithoutRef<'ol'>) => (
-      <ol className={cn('mb-4 list-outside list-decimal space-y-1 pl-6 font-sans', className)} {...props} />
+      <ol className={cn('mb-4 list-outside list-decimal space-y-2 pl-6 font-sans', className)} {...props} />
     ),
     li: ({ className, ...props }: ComponentPropsWithoutRef<'li'>) => (
-      <li className={cn('font-sans text-base', className)} {...props} />
+      <li className={cn('font-sans text-base leading-relaxed', className)} {...props} />
     ),
     blockquote: ({ className, ...props }: ComponentPropsWithoutRef<'blockquote'>) => (
       <blockquote
-        className={cn('border-primary bg-accent/20 my-4 border-l-4 px-4 py-3 font-sans', className)}
+        className={cn(
+          'border-primary bg-accent/20 my-4 border-l-4 px-4 py-3 font-sans leading-relaxed italic',
+          className,
+        )}
         {...props}
       />
     ),
