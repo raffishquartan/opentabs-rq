@@ -285,6 +285,22 @@ starlight-menu-button button:hover {
   transform: translateY(1px);
 }
 
+/* Social icon links — RetroUI border-2, hard offset shadow, press effect */
+.social-icons a {
+  border: 2px solid var(--border);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 0 var(--border);
+  padding: 0.375rem;
+  background: var(--background);
+  transition: all 0.2s ease;
+}
+
+.social-icons a:hover {
+  box-shadow: none;
+  transform: translateY(1px);
+  background: var(--muted);
+}
+
 /* Asides/callouts — RetroUI border-2 and hard offset shadow */
 .starlight-aside {
   border: 2px solid var(--border);
