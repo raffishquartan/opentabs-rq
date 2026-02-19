@@ -2225,3 +2225,194 @@ test.describe('Browser tools — dialog handling', () => {
     await mcpClient.callTool('browser_close_tab', { tabId });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Extension debugging tools
+// ---------------------------------------------------------------------------
+
+test.describe('Extension debugging tools', () => {
+  test('extension_get_state returns state with connection and plugins', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    const result = await mcpClient.callTool('extension_get_state');
+    expect(result.isError).toBe(false);
+
+    const data = parseToolResult(result.content);
+
+    // Connection state
+    const connection = data.connection as Record<string, unknown>;
+    expect(connection.wsConnected).toBe(true);
+    expect(typeof connection.mcpServerUrl).toBe('string');
+
+    // Plugins array includes the e2e-test plugin
+    const plugins = data.plugins as Array<Record<string, unknown>>;
+    expect(Array.isArray(plugins)).toBe(true);
+    const e2ePlugin = plugins.find(p => p.name === 'e2e-test');
+    expect(e2ePlugin).toBeDefined();
+    if (!e2ePlugin) throw new Error('e2e-test plugin not found in state');
+    expect(typeof e2ePlugin.displayName).toBe('string');
+    expect(Array.isArray(e2ePlugin.urlPatterns)).toBe(true);
+    expect(typeof e2ePlugin.toolCount).toBe('number');
+    expect(typeof e2ePlugin.tabState).toBe('string');
+
+    // Network captures array
+    expect(Array.isArray(data.networkCaptures)).toBe(true);
+
+    // Offscreen document
+    const offscreen = data.offscreen as Record<string, unknown>;
+    expect(typeof offscreen.exists).toBe('boolean');
+  });
+
+  test('extension_get_logs returns entries with expected fields', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    // Fetch all logs (both background and offscreen produce logs during startup)
+    const result = await mcpClient.callTool('extension_get_logs');
+    expect(result.isError).toBe(false);
+
+    const data = parseToolResult(result.content);
+
+    // Entries array — startup logs from background and offscreen
+    const entries = data.entries as Array<Record<string, unknown>>;
+    expect(Array.isArray(entries)).toBe(true);
+    expect(entries.length).toBeGreaterThan(0);
+
+    // Verify entry shape
+    const entry = entries[0];
+    if (!entry) throw new Error('No log entries returned');
+    expect(typeof entry.timestamp).toBe('number');
+    expect(typeof entry.level).toBe('string');
+    expect(typeof entry.source).toBe('string');
+    expect(typeof entry.message).toBe('string');
+
+    // Stats object
+    const stats = data.stats as Record<string, unknown>;
+    expect(typeof stats.totalBackground).toBe('number');
+    expect(typeof stats.totalOffscreen).toBe('number');
+    expect(typeof stats.bufferSize).toBe('number');
+  });
+
+  test('extension_get_side_panel returns { open: false } when side panel is not open', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    const result = await mcpClient.callTool('extension_get_side_panel');
+    expect(result.isError).toBe(false);
+
+    const data = parseToolResult(result.content);
+    expect(data.open).toBe(false);
+  });
+
+  test('extension_check_adapter returns diagnostics for e2e-test plugin', async ({
+    mcpServer,
+    testServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    // Open a tab matching the e2e-test plugin URL pattern so adapter gets injected
+    const tabId = await openTestServerTab(mcpClient, testServer);
+
+    // Wait for the adapter to be injected by polling check_adapter
+    let data: Record<string, unknown> = {};
+    await waitFor(
+      async () => {
+        try {
+          const r = await mcpClient.callTool('extension_check_adapter', { plugin: 'e2e-test' });
+          if (r.isError) return false;
+          data = parseToolResult(r.content);
+          const tabs = data.matchingTabs as Array<Record<string, unknown>>;
+          return Array.isArray(tabs) && tabs.some(t => t.adapterPresent === true);
+        } catch {
+          return false;
+        }
+      },
+      15_000,
+      500,
+      'e2e-test adapter injected in tab',
+    );
+
+    expect(data.plugin).toBe('e2e-test');
+    expect(typeof data.expectedHash).toBe('string');
+
+    const matchingTabs = data.matchingTabs as Array<Record<string, unknown>>;
+    expect(matchingTabs.length).toBeGreaterThan(0);
+
+    const tab = matchingTabs.find(t => t.adapterPresent === true);
+    expect(tab).toBeDefined();
+    if (!tab) throw new Error('No tab with adapter present');
+    expect(tab.adapterPresent).toBe(true);
+    expect(typeof tab.tabId).toBe('number');
+    expect(typeof tab.tabUrl).toBe('string');
+    // adapterHash can be a string or null depending on plugin build
+    expect(tab.adapterHash === null || typeof tab.adapterHash === 'string').toBe(true);
+    expect(typeof tab.hashMatch).toBe('boolean');
+    expect(typeof tab.isReady).toBe('boolean');
+    expect(typeof tab.toolCount).toBe('number');
+    expect(Array.isArray(tab.toolNames)).toBe(true);
+
+    await mcpClient.callTool('browser_close_tab', { tabId });
+  });
+
+  test('extension_check_adapter returns error for non-existent plugin', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    const result = await mcpClient.callTool('extension_check_adapter', { plugin: 'non-existent-plugin' });
+    expect(result.isError).toBe(true);
+    expect(result.content).toContain('not found');
+  });
+
+  test('extension_force_reconnect triggers reconnection and tools still work after', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+
+    // Record how many tab.syncAll messages have been received before reconnect
+    const syncCountBefore = mcpServer.logs.filter(l => l.includes('tab.syncAll received')).length;
+
+    // Call force reconnect
+    const result = await mcpClient.callTool('extension_force_reconnect');
+    expect(result.isError).toBe(false);
+
+    const data = parseToolResult(result.content);
+    expect(data.reconnecting).toBe(true);
+
+    // Wait for a fresh tab.syncAll (indicates the extension reconnected and re-synced)
+    await waitFor(
+      () => {
+        const syncCount = mcpServer.logs.filter(l => l.includes('tab.syncAll received')).length;
+        return syncCount > syncCountBefore;
+      },
+      30_000,
+      300,
+      'tab.syncAll after force reconnect',
+    );
+
+    // Verify the extension is connected and tools work
+    await waitForExtensionConnected(mcpServer, 10_000);
+
+    const listResult = await mcpClient.callTool('browser_list_tabs');
+    expect(listResult.isError).toBe(false);
+
+    const tabs = JSON.parse(listResult.content) as Array<Record<string, unknown>>;
+    expect(Array.isArray(tabs)).toBe(true);
+  });
+});
