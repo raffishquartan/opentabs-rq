@@ -142,13 +142,39 @@ body {
   --sl-color-hairline-shade: var(--border);
 }
 
-/* Sidebar active item — RetroUI border-l-2 with primary color */
+/* Sidebar group headers — RetroUI font-head with bottom border separator */
+.sidebar-content .top-level > li > details > summary {
+  font-family: var(--font-head);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Sidebar links — hover:text-primary transition */
+.sidebar-content a {
+  transition: color 0.2s ease;
+}
+
+.sidebar-content a:hover {
+  color: var(--primary) !important;
+}
+
+/* Sidebar active item — RetroUI border-l-2 with primary color and accent background */
 nav.sidebar a[aria-current='page'],
 .sidebar-content a[aria-current='page'] {
   border-left: 2px solid var(--primary);
-  background-color: transparent;
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--primary);
   font-weight: 600;
+  padding-left: 0.75rem;
+}
+
+/* Sidebar right border on desktop */
+@media (min-width: 72rem) {
+  .sidebar-pane {
+    border-right: 2px solid var(--border);
+  }
 }
 
 /* Content links — hover:text-primary transition */
