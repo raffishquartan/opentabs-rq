@@ -169,9 +169,9 @@ html {
   --sl-color-gray-2: var(--muted);
   --sl-color-gray-3: var(--muted-foreground);
   --sl-color-gray-4: var(--muted);
-  --sl-color-gray-5: #e5e5e5;
-  --sl-color-gray-6: #f0f0f0;
-  --sl-color-gray-7: #f8f8f8;
+  --sl-color-gray-5: var(--muted);
+  --sl-color-gray-6: var(--card);
+  --sl-color-gray-7: var(--background);
   --sl-color-black: var(--foreground);
 
   --sl-color-text: var(--foreground);
