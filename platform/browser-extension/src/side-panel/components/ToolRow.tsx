@@ -23,7 +23,7 @@ const ToolRow = ({
       <Tooltip>
         <Tooltip.Trigger asChild>
           <div className="min-w-0 flex-1">
-            <div className="text-foreground truncate text-xs font-medium">{description}</div>
+            <div className="text-foreground truncate text-[13px]">{description}</div>
           </div>
         </Tooltip.Trigger>
         <Tooltip.Content>{name}</Tooltip.Content>
