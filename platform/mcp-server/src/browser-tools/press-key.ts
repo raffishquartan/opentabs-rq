@@ -12,7 +12,8 @@ const pressKey = defineBrowserTool({
     'Press a keyboard key on the page. Dispatches a full keyboard event sequence (keydown, keypress for printable ' +
     'keys, keyup) and an InputEvent for printable characters on input/textarea elements. Common use cases: Enter to ' +
     'submit forms, Escape to close modals/dialogs, Tab to move between fields, arrow keys to navigate custom ' +
-    'menus/dropdowns, Ctrl+K or / for search. Uses standard KeyboardEvent.key values.',
+    'menus/dropdowns, Ctrl+K or Cmd+K for search. Supports Ctrl and Meta (Cmd) as independent modifiers. ' +
+    'Uses standard KeyboardEvent.key values.',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page to interact with'),
     key: z
@@ -31,8 +32,9 @@ const pressKey = defineBrowserTool({
     modifiers: z
       .object({
         shift: z.boolean().optional().describe('Hold Shift'),
-        ctrl: z.boolean().optional().describe('Hold Ctrl (maps to both ctrlKey and metaKey for cross-platform compat)'),
+        ctrl: z.boolean().optional().describe('Hold Ctrl'),
         alt: z.boolean().optional().describe('Hold Alt'),
+        meta: z.boolean().optional().describe('Hold Meta (Cmd on macOS, Win on Windows)'),
       })
       .optional()
       .describe('Modifier keys to hold while pressing the key'),

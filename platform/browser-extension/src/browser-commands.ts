@@ -1174,11 +1174,12 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
     const shiftKey = modifiers.shift === true;
     const ctrlKey = modifiers.ctrl === true;
     const altKey = modifiers.alt === true;
+    const metaKey = modifiers.meta === true;
 
     const results = await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
-      func: (k: string, sel: string | null, shift: boolean, ctrl: boolean, alt: boolean) => {
+      func: (k: string, sel: string | null, shift: boolean, ctrl: boolean, alt: boolean, meta: boolean) => {
         // Resolve target element
         let target: Element | null = null;
         if (sel) {
@@ -1238,7 +1239,7 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
           cancelable: true,
           shiftKey: shift,
           ctrlKey: ctrl,
-          metaKey: ctrl,
+          metaKey: meta,
           altKey: alt,
         };
 
@@ -1276,7 +1277,7 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
           },
         };
       },
-      args: [key, selector, shiftKey, ctrlKey, altKey],
+      args: [key, selector, shiftKey, ctrlKey, altKey, metaKey],
     });
 
     const result = results[0]?.result as
