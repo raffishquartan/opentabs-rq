@@ -32,7 +32,7 @@ export const RetroPageFooter = () => {
       {previous && (
         <Link
           href={previous.url}
-          className="border-border flex flex-col gap-2 border-2 p-4 shadow-md transition-all hover:translate-y-1 hover:shadow active:translate-y-1.5 active:shadow-none max-lg:col-span-full">
+          className="border-border flex flex-col gap-2 rounded border-2 p-4 shadow-md transition-all hover:translate-y-0.5 hover:shadow active:translate-y-1 active:shadow-none max-lg:col-span-full">
           <div className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
             <ChevronLeft className="-mx-1 size-4 shrink-0" />
             <span className="font-sans">Previous</span>
@@ -43,7 +43,7 @@ export const RetroPageFooter = () => {
       {next && (
         <Link
           href={next.url}
-          className="border-border flex flex-col gap-2 border-2 p-4 text-end shadow-md transition-all hover:translate-y-1 hover:shadow active:translate-y-1.5 active:shadow-none max-lg:col-span-full">
+          className="border-border flex flex-col gap-2 rounded border-2 p-4 text-end shadow-md transition-all hover:translate-y-0.5 hover:shadow active:translate-y-1 active:shadow-none max-lg:col-span-full">
           <div className="text-muted-foreground inline-flex items-center justify-end gap-1.5 text-sm">
             <span className="font-sans">Next</span>
             <ChevronRight className="-mx-1 size-4 shrink-0" />

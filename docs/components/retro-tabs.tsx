@@ -78,7 +78,7 @@ const RetroTabs = ({
               key={item}
               value={escapeValue(item)}
               className={cn(
-                'border-b-border -mb-[2px] cursor-pointer border-2 border-transparent px-4 py-1 font-sans text-sm whitespace-nowrap transition-all focus:outline-none',
+                'border-b-border -mb-[2px] cursor-pointer rounded border-2 border-transparent px-4 py-1 font-sans text-sm whitespace-nowrap transition-all focus:outline-none',
                 'data-[state=active]:border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold',
               )}>
               {item}
@@ -111,7 +111,7 @@ const RetroTab = ({ value, className, ...props }: RetroTabProps) => {
       value={escapeValue(resolved)}
       forceMount
       className={cn(
-        'border-border mt-0 w-full border-x-2 border-b-2 p-4 font-sans data-[state=inactive]:hidden',
+        'border-border mt-0 w-full rounded-b border-x-2 border-b-2 p-4 font-sans data-[state=inactive]:hidden',
         className,
       )}
       {...props}

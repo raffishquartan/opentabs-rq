@@ -38,7 +38,7 @@ export const GlobalHeader = ({ showSidebarTrigger }: GlobalHeaderProps) => {
             data-search-full=""
             onClick={() => setOpenSearch(true)}
             className={cn(
-              'border-border bg-background text-muted-foreground ml-auto hidden items-center gap-2 rounded border-2 px-3 py-1.5 text-sm shadow-sm transition-all hover:shadow-none',
+              'border-border bg-background text-muted-foreground ml-auto hidden items-center gap-2 rounded border-2 px-3 py-1.5 text-sm shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none',
               'md:inline-flex md:w-56 lg:w-64',
             )}>
             <Search className="size-3.5 shrink-0" />
