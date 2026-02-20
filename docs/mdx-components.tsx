@@ -112,7 +112,7 @@ export const getMDXComponents = (components?: MDXComponents): MDXComponents => (
     </h6>
   ),
   p: ({ className, ...props }: ComponentPropsWithoutRef<'p'>) => (
-    <p className={cn('mb-5 font-sans text-base leading-relaxed', className)} {...props} />
+    <p className={cn('mb-4 font-sans text-base leading-relaxed', className)} {...props} />
   ),
   ul: ({ className, ...props }: ComponentPropsWithoutRef<'ul'>) => (
     <ul className={cn('mb-5 list-outside list-disc space-y-2 pl-6 font-sans', className)} {...props} />
