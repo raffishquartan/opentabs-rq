@@ -50,7 +50,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="border-border bg-background border-b-2 px-6 py-20 md:py-28">
         <div className="mx-auto max-w-5xl">
-          <div className="border-border bg-primary mb-4 inline-flex items-center gap-2 border-2 px-3 py-1 font-sans text-sm font-semibold">
+          <div className="border-border bg-primary mb-6 inline-flex items-center gap-2 border-2 px-3 py-1.5 font-sans text-sm font-semibold">
             Now in beta
           </div>
           <h1 className="font-head mb-6 text-5xl leading-tight font-bold md:text-7xl">
@@ -58,7 +58,7 @@ export default function HomePage() {
             <br />
             <span className="bg-primary px-2">any web app</span>
           </h1>
-          <p className="text-muted-foreground mb-10 max-w-2xl font-sans text-lg md:text-xl">
+          <p className="text-muted-foreground mb-8 max-w-2xl font-sans text-lg md:text-xl">
             OpenTabs gives AI agents access to any web application through your authenticated browser session — no API
             integrations, no new credentials, no changes to the app.
           </p>
