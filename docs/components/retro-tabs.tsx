@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils';
 import * as RadixTabs from '@radix-ui/react-tabs';
-import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useId, useMemo, useState } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
 
 // Context for collection index tracking — same pattern as Fumadocs internal tabs
@@ -59,29 +59,6 @@ const RetroTabs = ({
 }: RetroTabsProps) => {
   const [value, setValue] = useState(defaultValue);
   const collection = useMemo<string[]>(() => [], []);
-  const listRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  const updateScrollState = useCallback(() => {
-    const el = listRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 1);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
-  }, []);
-
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    updateScrollState();
-    el.addEventListener('scroll', updateScrollState, { passive: true });
-    const observer = new ResizeObserver(updateScrollState);
-    observer.observe(el);
-    return () => {
-      el.removeEventListener('scroll', updateScrollState);
-      observer.disconnect();
-    };
-  }, [updateScrollState]);
 
   return (
     <RadixTabs.Root
@@ -94,30 +71,20 @@ const RetroTabs = ({
       }}
       {...props}>
       {items && (
-        <div className="relative">
-          <RadixTabs.List
-            ref={listRef}
-            className="retro-tabs-list not-prose border-border flex flex-row flex-nowrap space-x-2 overflow-x-auto border-b-2 pb-0">
-            {label && <span className="my-auto me-auto text-sm font-medium">{label}</span>}
-            {items.map(item => (
-              <RadixTabs.Trigger
-                key={item}
-                value={escapeValue(item)}
-                className={cn(
-                  'border-b-border -mb-[2px] min-h-11 cursor-pointer border-2 border-transparent px-4 py-1 font-sans text-sm whitespace-nowrap transition-all focus:outline-none',
-                  'data-[state=active]:border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold',
-                )}>
-                {item}
-              </RadixTabs.Trigger>
-            ))}
-          </RadixTabs.List>
-          {canScrollLeft && (
-            <div className="from-background pointer-events-none absolute inset-y-0 left-0 z-10 w-6 bg-gradient-to-r to-transparent" />
-          )}
-          {canScrollRight && (
-            <div className="from-background pointer-events-none absolute inset-y-0 right-0 z-10 w-6 bg-gradient-to-l to-transparent" />
-          )}
-        </div>
+        <RadixTabs.List className="retro-tabs-list not-prose border-border flex flex-row flex-nowrap space-x-2 overflow-x-auto border-b-2 pb-0">
+          {label && <span className="my-auto me-auto text-sm font-medium">{label}</span>}
+          {items.map(item => (
+            <RadixTabs.Trigger
+              key={item}
+              value={escapeValue(item)}
+              className={cn(
+                'border-b-border -mb-[2px] min-h-11 cursor-pointer border-2 border-transparent px-4 py-1 font-sans text-sm whitespace-nowrap transition-all focus:outline-none',
+                'data-[state=active]:border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold',
+              )}>
+              {item}
+            </RadixTabs.Trigger>
+          ))}
+        </RadixTabs.List>
       )}
       <RetroTabsContext.Provider value={useMemo(() => ({ items, collection }), [collection, items])}>
         {children}
