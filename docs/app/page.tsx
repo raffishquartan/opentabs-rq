@@ -48,7 +48,7 @@ export default function HomePage() {
           <div className="border-border bg-primary mb-6 inline-flex items-center gap-2 border-2 px-3 py-1.5 font-sans text-sm font-semibold">
             Now in beta
           </div>
-          <h1 className="font-head mb-6 text-3xl leading-tight font-bold sm:text-5xl md:text-7xl">
+          <h1 className="font-head mb-6 text-3xl leading-tight font-bold sm:text-4xl md:text-5xl lg:text-7xl">
             AI agents for
             <br />
             <span className="bg-primary px-2">any web app</span>
