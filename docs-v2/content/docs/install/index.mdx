@@ -1,16 +1,18 @@
 ---
 title: Installation
-description: Get started with OpenTabs in minutes.
-lastUpdated: 20 Feb, 2026
+description: Set up OpenTabs from scratch — clone the repo, load the Chrome extension, start the MCP server, and connect your AI agent.
+lastUpdated: 2026-02-20
 ---
 
 ## Prerequisites
 
-- Bun (v1.0+)
-- Google Chrome
-- An MCP-compatible AI agent (Claude Code, Cursor, etc.)
+Before you begin, make sure you have:
 
-## Quick Start
+- **Bun** (v1.0+) — [install Bun](https://bun.sh)
+- **Google Chrome** — the extension requires Chrome or a Chromium-based browser
+- **An MCP-compatible AI agent** — Claude Code, Cursor, or any client that supports MCP Streamable HTTP
+
+## Step 1: Clone and Build
 
 Clone the repository and install dependencies:
 
@@ -21,10 +23,114 @@ bun install
 bun run build
 ```
 
-Load the Chrome extension from `~/.opentabs/extension/` and start the MCP server:
+The build step compiles all platform packages (MCP server, Chrome extension, Plugin SDK) and copies the extension files to `~/.opentabs/extension/`.
+
+## Step 2: Load the Chrome Extension
+
+1. Open `chrome://extensions/` in Chrome
+2. Enable **Developer mode** (toggle in the top-right corner)
+3. Click **Load unpacked**
+4. Select the `~/.opentabs/extension/` folder
+
+The extension installs a service worker, side panel, and offscreen document. You should see "OpenTabs" appear in your extensions list.
+
+## Step 3: Start the MCP Server
 
 ```bash
 bun --hot platform/mcp-server/dist/index.js
 ```
 
-The server runs on `http://localhost:9515` by default.
+The server starts on `http://localhost:9515` by default. You can change the port with the `PORT` environment variable:
+
+```bash
+PORT=8080 bun --hot platform/mcp-server/dist/index.js
+```
+
+Alternatively, use the CLI:
+
+```bash
+opentabs dev
+```
+
+The `--hot` flag enables hot reload — when you rebuild, the server reinitializes without restarting the process.
+
+## Step 4: Connect Your AI Agent
+
+OpenTabs exposes an MCP Streamable HTTP endpoint at `/mcp`. Configure your AI agent to connect to it.
+
+### Authentication
+
+On first run, the MCP server generates a shared secret and stores it in `~/.opentabs/config.json`. You need this secret as a Bearer token.
+
+Find your secret:
+
+```bash
+cat ~/.opentabs/config.json | grep secret
+```
+
+### Claude Code
+
+Add to your `.mcp.json` or `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "opentabs": {
+      "type": "streamable-http",
+      "url": "http://localhost:9515/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_SECRET_HERE"
+      }
+    }
+  }
+}
+```
+
+Replace `YOUR_SECRET_HERE` with the `secret` value from `~/.opentabs/config.json`.
+
+### Other MCP Clients
+
+Any MCP client that supports Streamable HTTP transport can connect to OpenTabs. The endpoint is:
+
+- **URL**: `http://localhost:9515/mcp`
+- **Method**: POST
+- **Auth**: `Authorization: Bearer <secret>`
+
+## Step 5: Verify
+
+Check that everything is working:
+
+```bash
+opentabs status
+```
+
+This shows the server status, connected plugins, and tool counts. For a full diagnostic:
+
+```bash
+opentabs doctor
+```
+
+The doctor command checks your Bun version, config file, server reachability, extension connection, and plugin status.
+
+You can also check the health endpoint directly:
+
+```bash
+curl http://localhost:9515/health
+```
+
+## Configuration
+
+The config file at `~/.opentabs/config.json` is auto-created on first server run. See the [Configuration reference](/docs/reference/configuration) for all available options.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `plugins` | string[] | Local plugin directory paths |
+| `tools` | object | Per-tool enable/disable overrides |
+| `secret` | string | 64-char hex auth secret (auto-generated) |
+| `npmPlugins` | string[] | Allowed npm plugin package names |
+
+## Next Steps
+
+- [Architecture](/docs/concepts/architecture) — understand how MCP server, extension, and plugins connect
+- [Creating a Plugin](/docs/plugins/creating-a-plugin) — build your first OpenTabs plugin
+- [Browser Tools](/docs/concepts/browser-tools) — explore the 36 built-in browser tools
