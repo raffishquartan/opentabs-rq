@@ -1,10 +1,9 @@
 "use client";
 import React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ArrowUpRight, GithubIcon, MoonIcon, SunIcon } from "lucide-react";
+import { GithubIcon, MoonIcon, SunIcon } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
-import { Button, Text } from "@/components/retroui";
+import { Button } from "@/components/retroui";
 import { navConfig } from "@/config/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -13,39 +12,16 @@ export default function TopNav() {
 
   return (
     <nav className="sticky z-1 top-0 right-0 w-full border-b-2 bg-background">
-      <div className="w-full bg-black text-white">
-        <div className="container max-w-6xl mx-auto px-4 py-2 flex justify-center space-x-4 items-center">
-          <Text className="text-sm lg:text-center">
-            Ship faster with premium blocks and templates!
-          </Text>
-          <a href="https://dub.sh/retroui-pro" target="_blank">
-            <Button
-              size="sm"
-              className="shadow-none font-sans font-bold px-2 py-1 w-30"
-            >
-              RetroUI Pro
-              <ArrowUpRight className="ml-auto h-4 w-4 inline-block" />
-            </Button>
-          </a>
-        </div>
-      </div>
       <div className="container max-w-6xl px-4 lg:px-0 mx-auto">
         <div className="flex justify-between items-center h-16">
           {/* Logo Section */}
           <div className="shrink-0">
-            <a
+            <Link
               href="/"
               className="text-black font-head text-2xl flex items-end"
             >
-              <Image
-                src="/images/logo.png"
-                alt="retro ui logo"
-                className="mr-2"
-                height={30}
-                width={30}
-              />
-              <div className="text-foreground">RetroUI</div>
-            </a>
+              <div className="text-foreground">OpenTabs</div>
+            </Link>
           </div>
 
           {/* Navigation Links */}
@@ -63,7 +39,7 @@ export default function TopNav() {
 
           <div className="flex items-center space-x-4 lg:hidden">
             <Link
-              href="https://github.com/Logging-Stuff/retroui"
+              href="https://github.com/AnomalyCo/opentabs"
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -74,7 +50,7 @@ export default function TopNav() {
 
           <div className="hidden lg:flex items-center space-x-3">
             <Link
-              href="https://github.com/Logging-Stuff/retroui"
+              href="https://github.com/AnomalyCo/opentabs"
               target="_blank"
               rel="noopener noreferrer"
             >

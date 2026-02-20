@@ -27,12 +27,11 @@ const mono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NeoBrutalism Styled React Components | RetroUI",
+  title: "OpenTabs — AI agents for any web app",
   description:
-    "RetroUI - NeoBrutalism styled component library built with React and TailwindCSS for modern web apps.",
+    "OpenTabs gives AI agents access to any web application through your authenticated browser session. MCP server + Chrome extension + plugin SDK.",
   openGraph: {
-    images: "https://retroui.dev/banner.png",
-    title: "NeoBrutalism Styled React Components | RetroUI",
+    title: "OpenTabs — AI agents for any web app",
   },
 };
 
