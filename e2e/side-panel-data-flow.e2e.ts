@@ -53,33 +53,25 @@ test.describe('Side panel data flow — connection status', () => {
       // 3. Open side panel
       const sidePanelPage = await openSidePanel(context);
 
-      // 4. Verify 'Connected' text visible (exact match to avoid matching 'Disconnected')
-      await expect(sidePanelPage.getByText('Connected', { exact: true })).toBeVisible({ timeout: 10_000 });
-
-      // 5. Verify plugin card visible
+      // 4. Verify connected: plugin card visible (the redesigned UI shows plugin
+      // cards when connected instead of a "Connected" text badge)
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
 
-      // 6. Kill MCP server
+      // 5. Kill MCP server
       await server.kill();
 
-      // 7. Verify 'Disconnected' text appears
+      // 6. Verify disconnected state appears with "Cannot Reach MCP Server" text.
       // The offscreen document detects WebSocket close and broadcasts connection state.
       // Pong timeout is 5s + reconnect backoff, so allow up to 30s.
-      await expect(sidePanelPage.getByText('Disconnected', { exact: true })).toBeVisible({ timeout: 30_000 });
+      await expect(sidePanelPage.getByText('Cannot Reach MCP Server')).toBeVisible({ timeout: 30_000 });
 
-      // 8. Verify plugin list is cleared (no plugin cards visible)
-      await expect(sidePanelPage.getByText('Not Connected')).toBeVisible({ timeout: 10_000 });
-
-      // 9. Restart MCP server on the same port
+      // 7. Restart MCP server on the same port
       const server2 = await startMcpServer(configDir, true, serverPort);
 
       try {
-        // 10. Verify 'Connected' text reappears
+        // 8. Verify connected state reappears (plugin card visible again).
         // The offscreen document's reconnect logic will find the new server.
-        await expect(sidePanelPage.getByText('Connected', { exact: true })).toBeVisible({ timeout: 45_000 });
-
-        // 11. Verify plugin card reappears
-        await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+        await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 45_000 });
       } finally {
         await server2.kill();
       }
