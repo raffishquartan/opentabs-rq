@@ -243,9 +243,10 @@ body {
   margin-bottom: 0.25rem;
 }
 
-/* Mobile drawer: border-l-2 on the left side */
+/* Mobile drawer: border-l-2 on the left side, safe area inset for notch devices */
 #nd-sidebar-mobile {
   border-left-width: 2px;
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 /* Sidebar folder content left border line: border-border color already set via fd mapping,
@@ -481,24 +482,22 @@ code {
    * that fit without overflow the gradient edges fall outside the visible
    * content area, so nothing is clipped. */
   .retro-tabs-list {
-    -webkit-mask-image: linear-gradient(
-      to right,
-      transparent,
-      black 2rem,
-      black calc(100% - 2rem),
-      transparent
-    );
-    mask-image: linear-gradient(
-      to right,
-      transparent,
-      black 2rem,
-      black calc(100% - 2rem),
-      transparent
-    );
+    -webkit-mask-image: linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent);
+    mask-image: linear-gradient(to right, transparent, black 2rem, black calc(100% - 2rem), transparent);
   }
 }
 
 /* Mobile TOC popover container: 2px border to match RetroUI styling */
 [data-toc-popover] {
   border-bottom-width: 2px;
+}
+
+/* TOC popover: safe area insets for notch devices (mobile only, where px-4 = 1rem).
+ * On md+ screens Fumadocs uses px-6 (1.5rem) which already exceeds typical safe areas. */
+@media (max-width: 767px) {
+  [data-toc-popover-trigger],
+  [data-toc-popover-content] {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
 }

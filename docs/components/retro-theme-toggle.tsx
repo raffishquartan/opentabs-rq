@@ -27,7 +27,7 @@ export const RetroThemeToggle = ({ className }: Props) => {
       data-theme-toggle=""
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className={cn(
-        'border-border bg-background flex items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none',
+        'border-border bg-background flex min-h-11 min-w-11 items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none',
         className,
       )}>
       {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}

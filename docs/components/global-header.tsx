@@ -22,7 +22,7 @@ export const GlobalHeader = ({ showSidebarTrigger }: GlobalHeaderProps) => {
       {showSidebarTrigger && (
         <SidebarTrigger
           aria-label="Toggle sidebar"
-          className="border-border bg-background flex items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none md:hidden">
+          className="border-border bg-background flex min-h-11 min-w-11 items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none md:hidden">
           <Menu className="size-4" />
         </SidebarTrigger>
       )}
@@ -58,7 +58,7 @@ export const GlobalHeader = ({ showSidebarTrigger }: GlobalHeaderProps) => {
             type="button"
             aria-label="Search"
             onClick={() => setOpenSearch(true)}
-            className="border-border bg-background ml-auto flex items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none md:hidden">
+            className="border-border bg-background ml-auto flex min-h-11 min-w-11 items-center justify-center rounded border-2 p-2 shadow-sm transition-all hover:translate-y-0.5 hover:shadow-none md:hidden">
             <Search className="size-4" />
           </button>
         </>
