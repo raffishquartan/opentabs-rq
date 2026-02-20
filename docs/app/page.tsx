@@ -77,7 +77,7 @@ export default function HomePage() {
             {features.map(feature => (
               <div
                 key={feature.title}
-                className="border-border bg-card flex flex-col gap-3 border-2 p-6 shadow-md transition-all hover:translate-y-0.5 hover:shadow">
+                className="border-border bg-card flex h-full flex-col gap-3 border-2 p-6 shadow-md transition-all hover:translate-y-0.5 hover:shadow">
                 <div className="text-4xl">{feature.icon}</div>
                 <h3 className="font-head text-lg font-medium">{feature.title}</h3>
                 <p className="text-muted-foreground font-sans text-sm leading-relaxed">{feature.description}</p>
