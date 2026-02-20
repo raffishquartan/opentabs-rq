@@ -79,7 +79,7 @@ export function RetroTabs({
               key={item}
               value={escapeValue(item)}
               className={cn(
-                '-mb-[2px] cursor-pointer border-2 border-transparent px-4 py-1 font-sans text-sm transition-all focus:outline-none',
+                'border-b-border -mb-[2px] cursor-pointer border-2 border-transparent px-4 py-1 font-sans text-sm transition-all focus:outline-none',
                 'data-[state=active]:border-border data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:font-semibold',
               )}>
               {item}
@@ -111,7 +111,7 @@ export function RetroTab({ value, className, ...props }: RetroTabProps) {
     <RadixTabs.Content
       value={escapeValue(resolved)}
       forceMount
-      className={cn('border-border mt-2 w-full border-2 p-4 font-sans data-[state=inactive]:hidden', className)}
+      className={cn('border-border mt-0 w-full border-2 p-4 font-sans data-[state=inactive]:hidden', className)}
       {...props}
     />
   );
