@@ -1,3 +1,4 @@
+import { HomeHeader } from '@/components/home-header';
 import { Button } from '@/components/retroui/Button';
 import { baseOptions } from '@/lib/layout.shared';
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
@@ -41,7 +42,7 @@ const features = [
 
 export default function HomePage() {
   return (
-    <HomeLayout {...baseOptions}>
+    <HomeLayout {...baseOptions} nav={{ ...baseOptions.nav, component: <HomeHeader /> }}>
       {/* Hero */}
       <section className="border-border bg-background border-b-2 px-4 py-12 sm:px-6 sm:py-16 md:py-28">
         <div className="mx-auto max-w-5xl">
