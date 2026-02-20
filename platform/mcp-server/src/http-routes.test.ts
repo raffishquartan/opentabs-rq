@@ -4,6 +4,8 @@ import { version } from './version.js';
 import { describe, expect, test } from 'bun:test';
 import type { HotHandlers } from './http-routes.js';
 import type { McpServerInstance } from './mcp-setup.js';
+import type { PendingDispatch } from './state.js';
+import type { WsHandle } from '@opentabs-dev/shared';
 
 /** Create a minimal mock McpServerInstance */
 const createMockSession = (): McpServerInstance => ({
@@ -368,5 +370,231 @@ describe('/ws-info endpoint', () => {
     expect((res as Response).status).toBe(200);
     const body = (await (res as Response).json()) as WsInfoResponse;
     expect(body.wsSecret).toBe('my-test-secret');
+  });
+});
+
+/** Create a simple mock WsHandle for WebSocket lifecycle tests */
+const createMockWsHandle = (): WsHandle & { sent: string[]; closed: boolean } => ({
+  sent: [] as string[],
+  closed: false,
+  send(msg: string) {
+    this.sent.push(msg);
+  },
+  close() {
+    this.closed = true;
+  },
+});
+
+describe('wsClose handler', () => {
+  test('matching ws sets extensionWs to null', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+    state.extensionWs = ws;
+
+    handlers.wsClose(ws);
+
+    expect(state.extensionWs).toBeNull();
+  });
+
+  test('matching ws rejects all pending dispatches with "Extension disconnected"', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+    state.extensionWs = ws;
+
+    const errors: Error[] = [];
+    const pending1: PendingDispatch = {
+      resolve: () => {},
+      reject: err => {
+        errors.push(err);
+      },
+      label: 'test1',
+      startTs: Date.now(),
+      timerId: setTimeout(() => {}, 60_000),
+    };
+    const pending2: PendingDispatch = {
+      resolve: () => {},
+      reject: err => {
+        errors.push(err);
+      },
+      label: 'test2',
+      startTs: Date.now(),
+      timerId: setTimeout(() => {}, 60_000),
+    };
+    state.pendingDispatches.set('id-1', pending1);
+    state.pendingDispatches.set('id-2', pending2);
+
+    handlers.wsClose(ws);
+
+    expect(errors).toHaveLength(2);
+    expect(errors[0]?.message).toBe('Extension disconnected');
+    expect(errors[1]?.message).toBe('Extension disconnected');
+    expect(state.pendingDispatches.size).toBe(0);
+  });
+
+  test('matching ws clears timeout timers for all pending dispatches', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+    state.extensionWs = ws;
+
+    let timerFired = false;
+    const timerId = setTimeout(() => {
+      timerFired = true;
+    }, 100);
+    const pending: PendingDispatch = {
+      resolve: () => {},
+      reject: () => {},
+      label: 'test',
+      startTs: Date.now(),
+      timerId,
+    };
+    state.pendingDispatches.set('id-1', pending);
+
+    handlers.wsClose(ws);
+
+    // Give the timer a chance to fire if clearTimeout wasn't called
+    return new Promise<void>(resolve => {
+      setTimeout(() => {
+        expect(timerFired).toBe(false);
+        resolve();
+      }, 200);
+    });
+  });
+
+  test('non-matching ws (stale close) does not modify state', () => {
+    const { handlers, state } = createTestHandlers();
+    const currentWs = createMockWsHandle();
+    const staleWs = createMockWsHandle();
+    state.extensionWs = currentWs;
+
+    const errors: Error[] = [];
+    const pending: PendingDispatch = {
+      resolve: () => {},
+      reject: err => {
+        errors.push(err);
+      },
+      label: 'test',
+      startTs: Date.now(),
+      timerId: setTimeout(() => {}, 60_000),
+    };
+    state.pendingDispatches.set('id-1', pending);
+
+    handlers.wsClose(staleWs);
+
+    // State should be unchanged — stale close is ignored
+    expect(state.extensionWs).toBe(currentWs);
+    expect(state.pendingDispatches.size).toBe(1);
+    expect(errors).toHaveLength(0);
+
+    // Cleanup timer to avoid leaks
+    clearTimeout(pending.timerId);
+  });
+
+  test('matching ws with no pending dispatches is a no-op (no throw)', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+    state.extensionWs = ws;
+
+    expect(() => handlers.wsClose(ws)).not.toThrow();
+    expect(state.extensionWs).toBeNull();
+    expect(state.pendingDispatches.size).toBe(0);
+  });
+});
+
+describe('wsOpen handler', () => {
+  test('assigns new ws to state.extensionWs', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+
+    handlers.wsOpen(ws);
+
+    expect(state.extensionWs).toBe(ws);
+  });
+
+  test('closes previous ws when replaced by a new connection', () => {
+    const { handlers, state } = createTestHandlers();
+    const oldWs = createMockWsHandle();
+    const newWs = createMockWsHandle();
+    state.extensionWs = oldWs;
+
+    handlers.wsOpen(newWs);
+
+    expect(state.extensionWs).toBe(newWs);
+    expect(oldWs.closed).toBe(true);
+  });
+
+  test('new ws is assigned BEFORE previous ws is closed (ordering test)', () => {
+    const { handlers, state } = createTestHandlers();
+    const capture = { ws: null as WsHandle | null };
+    const oldWs: WsHandle = {
+      send() {},
+      close() {
+        // Capture what state.extensionWs points to at the moment close() is called
+        capture.ws = state.extensionWs;
+      },
+    };
+    const newWs = createMockWsHandle();
+    state.extensionWs = oldWs;
+
+    handlers.wsOpen(newWs);
+
+    // extensionWs should already point to newWs when oldWs.close() was called
+    expect(capture.ws).toBe(newWs);
+  });
+
+  test('no previous connection works without error', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+    // extensionWs is null by default
+
+    expect(() => handlers.wsOpen(ws)).not.toThrow();
+    expect(state.extensionWs).toBe(ws);
+  });
+});
+
+describe('CORS protection', () => {
+  test('request with Origin: http://evil.com returns 403 Forbidden', async () => {
+    const { handlers } = createTestHandlers();
+    const req = new Request('http://localhost:9876/health', {
+      headers: { Origin: 'http://evil.com' },
+    });
+
+    const res = await handlers.fetch(req, mockBunServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(403);
+  });
+
+  test('request with Origin: https://attacker.io returns 403 Forbidden', async () => {
+    const { handlers } = createTestHandlers();
+    const req = new Request('http://localhost:9876/health', {
+      headers: { Origin: 'https://attacker.io' },
+    });
+
+    const res = await handlers.fetch(req, mockBunServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(403);
+  });
+
+  test('request with Origin: chrome-extension://abc123 passes through (200)', async () => {
+    const { handlers } = createTestHandlers();
+    const req = new Request('http://localhost:9876/health', {
+      headers: { Origin: 'chrome-extension://abc123' },
+    });
+
+    const res = await handlers.fetch(req, mockBunServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(200);
+  });
+
+  test('request with no Origin header passes through (200)', async () => {
+    const { handlers } = createTestHandlers();
+    const req = new Request('http://localhost:9876/health');
+
+    const res = await handlers.fetch(req, mockBunServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(200);
   });
 });
