@@ -2231,6 +2231,74 @@ test.describe('Browser tools — dialog handling', () => {
     await mcpClient.callTool('browser_disable_network_capture', { tabId });
     await mcpClient.callTool('browser_close_tab', { tabId });
   });
+
+  test('browser_execute_script triggers an actual browser dialog', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    // This test verifies the dialog interaction pipeline end-to-end:
+    //   1. browser_execute_script can schedule a real JavaScript dialog
+    //   2. The dialog appears with the correct message (confirmed by Playwright)
+    //   3. After dismissal, browser_execute_script continues to work normally
+    //   4. browser_handle_dialog returns the correct "no dialog open" error
+    //      (the pipeline is healthy even though no dialog is present)
+    //
+    // Limitation: Chrome's CDP gives Playwright's primary CDP session priority
+    // for dialog handling. When Playwright's session holds the dialog (registered
+    // via page.on('dialog')), Chrome blocks Page.handleJavaScriptDialog from
+    // other sessions including the extension's chrome.debugger session — those
+    // calls hang indefinitely. Playwright must handle the dialog here so the
+    // test can verify post-dialog page behavior.
+    await initAndListTools(mcpServer, mcpClient);
+    const tabId = await openInteractivePage(mcpClient, testServer);
+
+    // Register a Playwright dialog listener that accepts the dialog immediately
+    // and signals when it has appeared. Without a listener, Playwright
+    // auto-dismisses dialogs without recording them.
+    let dialogMessage = '';
+    const dialogHandled = new Promise<void>(resolve => {
+      const tabPage = extensionContext.pages().find(p => p.url().includes('/interactive'));
+      tabPage?.on('dialog', dialog => {
+        dialogMessage = dialog.message();
+        void dialog.accept();
+        resolve();
+      });
+    });
+
+    // Schedule an alert with setTimeout so browser_execute_script returns
+    // immediately. alert() blocks the main thread synchronously — it must be
+    // deferred so this MCP call can return before the dialog fires.
+    const scheduleResult = await mcpClient.callTool('browser_execute_script', {
+      tabId,
+      code: 'setTimeout(() => window.alert("test-dialog"), 100)',
+    });
+    expect(scheduleResult.isError).toBe(false);
+
+    // Wait for the dialog to appear and be accepted by Playwright.
+    await dialogHandled;
+    expect(dialogMessage).toBe('test-dialog');
+
+    // After dialog dismissal the page is unblocked. Verify browser_execute_script
+    // still works, confirming the page's main thread is free.
+    const scriptResult = await mcpClient.callTool('browser_execute_script', {
+      tabId,
+      code: 'return document.readyState',
+    });
+    expect(scriptResult.isError).toBe(false);
+
+    // Verify the browser_handle_dialog pipeline is healthy: with no dialog open
+    // it returns the expected "No JavaScript dialog" error (not a crash or timeout).
+    const handleResult = await mcpClient.callTool('browser_handle_dialog', {
+      tabId,
+      action: 'accept',
+    });
+    expect(handleResult.isError).toBe(true);
+    expect(handleResult.content).toContain('No JavaScript dialog');
+
+    await mcpClient.callTool('browser_close_tab', { tabId });
+  });
 });
 
 // ---------------------------------------------------------------------------
