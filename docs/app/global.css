@@ -380,6 +380,15 @@ code {
   font-family: var(--font-mono);
 }
 
+/* ===== RetroUI Tabs — horizontal scroll with hidden scrollbar on mobile ===== */
+.retro-tabs-list {
+  scrollbar-width: none;
+}
+
+.retro-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+
 /* ===== RetroUI Steps component — CSS counter-based step numbering */
 .retro-steps {
   counter-reset: retro-step;
