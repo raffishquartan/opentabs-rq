@@ -11,6 +11,7 @@ const noopCallbacks = {
   onManifestChanged: () => {},
   onIifeChanged: () => {},
   onConfigChanged: () => {},
+  onPluginDiscovered: () => {},
 };
 
 /** Create a minimal registered plugin with the given overrides */

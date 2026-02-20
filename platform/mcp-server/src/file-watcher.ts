@@ -21,10 +21,11 @@
  */
 
 import { getConfigDir } from './config.js';
+import { loadPluginFromDir } from './discovery.js';
 import { log } from './logger.js';
 import { parseManifest } from './manifest-schema.js';
 import { validateUrlPattern } from '@opentabs-dev/shared';
-import { watch } from 'node:fs';
+import { statSync, watch } from 'node:fs';
 import { join } from 'node:path';
 import type { ServerState, FileWatcherEntry } from './state.js';
 import type { FSWatcher } from 'node:fs';
@@ -37,6 +38,8 @@ interface FileWatcherCallbacks {
   onIifeChanged: (pluginName: string, iife: string) => void;
   /** Called when ~/.opentabs/config.json changes on disk */
   onConfigChanged: () => void;
+  /** Called when a previously-failed plugin path is successfully loaded */
+  onPluginDiscovered: (pluginName: string) => void;
 }
 
 /**
@@ -222,6 +225,100 @@ const handleManifestChange = async (
 };
 
 /**
+ * Handle a file change in a pending plugin directory (one that failed initial
+ * discovery). Attempts full discovery via loadPluginFromDir; on success, adds
+ * the plugin to state and invokes onPluginDiscovered so MCP tools are
+ * re-registered and the extension is synced.
+ */
+const handlePendingPluginChange = async (
+  state: ServerState,
+  pluginDir: string,
+  callbacks: FileWatcherCallbacks,
+): Promise<void> => {
+  try {
+    const plugin = await loadPluginFromDir(pluginDir, 'local', null, pluginDir);
+
+    // Plugin loaded successfully — add to state
+    if (state.plugins.has(plugin.name)) {
+      log.warn(
+        `File watcher: Pending plugin "${plugin.name}" at ${pluginDir} conflicts with existing plugin — skipping`,
+      );
+      return;
+    }
+
+    state.plugins.set(plugin.name, plugin);
+    log.info(`File watcher: Discovered pending plugin "${plugin.name}" at ${pluginDir}`);
+
+    callbacks.onPluginDiscovered(plugin.name);
+  } catch {
+    // Discovery still failing — keep watching silently
+  }
+};
+
+/**
+ * Set up file watching for a pending plugin directory (one that failed initial
+ * discovery). Watches for manifest and IIFE changes, and attempts full
+ * discovery on each change.
+ */
+const watchPendingPlugin = (
+  state: ServerState,
+  pluginDir: string,
+  callbacks: FileWatcherCallbacks,
+): FileWatcherEntry => {
+  const watchers: FSWatcher[] = [];
+  const distDir = join(pluginDir, 'dist');
+  const gen = state.fileWatcherGeneration;
+
+  // Watch plugin directory for manifest creation/changes
+  try {
+    const manifestWatcher = watch(pluginDir, (_eventType, filename) => {
+      if (filename !== 'opentabs-plugin.json') return;
+
+      const key = `${pluginDir}:pending`;
+      const existing = state.fileWatcherTimers.get(key);
+      if (existing) clearTimeout(existing);
+
+      state.fileWatcherTimers.set(
+        key,
+        setTimeout(() => {
+          state.fileWatcherTimers.delete(key);
+          if (state.fileWatcherGeneration !== gen) return;
+          void handlePendingPluginChange(state, pluginDir, callbacks);
+        }, 200),
+      );
+    });
+    watchers.push(manifestWatcher);
+  } catch (err) {
+    log.warn(`File watcher: Could not watch pending plugin dir at ${pluginDir}:`, err);
+  }
+
+  // Watch dist directory for IIFE creation/changes
+  try {
+    const distWatcher = watch(distDir, (_eventType, filename) => {
+      if (filename !== 'adapter.iife.js') return;
+
+      const key = `${pluginDir}:pending`;
+      const existing = state.fileWatcherTimers.get(key);
+      if (existing) clearTimeout(existing);
+
+      state.fileWatcherTimers.set(
+        key,
+        setTimeout(() => {
+          state.fileWatcherTimers.delete(key);
+          if (state.fileWatcherGeneration !== gen) return;
+          void handlePendingPluginChange(state, pluginDir, callbacks);
+        }, 200),
+      );
+    });
+    watchers.push(distWatcher);
+  } catch {
+    // dist/ may not exist yet — the manifest watcher will still catch changes
+  }
+
+  return { pluginDir, pluginName: `(pending:${pluginDir})`, watchers };
+};
+
+/**
  * Set up file watching for a single local plugin directory.
  */
 const watchPlugin = (
@@ -330,33 +427,68 @@ const startConfigWatching = (state: ServerState, callbacks: FileWatcherCallbacks
 };
 
 /**
- * Start file watching for all local plugins.
- * Uses the sourcePath stored on each local RegisteredPlugin.
- * Only watches local plugins — not npm-installed packages.
+ * Start file watching for all local plugins and pending plugin paths.
+ *
+ * Watches two categories:
+ * 1. Successfully loaded local plugins (from state.plugins) — watches for
+ *    manifest and IIFE updates using the existing per-event handlers.
+ * 2. Pending plugin paths (configured in config.json but failed initial
+ *    discovery) — watches for any file changes and reattempts full discovery
+ *    via loadPluginFromDir.
+ *
+ * @param resolvedPluginPaths - Absolute paths to all configured local plugin
+ *   directories (from config.json, resolved against the config dir). Paths
+ *   that exist on disk but are not in state.plugins are watched as pending.
  */
-const startFileWatching = (state: ServerState, callbacks: FileWatcherCallbacks): void => {
+const startFileWatching = (
+  state: ServerState,
+  callbacks: FileWatcherCallbacks,
+  resolvedPluginPaths: string[] = [],
+): void => {
   // Clean up any existing watchers first
   stopFileWatching(state);
   state.fileWatcherGeneration++;
 
-  // Find all local plugins with a source path
+  // Build set of paths already successfully loaded
+  const loadedPaths = new Set<string>();
+
+  // Watch successfully loaded local plugins
   const localPlugins = Array.from(state.plugins.values()).filter(p => p.trustTier === 'local' && p.sourcePath);
-
-  if (localPlugins.length === 0) {
-    log.info('File watcher: No local plugins to watch');
-    return;
-  }
-
   for (const plugin of localPlugins) {
     const srcPath = plugin.sourcePath;
     if (!srcPath) continue;
+    loadedPaths.add(srcPath);
     const entry = watchPlugin(state, srcPath, plugin.name, callbacks);
     state.fileWatcherEntries.push(entry);
 
     log.info(`File watcher: Watching "${plugin.name}" at ${srcPath}`);
   }
 
-  log.info(`File watcher: Watching ${state.fileWatcherEntries.length} local plugin(s)`);
+  // Watch pending plugin paths that failed initial discovery
+  let pendingCount = 0;
+  for (const pluginPath of resolvedPluginPaths) {
+    if (loadedPaths.has(pluginPath)) continue;
+
+    // Skip paths that don't exist on disk
+    try {
+      if (!statSync(pluginPath, { throwIfNoEntry: false })?.isDirectory()) continue;
+    } catch {
+      continue;
+    }
+
+    const entry = watchPendingPlugin(state, pluginPath, callbacks);
+    state.fileWatcherEntries.push(entry);
+    pendingCount++;
+
+    log.info(`File watcher: Watching pending plugin path at ${pluginPath}`);
+  }
+
+  const loadedCount = state.fileWatcherEntries.length - pendingCount;
+  if (loadedCount === 0 && pendingCount === 0) {
+    log.info('File watcher: No local plugins to watch');
+  } else {
+    log.info(`File watcher: Watching ${loadedCount} loaded + ${pendingCount} pending plugin path(s)`);
+  }
 };
 
 /**

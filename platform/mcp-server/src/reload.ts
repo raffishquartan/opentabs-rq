@@ -106,7 +106,21 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
         log.error('Config watcher reload failed:', err);
       });
     },
+    onPluginDiscovered: (pluginName: string) => {
+      log.info(`Plugin "${pluginName}" discovered by file watcher — rebuilding tools and syncing extension`);
+      rebuildToolLookups(state);
+      notifyAllClients();
+      if (state.extensionWs) {
+        void sendSyncFull(state).catch((err: unknown) => {
+          log.error('Failed to sync extension after plugin discovery:', err);
+        });
+      }
+    },
   };
+
+  // Track resolved plugin paths across the try/catch so the file watcher
+  // can watch pending paths even if discovery partially fails.
+  let resolvedPaths: string[] = [];
 
   try {
     // Load config and discover plugins into a new Map. The Map is swapped
@@ -116,7 +130,7 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     // Config stores raw paths (may be relative). Resolve them against the config
     // directory before passing to discoverPlugins, which expects absolute paths.
     const configDir = getConfigDir();
-    const resolvedPaths = config.plugins.map(p => (isAbsolute(p) ? p : resolve(configDir, p)));
+    resolvedPaths = config.plugins.map(p => (isAbsolute(p) ? p : resolve(configDir, p)));
     const newPlugins = await discoverPlugins(resolvedPaths, config.npmPlugins ?? []);
 
     // Atomic swap
@@ -183,7 +197,9 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
 
   // File watching — always restart regardless of success/failure so
   // watchers are never left in a stopped state after a partial reload.
-  startFileWatching(state, fileWatcherCallbacks);
+  // Pass resolved plugin paths so the watcher can also monitor paths
+  // that failed initial discovery and pick them up when built.
+  startFileWatching(state, fileWatcherCallbacks, resolvedPaths);
   startConfigWatching(state, fileWatcherCallbacks);
 
   // Re-sync extension if connected
