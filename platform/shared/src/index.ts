@@ -7,6 +7,12 @@
  */
 
 // ---------------------------------------------------------------------------
+// Result type — structured error handling
+// ---------------------------------------------------------------------------
+
+export { type Ok, type Err, type Result, ok, err, isOk, isErr, unwrap, unwrapOr, mapResult } from './result.js';
+
+// ---------------------------------------------------------------------------
 // Domain types — shared between MCP server and Chrome extension
 // ---------------------------------------------------------------------------
 
