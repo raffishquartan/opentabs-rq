@@ -5,6 +5,13 @@
   --font-head: 'Archivo Black', sans-serif;
   --font-sans: 'Space Grotesk', sans-serif;
   --font-mono: 'Space Mono', monospace;
+  --radius: var(--radius);
+  --radius-sm: calc(var(--radius) - 0.125rem);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 0.125rem);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+  --radius-3xl: calc(var(--radius) + 0.75rem);
   --shadow-xs: 1px 1px 0 0 var(--border);
   --shadow-sm: 2px 2px 0 0 var(--border);
   --shadow: 3px 3px 0 0 var(--border);
@@ -32,7 +39,7 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0;
   --background: #fff;
   --foreground: #000;
   --card: #fff;

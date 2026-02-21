@@ -40,7 +40,7 @@ const Loader = React.forwardRef<HTMLDivElement, LoaderProps>(
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="animate-bounce border-2"
+          className="animate-bounce rounded border-2"
           style={{
             animationDuration: `${duration}s`,
             animationIterationCount: 'infinite',
