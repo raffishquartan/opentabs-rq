@@ -1,0 +1,334 @@
+---
+title: Logging & Debugging
+description: Add structured logging to your plugin and use the CLI tools to diagnose issues when things go wrong.
+lastUpdated: 2026-02-21
+---
+
+When a tool fails or behaves unexpectedly, you need visibility into what happened. OpenTabs provides a structured logging pipeline that routes messages from your plugin code all the way to the MCP server, and a set of CLI tools to inspect the system's health, recent activity, and plugin logs.
+
+## The `log` API
+
+The plugin SDK exports a `log` object with four log levels:
+
+```typescript
+import { log } from '@opentabs-dev/plugin-sdk';
+
+log.debug('Checking auth state...');
+log.info('Fetching channels', { workspace: 'acme' });
+log.warn('Rate limit approaching', { remaining: 5 });
+log.error('Failed to parse response', { status: 500 });
+```
+
+Each method takes a message string and any number of additional arguments. The arguments are safely serialized — circular references, DOM nodes, functions, and other non-JSON-safe values are handled automatically.
+
+### Log Levels
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Method</Table.Head>
+      <Table.Head>MCP Level</Table.Head>
+      <Table.Head>When to Use</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell>`log.debug()`</Table.Cell>
+      <Table.Cell>`debug`</Table.Cell>
+      <Table.Cell>Detailed trace information — useful during development, noisy in production</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>`log.info()`</Table.Cell>
+      <Table.Cell>`info`</Table.Cell>
+      <Table.Cell>Key operations — what the tool is doing, milestones, results</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>`log.warn()`</Table.Cell>
+      <Table.Cell>`warning`</Table.Cell>
+      <Table.Cell>Something unexpected that didn't cause a failure — rate limits, fallback behavior</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>`log.error()`</Table.Cell>
+      <Table.Cell>`error`</Table.Cell>
+      <Table.Cell>Something failed — caught exceptions, missing data, broken assumptions</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Where Logs End Up
+
+When your plugin runs inside the browser, logs flow through the entire platform:
+
+1. **Tool handler** calls `log.info(...)` in the page context
+2. **Adapter IIFE** batches entries (flushes every 100ms or 50 entries) and sends them to the Chrome extension
+3. **Chrome extension** forwards entries to the MCP server via WebSocket
+4. **MCP server** stores entries in a per-plugin ring buffer (last 1,000 entries), writes them to `~/.opentabs/server.log`, and forwards them to connected MCP clients
+
+When running outside the adapter runtime (e.g., in unit tests), `log` falls back to `console` methods, prefixed with `[sdk.log]`.
+
+### Logging in a Tool Handler
+
+Add logging at key points in your tool handler to make debugging easier:
+
+```typescript
+import { log, fetchJSON, waitForSelector, ToolError } from '@opentabs-dev/plugin-sdk';
+
+async function handle({ query }: { query: string }) {
+  log.info('Starting search', { query });
+
+  await waitForSelector('.search-loaded');
+  log.debug('Search page is ready');
+
+  const results = await fetchJSON(`/api/search?q=${encodeURIComponent(query)}`);
+  log.info('Search complete', { resultCount: results.items.length });
+
+  if (results.items.length === 0) {
+    log.warn('No results found', { query });
+  }
+
+  return { items: results.items };
+}
+```
+
+## Debugging Workflow
+
+When something goes wrong, work through these steps in order. Each tool gives you a different level of visibility.
+
+### Step 1: Check System Health with `opentabs status`
+
+Start by confirming the platform is running and all components are connected:
+
+```bash
+opentabs status
+```
+
+```
+OpenTabs Status
+
+  Status:      running
+  Version:     0.0.3
+  Port:        9515
+  Uptime:      2h 15m
+  Extension:   connected
+  MCP clients: 1
+  Plugins:     2
+  Tools:       8
+  Reloads:     0
+
+  Plugins
+    Slack (local) — ready · 5 tools
+    GitHub (npm) — unavailable · 3 tools
+```
+
+Look for:
+
+- **Extension: not connected** — the Chrome extension isn't connected to the server. Reload the extension from `chrome://extensions/`
+- **Plugins: 0** — no plugins discovered. Run `opentabs doctor` to check plugin paths
+- **unavailable tab state** — the plugin's tab exists but `isReady()` returned false. Open the app in Chrome and log in
+- **closed tab state** — no matching tab open. Open the web app the plugin targets
+
+Use `--json` for the raw health response, including `logBufferSize` per plugin and `auditSummary` stats.
+
+### Step 2: Check Recent Tool Calls with `opentabs audit`
+
+See what the AI agent has been calling and whether calls succeeded:
+
+```bash
+opentabs audit
+```
+
+```
+Time       Tool                           OK   Duration
+─────────────────────────────────────────────────────────
+10:15:30   slack_list_channels             ✓    120ms
+10:15:45   slack_send_message              ✗    30.0s
+10:16:02   slack_list_channels             ✓    95ms
+```
+
+A red `✗` means the tool call failed. Filter by plugin to focus on what matters:
+
+```bash
+opentabs audit --plugin slack
+opentabs audit --limit 50
+opentabs audit --json          # raw JSON with error details
+```
+
+The `--json` output includes error codes, categories, and messages — useful for understanding exactly what went wrong:
+
+```json
+{
+  "timestamp": "2026-02-21T10:15:45.000Z",
+  "tool": "slack_send_message",
+  "plugin": "slack",
+  "success": false,
+  "durationMs": 30000,
+  "error": {
+    "code": "TIMEOUT",
+    "message": "Dispatch timed out after 30000ms",
+    "category": "timeout"
+  }
+}
+```
+
+### Step 3: Read Plugin Logs with `opentabs logs`
+
+The server log captures everything — plugin log entries, server events, errors:
+
+```bash
+opentabs logs
+```
+
+This tails `~/.opentabs/server.log`, showing the last 50 lines and following new output. Filter to a specific plugin:
+
+```bash
+opentabs logs --plugin slack
+```
+
+This filters to lines matching `[plugin:slack]`. Plugin log entries appear in this format:
+
+```
+[plugin:slack] 2026-02-21T10:15:30.000Z INFO Fetching channels {"workspace":"acme"}
+[plugin:slack] 2026-02-21T10:15:45.000Z ERROR Request timed out {"url":"/api/chat.postMessage"}
+```
+
+Other useful flags:
+
+```bash
+opentabs logs --lines 100      # show last 100 lines instead of 50
+opentabs logs --no-follow      # print recent lines and exit
+```
+
+### Step 4: Run Diagnostics with `opentabs doctor`
+
+If the system doesn't seem right, run the diagnostic check:
+
+```bash
+opentabs doctor
+```
+
+```
+OpenTabs Doctor
+
+  ✓ Bun runtime: v1.2.0
+  ✓ Config file: /Users/you/.opentabs/config.json
+  ✓ MCP server: running on port 9515
+  ✓ Extension connection: connected
+  ✓ Extension installed: /Users/you/.opentabs/extension
+  ✓ Extension version: matches (0.0.3)
+  ! Plugin: /Users/you/plugins/slack — missing dist/tools.json
+    Run: cd /Users/you/plugins/slack && bun run build
+
+6/7 checks passed.
+```
+
+Doctor checks:
+
+- **Bun runtime** — is Bun installed?
+- **Config file** — does `~/.opentabs/config.json` exist?
+- **MCP server** — is the server running and reachable?
+- **Extension connection** — is the Chrome extension connected via WebSocket?
+- **Extension installed** — are the extension files in `~/.opentabs/extension/`?
+- **Extension version** — does the extension version match the CLI version?
+- **Local plugins** — does each plugin in `localPlugins` have built artifacts?
+
+### Step 5: Inspect the Chrome Extension
+
+For issues in the browser extension itself (adapter injection, WebSocket, content script relay), use Chrome DevTools:
+
+**Service worker logs:**
+
+1. Open `chrome://extensions/`
+2. Find the OpenTabs extension
+3. Click "Inspect views: service worker"
+4. Check the Console tab for errors
+
+**Content script and adapter logs:**
+
+1. Open the web app your plugin targets
+2. Open DevTools (F12)
+3. Check the Console tab — adapter logs and `[sdk.log]` fallback entries appear here
+
+**Side panel:**
+
+1. Open the OpenTabs side panel
+2. Right-click inside it → "Inspect"
+3. Check Console and Network tabs
+
+## Common Issues
+
+### Tool call times out (30 seconds)
+
+The dispatch chain has a 30-second timeout. If your tool takes longer, report progress to keep the connection alive:
+
+```typescript
+async function handle(params: Input, context?: ToolHandlerContext) {
+  for (let i = 0; i < pages.length; i++) {
+    context?.reportProgress({ progress: i + 1, total: pages.length });
+    await processPage(pages[i]);
+  }
+  return { done: true };
+}
+```
+
+Each progress report resets the 30-second timer. See the [Streaming & Progress](/docs/guides/streaming-progress) guide for details.
+
+### Plugin shows "unavailable" state
+
+The plugin's tab exists but `isReady()` returned `false`. This usually means:
+
+- The user isn't logged in — open the app and sign in
+- The page hasn't finished loading — `isReady()` checks for a DOM element that appears after authentication
+
+Check your `isReady()` implementation:
+
+```typescript
+isReady() {
+  return !!document.querySelector('.authenticated-container');
+}
+```
+
+### Plugin shows "closed" state
+
+No tab matching the plugin's URL patterns is open. Open the web app in Chrome.
+
+### "Not connected" in side panel
+
+The Chrome extension can't reach the MCP server. Check:
+
+1. Is the server running? → `opentabs status`
+2. Is it on the expected port? → Default is `9515`
+3. Try reloading the extension from `chrome://extensions/`
+
+### Logs aren't appearing
+
+If `log.info()` calls aren't showing up in `opentabs logs`:
+
+1. Confirm the server is running: `opentabs status`
+2. Confirm the extension is connected: look for "Extension: connected" in status output
+3. Check the browser console for errors in the content script relay
+4. Make sure you're filtering correctly: `opentabs logs --plugin <name>` matches the plugin name, not the display name
+
+## Best Practices
+
+**Log at boundaries.** Add `log.info()` at the start and end of tool handlers, and `log.debug()` before significant operations (API calls, DOM queries). This gives you a trace of what happened when something fails.
+
+**Include context in log data.** Pass objects with relevant IDs, counts, and parameters — not just messages. This makes log entries searchable and informative.
+
+```typescript
+// Good — includes actionable context
+log.info('Sending message', { channel: '#general', length: text.length });
+
+// Less useful — no context
+log.info('Sending message');
+```
+
+**Use `log.warn()` for recoverable issues.** If your tool retries an operation, falls back to a different strategy, or encounters an unexpected but non-fatal condition, log a warning. It helps you spot patterns before they become failures.
+
+**Don't log sensitive data.** Avoid logging auth tokens, passwords, or personal data. The log pipeline stores entries in memory and writes them to disk.
+
+## Next Steps
+
+- [Error Handling](/docs/guides/error-handling) — structured errors for AI agents
+- [Streaming & Progress](/docs/guides/streaming-progress) — report progress for long-running tools
+- [Plugin Development](/docs/guides/plugin-development) — full walkthrough of building a plugin
+- [SDK Reference: Utilities](/docs/sdk/utilities) — complete API reference for logging and other SDK utilities
