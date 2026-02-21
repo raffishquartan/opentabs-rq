@@ -42,6 +42,7 @@
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
+import { isDev } from './dev-mode.js';
 import { createHandlers } from './http-routes.js';
 import { log } from './logger.js';
 import { performReload } from './reload.js';
@@ -208,7 +209,8 @@ const server = hotState?.server ?? createHttpServer();
 const actualPort = server.port ?? PORT;
 
 if (!isHotReload) {
-  log.info(`MCP server v${version} listening on http://localhost:${actualPort}`);
+  const modeLabel = isDev() ? ' (dev mode)' : '';
+  log.info(`MCP server v${version} listening on http://localhost:${actualPort}${modeLabel}`);
 }
 
 // Install graceful shutdown handlers (once per process, survives hot reloads).

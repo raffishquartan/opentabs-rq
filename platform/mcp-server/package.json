@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "tsc --build",
-    "start": "bun --hot dist/index.js"
+    "dev": "bun --hot dist/index.js --dev",
+    "start": "bun dist/index.js"
   },
   "devDependencies": {
     "bun-types": "^1.3.9"
