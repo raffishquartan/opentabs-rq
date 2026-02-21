@@ -283,6 +283,7 @@ const convertToolSchemas = (tool: ToolDefinition) => {
 
 /** Full manifest shape written to dist/tools.json */
 interface PluginManifestOutput {
+  sdkVersion: string;
   tools: ManifestTool[];
   resources: ManifestResource[];
   prompts: ManifestPrompt[];
@@ -327,8 +328,36 @@ const generatePromptsManifest = (prompts: PromptDefinition[]): ManifestPrompt[] 
     return entry;
   });
 
+/**
+ * Resolve the installed @opentabs-dev/plugin-sdk version from the plugin's node_modules.
+ * Returns the exact semver version string (e.g. '0.0.10'), not a range.
+ * Throws with a descriptive error if the SDK is not installed.
+ */
+const resolveSdkVersion = async (projectDir: string): Promise<string> => {
+  const sdkPkgPath = join(projectDir, 'node_modules', '@opentabs-dev', 'plugin-sdk', 'package.json');
+  const sdkPkgFile = Bun.file(sdkPkgPath);
+  if (!(await sdkPkgFile.exists())) {
+    throw new Error('Could not resolve @opentabs-dev/plugin-sdk version. Ensure the package is installed.');
+  }
+  let sdkPkg: unknown;
+  try {
+    sdkPkg = JSON.parse(await sdkPkgFile.text());
+  } catch {
+    throw new Error('Could not resolve @opentabs-dev/plugin-sdk version. Ensure the package is installed.');
+  }
+  if (typeof sdkPkg !== 'object' || sdkPkg === null || !('version' in sdkPkg)) {
+    throw new Error('Could not resolve @opentabs-dev/plugin-sdk version. Ensure the package is installed.');
+  }
+  const version = (sdkPkg as Record<string, unknown>).version;
+  if (typeof version !== 'string' || version.length === 0) {
+    throw new Error('Could not resolve @opentabs-dev/plugin-sdk version. Ensure the package is installed.');
+  }
+  return version;
+};
+
 /** Generate the full manifest (tools + resources + prompts) for dist/tools.json */
-const generateManifest = (plugin: OpenTabsPlugin): PluginManifestOutput => ({
+const generateManifest = (plugin: OpenTabsPlugin, sdkVersion: string): PluginManifestOutput => ({
+  sdkVersion,
   tools: generateToolsManifest(plugin),
   resources: generateResourcesManifest(plugin.resources ?? []),
   prompts: generatePromptsManifest(plugin.prompts ?? []),
@@ -600,9 +629,13 @@ const runBuild = async (projectDir: string): Promise<void> => {
   const iifeSize = (await Bun.file(iifePath).stat()).size;
   console.log(`  Written: ${pc.bold('dist/adapter.iife.js')} (${formatBytes(iifeSize)})`);
 
-  // Step 5: Generate dist/tools.json (tool schemas + resource/prompt metadata)
+  // Step 5: Resolve installed SDK version
+  console.log(pc.dim('Resolving SDK version...'));
+  const sdkVersion = await resolveSdkVersion(projectDir);
+
+  // Step 6: Generate dist/tools.json (tool schemas + resource/prompt metadata)
   console.log(pc.dim('Generating tools.json...'));
-  const manifest = generateManifest(plugin);
+  const manifest = generateManifest(plugin, sdkVersion);
   const toolsJsonPath = join(distDir, 'tools.json');
   await Bun.write(toolsJsonPath, JSON.stringify(manifest, null, 2) + '\n');
   const toolCount = manifest.tools.length;
@@ -747,6 +780,7 @@ export {
   notifyServer,
   registerBuildCommand,
   registerInConfig,
+  resolveSdkVersion,
   validatePackageJson,
   validatePlugin,
 };

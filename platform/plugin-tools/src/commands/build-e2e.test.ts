@@ -66,6 +66,7 @@ describe('opentabs-plugin build E2E', () => {
       expect(await toolsFile.exists()).toBe(true);
 
       const manifest = (await toolsFile.json()) as {
+        sdkVersion: string;
         tools: Array<{
           name: string;
           displayName: string;
@@ -79,6 +80,8 @@ describe('opentabs-plugin build E2E', () => {
       };
 
       // Verify manifest has top-level structure
+      expect(typeof manifest.sdkVersion).toBe('string');
+      expect(manifest.sdkVersion).toMatch(/^\d+\.\d+\.\d+/);
       expect(Array.isArray(manifest.tools)).toBe(true);
       expect(Array.isArray(manifest.resources)).toBe(true);
       expect(Array.isArray(manifest.prompts)).toBe(true);

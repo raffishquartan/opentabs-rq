@@ -587,9 +587,10 @@ describe('generatePromptsManifest', () => {
 // ---------------------------------------------------------------------------
 
 describe('generateManifest', () => {
-  test('produces { tools, resources, prompts } structure', () => {
+  test('produces { sdkVersion, tools, resources, prompts } structure', () => {
     const plugin = makePlugin({ tools: [makeRealTool()] });
-    const manifest = generateManifest(plugin);
+    const manifest = generateManifest(plugin, '0.0.10');
+    expect(manifest.sdkVersion).toBe('0.0.10');
     expect(Array.isArray(manifest.tools)).toBe(true);
     expect(Array.isArray(manifest.resources)).toBe(true);
     expect(Array.isArray(manifest.prompts)).toBe(true);
@@ -597,7 +598,7 @@ describe('generateManifest', () => {
 
   test('resources and prompts default to empty arrays when plugin has none', () => {
     const plugin = makePlugin({ tools: [makeRealTool()] });
-    const manifest = generateManifest(plugin);
+    const manifest = generateManifest(plugin, '0.0.10');
     expect(manifest.resources).toEqual([]);
     expect(manifest.prompts).toEqual([]);
   });

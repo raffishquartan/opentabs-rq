@@ -36,6 +36,8 @@ export interface PluginManifest {
   displayName: string;
   description: string;
   url_patterns: string[];
+  /** SDK version the plugin was built with (set by `opentabs-plugin build` since SDK 0.0.17) */
+  sdkVersion?: string;
   tools: ManifestTool[];
   resources?: ManifestResource[];
   prompts?: ManifestPrompt[];
