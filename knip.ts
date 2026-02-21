@@ -19,6 +19,10 @@ const config: KnipConfig = {
     'platform/plugin-sdk': {},
     'platform/cli': {
       entry: ['src/**/*.test.ts'],
+      ignoreDependencies: [
+        // Resolved at runtime via import.meta.resolve() in scaffold.ts to read its version
+        '@opentabs-dev/plugin-tools',
+      ],
     },
     'platform/plugin-tools': {
       entry: ['src/**/*.test.ts'],
