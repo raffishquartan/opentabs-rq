@@ -41,14 +41,15 @@ The **MCP server** discovers plugins and exposes their tools via the MCP protoco
 
 ## Development
 
-| Command              | Description              |
-| -------------------- | ------------------------ |
-| `bun run build`      | Build all packages       |
-| `bun run type-check` | TypeScript type checking |
-| `bun run lint`       | ESLint                   |
-| `bun run knip`       | Unused code detection    |
-| `bun run test`       | Unit tests               |
-| `bun run test:e2e`   | E2E tests (Playwright)   |
+| Command              | Description                                          |
+| -------------------- | ---------------------------------------------------- |
+| `bun run check`      | Run all checks (build, type-check, lint, knip, test) |
+| `bun run build`      | Build all packages                                   |
+| `bun run type-check` | TypeScript type checking                             |
+| `bun run lint`       | ESLint                                               |
+| `bun run knip`       | Unused code detection                                |
+| `bun run test`       | Unit tests                                           |
+| `bun run test:e2e`   | E2E tests (Playwright)                               |
 
 **Dev mode** (MCP server with hot reload):
 

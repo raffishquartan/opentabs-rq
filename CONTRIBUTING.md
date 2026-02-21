@@ -69,7 +69,13 @@ bun run build  # builds, registers, and notifies the server
 
 ## Verification
 
-All five commands must pass before pushing:
+All five checks must pass before pushing. Run them all at once:
+
+```bash
+bun run check
+```
+
+This runs the following in sequence, stopping on the first failure:
 
 | Command              | What it checks                     |
 | -------------------- | ---------------------------------- |
@@ -79,9 +85,7 @@ All five commands must pass before pushing:
 | `bun run knip`       | Unused exports and dependencies    |
 | `bun run test`       | Unit tests                         |
 
-```bash
-bun run build && bun run type-check && bun run lint && bun run knip && bun run test
-```
+For the comprehensive suite including E2E tests: `bun run check:all`
 
 The pre-push hook automatically runs `build`, `type-check`, and `test`. The pre-commit hook runs `lint-staged` (Prettier + ESLint on staged files) and `knip`.
 
