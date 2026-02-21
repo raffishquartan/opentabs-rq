@@ -1,3 +1,4 @@
+export { registerAuditCommand } from './audit.js';
 export { registerConfigCommand } from './config.js';
 export { registerDoctorCommand } from './doctor.js';
 export { registerLogsCommand } from './logs.js';

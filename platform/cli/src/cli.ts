@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import {
+  registerAuditCommand,
   registerConfigCommand,
   registerDoctorCommand,
   registerLogsCommand,
@@ -26,6 +27,7 @@ const program = new Command('opentabs')
 
 registerStartCommand(program);
 registerStatusCommand(program);
+registerAuditCommand(program);
 registerDoctorCommand(program);
 registerLogsCommand(program);
 registerPluginCommand(program);
