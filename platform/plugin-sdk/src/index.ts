@@ -107,3 +107,9 @@ export type { FetchFromPageOptions } from './fetch.js';
 
 export { retry, sleep, waitUntil } from './timing.js';
 export type { RetryOptions, WaitUntilOptions } from './timing.js';
+
+// ---------------------------------------------------------------------------
+// SDK utilities — Storage
+// ---------------------------------------------------------------------------
+
+export { getLocalStorage, setLocalStorage, getSessionStorage, getCookie } from './storage.js';
