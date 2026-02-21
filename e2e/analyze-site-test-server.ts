@@ -13,6 +13,7 @@
  *   /jwt-localstorage/  — JWT token in localStorage with Bearer header API calls
  *   /graphql/           — GraphQL API endpoint with queries and a mutation
  *   /jsonrpc-app/       — JSON-RPC 2.0 API endpoint with methods
+ *   /nextjs-app/        — Next.js-style SSR app with __NEXT_DATA__ and auth data in globals
  *
  * Start: `bun e2e/analyze-site-test-server.ts`
  * Default port: 0 (dynamic, override with PORT env var)
@@ -318,6 +319,72 @@ const JSONRPC_HTML = `<!DOCTYPE html>
         }
       })();
     }, 1500);
+  </script>
+</body>
+</html>`;
+
+// ---------------------------------------------------------------------------
+// Next.js SSR scenario HTML
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulates a Next.js-style SSR app with:
+ * - window.__NEXT_DATA__ containing session/user data and a buildId
+ * - div#__next root element (triggers SPA detection via known container IDs)
+ * - __NEXT_DATA__.props triggers hydration marker detection
+ * - Auth-related keys (session, user, accessToken) nested in __NEXT_DATA__
+ */
+const NEXTJS_SSR_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Next.js SSR Test App</title>
+</head>
+<body>
+  <div id="__next">
+    <div class="layout">
+      <h1>Next.js Dashboard</h1>
+      <p id="status">Server-rendered content</p>
+    </div>
+  </div>
+
+  <script>
+    // Simulate Next.js SSR hydration data.
+    // Top-level 'session' key ensures globals detection flags hasAuthData.
+    // The nested props.pageProps.session is the realistic Next.js pattern
+    // for auth data (NextAuth.js style).
+    window.__NEXT_DATA__ = {
+      buildId: 'test-build-123',
+      session: {
+        user: {
+          id: 'user-1',
+          name: 'Test User',
+          email: 'test@example.com'
+        },
+        accessToken: 'fake-next-token-abc123',
+        expires: '2099-12-31T23:59:59.999Z'
+      },
+      props: {
+        pageProps: {
+          session: {
+            user: {
+              id: 'user-1',
+              name: 'Test User',
+              email: 'test@example.com'
+            },
+            accessToken: 'fake-next-token-abc123',
+            expires: '2099-12-31T23:59:59.999Z'
+          },
+          items: [
+            { id: 'item-1', title: 'Alpha' },
+            { id: 'item-2', title: 'Bravo' }
+          ]
+        }
+      },
+      page: '/dashboard',
+      query: {}
+    };
   </script>
 </body>
 </html>`;
@@ -660,6 +727,17 @@ const server = Bun.serve({
         }),
         { status: 404, headers: { 'Content-Type': 'application/json' } },
       );
+    }
+
+    // ===================================================================
+    // Next.js SSR scenario
+    // ===================================================================
+
+    // Page — serves HTML with __NEXT_DATA__ global
+    if (path === '/nextjs-app/' || path === '/nextjs-app') {
+      return new Response(NEXTJS_SSR_HTML, {
+        headers: { 'Content-Type': 'text/html' },
+      });
     }
 
     // --- 404 ---

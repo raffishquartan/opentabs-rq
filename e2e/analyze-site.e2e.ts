@@ -45,8 +45,8 @@ interface SiteAnalysis {
   };
   framework: {
     frameworks: Array<{ name: string; version?: string }>;
-    isSpa: boolean;
-    isSsr: boolean;
+    isSPA: boolean;
+    isSSR: boolean;
   };
   globals: {
     globals: Array<{
@@ -304,5 +304,59 @@ test.describe('plugin_analyze_site — JSON-RPC API', () => {
 
     // --- Title ---
     expect(analysis.title).toBe('JSON-RPC Test App');
+  });
+});
+
+test.describe('plugin_analyze_site — Next.js SSR app', () => {
+  test('detects Next.js framework, SSR/SPA status, and auth data in globals', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await waitForExtensionConnected(mcpServer);
+    await waitForLog(mcpServer, 'tab.syncAll received');
+
+    const siteUrl = `${analyzeSiteServer.url}/nextjs-app/`;
+    const analysis = await analyzeSite(mcpClient, siteUrl);
+
+    // --- Framework detection ---
+    // The page sets window.__NEXT_DATA__ which the framework probe detects as nextjs
+    const nextjsFramework = analysis.framework.frameworks.find(f => f.name === 'nextjs');
+    expect(nextjsFramework).toBeDefined();
+
+    // --- SPA detection ---
+    // nextjs is in the known SPA frameworks list
+    expect(analysis.framework.isSPA).toBe(true);
+
+    // --- SSR detection ---
+    // __NEXT_DATA__ with .props triggers both hasNextData and hydration markers
+    expect(analysis.framework.isSSR).toBe(true);
+
+    // --- Auth data in globals ---
+    // __NEXT_DATA__ contains session/user/accessToken which should trigger auth-global detection
+    const authGlobalMethods = analysis.auth.methods.filter(m => m.type === 'auth-global');
+    expect(authGlobalMethods.length).toBeGreaterThanOrEqual(1);
+
+    // The auth-global method should reference __NEXT_DATA__
+    const nextDataAuth = authGlobalMethods.find(m => m.details.includes('__NEXT_DATA__'));
+    expect(nextDataAuth).toBeDefined();
+
+    // Should detect auth since __NEXT_DATA__ has auth data
+    expect(analysis.auth.authenticated).toBe(true);
+
+    // --- Globals detection ---
+    // __NEXT_DATA__ should appear in globals with hasAuthData: true
+    const nextDataGlobal = analysis.globals.globals.find(g => g.path === '__NEXT_DATA__');
+    expect(nextDataGlobal).toBeDefined();
+    expect(nextDataGlobal?.hasAuthData).toBe(true);
+
+    // The topLevelKeys should include known __NEXT_DATA__ properties
+    if (nextDataGlobal?.topLevelKeys) {
+      expect(nextDataGlobal.topLevelKeys).toContain('props');
+      expect(nextDataGlobal.topLevelKeys).toContain('buildId');
+    }
+
+    // --- Title ---
+    expect(analysis.title).toBe('Next.js SSR Test App');
   });
 });
