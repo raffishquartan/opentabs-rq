@@ -92,7 +92,7 @@ const generatePackageJson = async (args: ScaffoldArgs, urlPattern: string): Prom
     files: ['dist'],
     scripts: {
       build: 'tsc && opentabs-plugin build',
-      dev: 'tsc --watch --preserveWatchOutput & opentabs-plugin build --watch',
+      dev: 'concurrently --names tsc,build --prefix-colors blue,green "tsc --watch --preserveWatchOutput" "opentabs-plugin build --watch"',
       'type-check': 'tsc --noEmit',
       lint: 'eslint src/',
       'lint:fix': 'eslint src/ --fix',
@@ -107,6 +107,7 @@ const generatePackageJson = async (args: ScaffoldArgs, urlPattern: string): Prom
     },
     devDependencies: {
       '@opentabs-dev/plugin-tools': pluginToolsVersion,
+      concurrently: '^9.1.2',
       eslint: '^9.39.2',
       'eslint-config-prettier': '^10.1.8',
       'eslint-plugin-prettier': '^5.5.5',
