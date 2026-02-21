@@ -173,6 +173,7 @@ const PORT = hotState?.actualPort ?? (Bun.env.PORT !== undefined ? Number(Bun.en
 const createHttpServer = (): ReturnType<typeof Bun.serve> => {
   try {
     return Bun.serve({
+      hostname: '127.0.0.1',
       port: PORT,
       async fetch(req, server) {
         const hs = getHotState();
