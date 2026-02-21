@@ -1,7 +1,9 @@
 /**
- * `opentabs plugin` command — plugin management (create, search).
+ * `opentabs plugin` command — plugin management (create, search, install).
  */
 
+import { getConfigPath, readConfig } from '../config.js';
+import { resolvePort } from '../parse-port.js';
 import { scaffoldPlugin, ScaffoldError } from '../scaffold.js';
 import pc from 'picocolors';
 import type { Command } from 'commander';
@@ -18,6 +20,77 @@ interface NpmSearchPackage {
 interface NpmSearchResult {
   objects: Array<{ package: NpmSearchPackage }>;
 }
+
+// --- Helpers ---
+
+/**
+ * Normalize a shorthand plugin name to its full npm package name.
+ * "slack" → "opentabs-plugin-slack", but scoped names and full names pass through.
+ */
+const normalizePluginName = (name: string): string => {
+  if (name.startsWith('@') || name.startsWith('opentabs-plugin-')) return name;
+  return `opentabs-plugin-${name}`;
+};
+
+/**
+ * Notify the running MCP server to rediscover plugins via POST /reload.
+ * Non-fatal — prints a hint on failure but never throws.
+ */
+const notifyServer = async (options: { port?: number }): Promise<void> => {
+  const port = resolvePort(options);
+  const configPath = getConfigPath();
+  const config = await readConfig(configPath);
+  const secret = config && typeof config.secret === 'string' ? config.secret : null;
+
+  try {
+    const healthRes = await fetch(`http://localhost:${port}/health`, {
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (!healthRes.ok) return;
+  } catch {
+    // Server not running — nothing to notify
+    return;
+  }
+
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
+
+    const res = await fetch(`http://localhost:${port}/reload`, {
+      method: 'POST',
+      headers,
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (res.ok) {
+      console.log(pc.dim('Server notified — plugins rediscovered.'));
+    } else {
+      console.log(pc.dim(`Could not notify server (HTTP ${res.status}). Restart the server to pick up changes.`));
+    }
+  } catch {
+    console.log(pc.dim('Could not notify server. Restart the server to pick up changes.'));
+  }
+};
+
+// --- Install handler ---
+
+const handlePluginInstall = async (name: string, options: { port?: number }): Promise<void> => {
+  const pkg = normalizePluginName(name);
+  console.log(`Installing ${pc.bold(pkg)}...`);
+
+  const proc = Bun.spawn(['npm', 'install', '-g', pkg], {
+    stdio: ['inherit', 'inherit', 'inherit'],
+  });
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    console.error(pc.red(`npm install failed (exit code ${exitCode}).`));
+    process.exit(1);
+  }
+
+  console.log(pc.green(`Successfully installed ${pkg}.`));
+  await notifyServer(options);
+};
 
 // --- Search handler ---
 
@@ -67,7 +140,7 @@ const handlePluginSearch = async (query?: string): Promise<void> => {
     console.log(`  ${label} ${pc.bold(pkg.name)} ${pc.dim(`v${pkg.version}`)} — ${desc} ${pc.dim(`by ${author}`)}`);
   }
   console.log();
-  console.log(`Install a plugin: ${pc.cyan('npm install -g <package-name>')}`);
+  console.log(`Install a plugin: ${pc.cyan('opentabs plugin install <name>')}`);
   console.log();
 };
 
@@ -95,6 +168,22 @@ Examples:
     .action(async (query?: string) => {
       await handlePluginSearch(query);
     });
+
+  pluginCmd
+    .command('install')
+    .description('Install a plugin from npm')
+    .argument('<name>', 'Plugin name or full package name (e.g., slack or opentabs-plugin-slack)')
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ opentabs plugin install slack
+  $ opentabs plugin install opentabs-plugin-slack
+  $ opentabs plugin install @my-org/opentabs-plugin-custom`,
+    )
+    .action((name: string, _options: unknown, command: Command) =>
+      handlePluginInstall(name, command.optsWithGlobals()),
+    );
 
   pluginCmd
     .command('create')
