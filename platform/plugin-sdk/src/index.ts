@@ -47,7 +47,7 @@ export interface ResourceContent {
 }
 
 /** A plugin resource definition. The read() handler executes in the browser page context. */
-export interface ResourceDefinition {
+export interface ResourceDefinition<TContent extends z.ZodType = z.ZodType> {
   /** Resource URI (e.g., 'slack://channels'). Must be non-empty. */
   uri: string;
   /** Human-readable name for the resource. */
@@ -56,12 +56,20 @@ export interface ResourceDefinition {
   description?: string;
   /** MIME type of the resource content (e.g., 'application/json'). */
   mimeType?: string;
+  /**
+   * Optional Zod schema describing the shape of the resource content.
+   * Provides a typed contract for documentation and autocomplete — the
+   * runtime dispatch path does not validate against this schema.
+   */
+  schema?: TContent;
   /** Read the resource content. Runs in the browser page context. */
   read(uri: string): Promise<ResourceContent>;
 }
 
-/** Type-safe factory — identity function that provides type checking for resource definitions. */
-export const defineResource = (config: ResourceDefinition): ResourceDefinition => config;
+/** Type-safe factory — provides generic inference when `schema` is present, and plain type checking otherwise. */
+export const defineResource = <TContent extends z.ZodType = z.ZodType>(
+  config: ResourceDefinition<TContent>,
+): ResourceDefinition<TContent> => config;
 
 // ---------------------------------------------------------------------------
 // Prompt definitions

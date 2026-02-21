@@ -460,6 +460,52 @@ describe('defineResource', () => {
     expect(result.blob).toBe('iVBORw0KGgo=');
     expect(result.text).toBeUndefined();
   });
+
+  test('schema is optional (backward compatible)', () => {
+    const resource = defineResource({
+      uri: 'test://no-schema',
+      name: 'No Schema',
+      read: () => Promise.resolve({ uri: 'test://no-schema', text: '{}' }),
+    });
+    expect(resource.schema).toBeUndefined();
+  });
+
+  test('defineResource with schema provides typed contract', () => {
+    const contentSchema = z.object({
+      channels: z.array(z.object({ id: z.string(), name: z.string() })),
+    });
+
+    const resource = defineResource({
+      uri: 'slack://channels',
+      name: 'Channels',
+      description: 'List of Slack channels',
+      mimeType: 'application/json',
+      schema: contentSchema,
+      read: () => Promise.resolve({ uri: 'slack://channels', text: '{"channels":[]}' }),
+    });
+
+    expect(resource.schema).toBe(contentSchema);
+    expect(resource.uri).toBe('slack://channels');
+  });
+
+  test('typed resource is assignable to ResourceDefinition[]', () => {
+    const schema = z.object({ count: z.number() });
+    const typedResource = defineResource({
+      uri: 'test://typed',
+      name: 'Typed',
+      schema,
+      read: () => Promise.resolve({ uri: 'test://typed', text: '{"count":0}' }),
+    });
+    const untypedResource = defineResource({
+      uri: 'test://untyped',
+      name: 'Untyped',
+      read: () => Promise.resolve({ uri: 'test://untyped', text: '' }),
+    });
+
+    // Both typed and untyped resources can coexist in a ResourceDefinition[]
+    const resources: ResourceDefinition[] = [typedResource, untypedResource];
+    expect(resources).toHaveLength(2);
+  });
 });
 
 describe('definePrompt', () => {
