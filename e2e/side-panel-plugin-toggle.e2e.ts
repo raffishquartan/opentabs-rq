@@ -51,7 +51,7 @@ test.describe('Side panel — plugin list rendering', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-render-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const testServer = await startTestServer();
@@ -127,7 +127,7 @@ test.describe('Side panel — tool toggle', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-toggle-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const mcpClient = createMcpClient(server.port, server.secret);
@@ -247,7 +247,7 @@ test.describe('Side panel — disabled tool dispatch rejection', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-dispatch-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const testServer = await startTestServer();
@@ -353,7 +353,7 @@ test.describe('Side panel — toggle all tools', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-toggle-all-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const mcpClient = createMcpClient(server.port, server.secret);

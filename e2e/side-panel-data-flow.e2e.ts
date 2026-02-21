@@ -38,7 +38,7 @@ test.describe('Side panel data flow — connection status', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-conn-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const serverPort = server.port;
@@ -102,7 +102,7 @@ test.describe('Side panel data flow — tab state changes', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-tab-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const testServer = await startTestServer();
@@ -202,7 +202,7 @@ test.describe('Side panel data flow — tab state changes', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-unavail-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const testServer = await startTestServer();
@@ -330,7 +330,7 @@ test.describe('Side panel data flow — tool invocation animation', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-anim-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const testServer = await startTestServer();

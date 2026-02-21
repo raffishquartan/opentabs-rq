@@ -480,7 +480,7 @@ test.describe('Strict CSP — file watcher IIFE re-injection', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const strictCspSrv = await startStrictCspServer();
@@ -589,7 +589,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
 
       // Add the second plugin to the config and enable its tool
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(extraPluginDir);
+      config.localPlugins.push(extraPluginDir);
       config.tools['csp-extra-plugin_noop'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -655,7 +655,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
       ]);
 
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(extraPluginDir);
+      config.localPlugins.push(extraPluginDir);
       config.tools['csp-dispatch-extra_noop'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -714,7 +714,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
       ]);
 
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(extraPluginDir);
+      config.localPlugins.push(extraPluginDir);
       config.tools['csp-removable_noop'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -751,7 +751,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
 
       // Remove the second plugin from config (keep only e2e-test)
       const updatedConfig = readTestConfig(mcpServer.configDir);
-      updatedConfig.plugins = updatedConfig.plugins.filter(p => !p.includes('csp-removable'));
+      updatedConfig.localPlugins = updatedConfig.localPlugins.filter(p => !p.includes('csp-removable'));
       delete updatedConfig.tools['csp-removable_noop'];
       writeTestConfig(mcpServer.configDir, updatedConfig);
 

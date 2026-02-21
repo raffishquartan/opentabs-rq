@@ -134,7 +134,7 @@ fixtureTest.describe('IIFE injection — sync.full removal cleanup', () => {
 
       // Remove the plugin from config (empty plugins array, no tools)
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins = [];
+      config.localPlugins = [];
       config.tools = {};
       writeTestConfig(mcpServer.configDir, config);
 
@@ -201,7 +201,7 @@ fixtureTest.describe('IIFE injection — sync.full removal cleanup', () => {
 
       // Remove the plugin from config (empty plugins array, no tools)
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins = [];
+      config.localPlugins = [];
       config.tools = {};
       writeTestConfig(mcpServer.configDir, config);
 
@@ -444,7 +444,7 @@ fixtureTest.describe('IIFE injection — overlapping URL patterns', () => {
 
       // Add the second plugin to the config and enable its tool
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(extraPluginDir);
+      config.localPlugins.push(extraPluginDir);
       config.tools['extra-plugin_noop'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -528,7 +528,7 @@ fixtureTest.describe('IIFE injection — overlapping URL patterns', () => {
 
       // Add the second plugin to the config and enable its tool
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(extraPluginDir);
+      config.localPlugins.push(extraPluginDir);
       config.tools['diff-pattern-plugin_noop'] = true;
       writeTestConfig(mcpServer.configDir, config);
 

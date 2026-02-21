@@ -38,7 +38,7 @@ test.describe('Config watcher — auto-discovery', () => {
   test('adding a plugin path to config.json auto-discovers plugin tools', async () => {
     // Start with empty config (no plugins)
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-cw-add-'));
-    writeTestConfig(configDir, { plugins: [], tools: {} });
+    writeTestConfig(configDir, { localPlugins: [], tools: {} });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -69,7 +69,7 @@ test.describe('Config watcher — auto-discovery', () => {
       for (const t of prefixedToolNames) {
         tools[t] = true;
       }
-      writeTestConfig(configDir, { plugins: [absPluginPath], tools, secret: currentConfig.secret });
+      writeTestConfig(configDir, { localPlugins: [absPluginPath], tools, secret: currentConfig.secret });
 
       // Poll until plugin tools appear — the config watcher should auto-detect
       // the change without any manual reload
@@ -106,7 +106,7 @@ test.describe('Config watcher — auto-discovery', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-cw-remove-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -124,7 +124,7 @@ test.describe('Config watcher — auto-discovery', () => {
 
       // Remove the plugin from config.json (preserve the secret)
       const currentConfig = readTestConfig(configDir);
-      writeTestConfig(configDir, { plugins: [], tools: {}, secret: currentConfig.secret });
+      writeTestConfig(configDir, { localPlugins: [], tools: {}, secret: currentConfig.secret });
 
       // Poll until plugin tools disappear
       const toolsAfter = await waitForToolList(
@@ -156,7 +156,7 @@ test.describe('Config watcher — auto-discovery', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-cw-multi-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -185,7 +185,7 @@ test.describe('Config watcher — auto-discovery', () => {
       updatedTools['cw-extra_ping'] = true;
       updatedTools['cw-extra_pong'] = true;
       writeTestConfig(configDir, {
-        plugins: [absPluginPath, newPluginDir],
+        localPlugins: [absPluginPath, newPluginDir],
         tools: updatedTools,
         secret: currentConfig.secret,
       });
@@ -215,7 +215,7 @@ test.describe('Config watcher — auto-discovery', () => {
   test('config watcher still works after hot reload', async () => {
     // Start with empty config
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-cw-after-hr-'));
-    writeTestConfig(configDir, { plugins: [], tools: {} });
+    writeTestConfig(configDir, { localPlugins: [], tools: {} });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -243,7 +243,7 @@ test.describe('Config watcher — auto-discovery', () => {
       for (const t of prefixedToolNames) {
         tools[t] = true;
       }
-      writeTestConfig(configDir, { plugins: [absPluginPath], tools, secret: currentConfig.secret });
+      writeTestConfig(configDir, { localPlugins: [absPluginPath], tools, secret: currentConfig.secret });
 
       // Poll until plugin tools appear via the config watcher (not hot reload)
       const toolsAfter = await waitForToolList(

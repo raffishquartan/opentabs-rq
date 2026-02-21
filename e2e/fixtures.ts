@@ -100,7 +100,7 @@ const parsePortFromLogs = (logs: string[]): number | null => {
 // ---------------------------------------------------------------------------
 
 interface OpentabsConfig {
-  plugins: string[];
+  localPlugins: string[];
   tools: Record<string, boolean>;
   secret?: string;
 }
@@ -137,7 +137,7 @@ const createTestConfigDir = (): string => {
   }
 
   const config: OpentabsConfig = {
-    plugins: [absPluginPath],
+    localPlugins: [absPluginPath],
     tools,
     secret: crypto.randomUUID(),
   };

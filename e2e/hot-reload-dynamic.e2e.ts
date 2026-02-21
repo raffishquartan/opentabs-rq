@@ -67,7 +67,7 @@ test.describe.serial('Hot reload — plugin installation', () => {
     try {
       // Update config to add the new plugin and enable its tools
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(newPluginDir);
+      config.localPlugins.push(newPluginDir);
       config.tools['extra-test_do_stuff'] = true;
       config.tools['extra-test_check_health'] = true;
       writeTestConfig(mcpServer.configDir, config);
@@ -102,7 +102,7 @@ test.describe.serial('Hot reload — plugin installation', () => {
 
     try {
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(plugin1Dir, plugin2Dir);
+      config.localPlugins.push(plugin1Dir, plugin2Dir);
       config.tools['alpha_ping'] = true;
       config.tools['beta_pong'] = true;
       writeTestConfig(mcpServer.configDir, config);
@@ -136,7 +136,7 @@ test.describe.serial('Hot reload — plugin removal', () => {
 
     // Remove all local plugins from config
     const config = readTestConfig(mcpServer.configDir);
-    config.plugins = [];
+    config.localPlugins = [];
     writeTestConfig(mcpServer.configDir, config);
 
     // Trigger hot reload
@@ -162,8 +162,8 @@ test.describe.serial('Hot reload — plugin removal', () => {
 
     // Remove plugin
     const config = readTestConfig(mcpServer.configDir);
-    const savedPlugins = [...config.plugins];
-    config.plugins = [];
+    const savedPlugins = [...config.localPlugins];
+    config.localPlugins = [];
     writeTestConfig(mcpServer.configDir, config);
 
     mcpServer.logs.length = 0;
@@ -174,7 +174,7 @@ test.describe.serial('Hot reload — plugin removal', () => {
     expect(toolsMid.filter(t => t.name.startsWith('e2e-test_')).length).toBe(0);
 
     // Re-add plugin
-    config.plugins = savedPlugins;
+    config.localPlugins = savedPlugins;
     writeTestConfig(mcpServer.configDir, config);
 
     mcpServer.logs.length = 0;
@@ -256,7 +256,7 @@ test.describe.serial('File watcher — manifest changes', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -322,7 +322,7 @@ test.describe.serial('File watcher — manifest changes', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -371,7 +371,7 @@ test.describe('File watcher — IIFE changes', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
 
@@ -523,7 +523,7 @@ test.describe.serial('Hot reload — new plugin callable from existing session',
 
     try {
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(newPluginDir);
+      config.localPlugins.push(newPluginDir);
       config.tools['callable-test_hello'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -571,7 +571,7 @@ test.describe.serial('Hot reload — health endpoint consistency', () => {
 
     try {
       const config = readTestConfig(mcpServer.configDir);
-      config.plugins.push(newPluginDir);
+      config.localPlugins.push(newPluginDir);
       config.tools['health-test_probe'] = true;
       writeTestConfig(mcpServer.configDir, config);
 
@@ -585,7 +585,7 @@ test.describe.serial('Hot reload — health endpoint consistency', () => {
       expect(healthAfterAdd.plugins).toBe(countBefore + 1);
 
       // Remove the added plugin
-      config.plugins = config.plugins.filter(p => p !== newPluginDir);
+      config.localPlugins = config.localPlugins.filter(p => p !== newPluginDir);
       writeTestConfig(mcpServer.configDir, config);
 
       mcpServer.logs.length = 0;
@@ -617,7 +617,7 @@ test.describe('File watcher + hot reload combined', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -691,7 +691,7 @@ test.describe.serial('Hot reload — empty to populated', () => {
   test('server starts with no plugins, hot reload adds plugin', async () => {
     // Start with an EMPTY config (no plugins, no tools)
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-empty-'));
-    writeTestConfig(configDir, { plugins: [], tools: {} });
+    writeTestConfig(configDir, { localPlugins: [], tools: {} });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -716,7 +716,7 @@ test.describe.serial('Hot reload — empty to populated', () => {
       for (const t of prefixedToolNames) {
         tools[t] = true;
       }
-      writeTestConfig(configDir, { plugins: [absPluginPath], tools, secret: currentConfig.secret });
+      writeTestConfig(configDir, { localPlugins: [absPluginPath], tools, secret: currentConfig.secret });
 
       server.logs.length = 0;
       server.triggerHotReload();
@@ -805,7 +805,7 @@ test.describe.serial('File watcher — tool metadata changes', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -867,7 +867,7 @@ test.describe('File watcher — corrupted manifest', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -1007,7 +1007,7 @@ test.describe.serial('File watcher — input_schema changes', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -1086,7 +1086,7 @@ test.describe.serial('File watcher — restart after hot reload', () => {
     for (const t of prefixedToolNames) {
       tools[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);
@@ -1190,7 +1190,7 @@ test.describe.serial('File watcher — tools.json rewrite preserves all tools', 
     for (const t of prefixedToolNames) {
       toolConfig[t] = true;
     }
-    writeTestConfig(configDir, { plugins: [pluginDir], tools: toolConfig });
+    writeTestConfig(configDir, { localPlugins: [pluginDir], tools: toolConfig });
 
     const server = await startMcpServer(configDir, true);
     const client = createMcpClient(server.port, server.secret);

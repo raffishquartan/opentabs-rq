@@ -38,7 +38,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
   test('side panel updates plugin list when config.json adds a plugin', async () => {
     // 1. Start MCP server with empty config (no plugins)
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-add-'));
-    writeTestConfig(configDir, { plugins: [], tools: {} });
+    writeTestConfig(configDir, { localPlugins: [], tools: {} });
 
     const server = await startMcpServer(configDir, true);
     const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port);
@@ -62,7 +62,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       for (const t of prefixedToolNames) {
         tools[t] = true;
       }
-      writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+      writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
       // 5. Verify the side panel DOM updates to show the new plugin.
       //    The App.tsx listener detects ws:message with sync.full (broadcast by
@@ -90,7 +90,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
     }
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-remove-'));
-    writeTestConfig(configDir, { plugins: [absPluginPath], tools });
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
 
     const server = await startMcpServer(configDir, true);
     const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port);
@@ -105,7 +105,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
 
       // Remove the plugin from config.json
-      writeTestConfig(configDir, { plugins: [], tools: {} });
+      writeTestConfig(configDir, { localPlugins: [], tools: {} });
 
       // Verify the side panel updates to show empty state
       await expect(sidePanelPage.locator('text=No Plugins')).toBeVisible({ timeout: 30_000 });

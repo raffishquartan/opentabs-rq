@@ -422,7 +422,7 @@ export const setupIsolatedIifeTest = async (configDirPrefix: string): Promise<Is
   for (const t of prefixedToolNames) {
     tools[t] = true;
   }
-  writeTestConfig(configDir, { plugins: [pluginDir], tools });
+  writeTestConfig(configDir, { localPlugins: [pluginDir], tools });
 
   // Track resources as they're created so partial failures clean up
   // everything that was started before the throw.
