@@ -140,9 +140,7 @@
   --foreground: #000000;
   --card: #FFFFFF;
   --card-foreground: #000000;
-  --input: #FFFFFF;
   --border: #000000;
-  --ring: #AAFC3D;
   --primary: #AAFC3D;
   --primary-hover: #97f819;
   --primary-foreground: #000000;
@@ -156,15 +154,12 @@
   --destructive-foreground: #FFFFFF;
 }
 
-
 .dark .theme-lime {
   --background: #0f0f0f;
   --foreground: #f5f5f5;
   --card: #1a1a1a;
   --card-foreground: #FFFFFF;
-  --input: #2a2a2a;
   --border: #333333;
-  --ring: #AAFC3D;
   --primary: #AAFC3D;
   --primary-hover: #97f819;
   --primary-foreground: #000000;
@@ -185,10 +180,7 @@
   --muted-foreground: #A42439;
   --card: #FFFFFF;
   --card-foreground: #000000;
-  --popover: #FFFFFF;
-  --popover-foreground: #000000;
   --border: #000000;
-  --input: #FFFFFF;
   --primary: #EA435F;
   --primary-hover: #D00000;
   --primary-foreground: #FFFFFF;
@@ -198,7 +190,6 @@
   --accent-foreground: #000000;
   --destructive: #D00000;
   --destructive-foreground: #FFFFFF;
-  --ring: #000000;
 }
 
 .dark .theme-red {
@@ -208,10 +199,7 @@
   --muted-foreground: #f2a7b2;
   --card: #1a1a1a;
   --card-foreground: #ffffff;
-  --popover: #1a1a1a;
-  --popover-foreground: #ffffff;
   --border: #2a2a2a;
-  --input: #2a2a2a;
   --primary: #EA435F;
   --primary-hover: #D00000;
   --primary-foreground: #ffffff;
@@ -221,7 +209,6 @@
   --accent-foreground: #CEEBFC;
   --destructive: #D00000;
   --destructive-foreground: #ffffff;
-  --ring: #EA435F;
 }
 
 .theme-lavender {
@@ -231,10 +218,7 @@
   --muted-foreground: #5B3B98;
   --card: #FFFFFF;
   --card-foreground: #000000;
-  --popover: #FFFFFF;
-  --popover-foreground: #000000;
   --border: #000000;
-  --input: #FFFFFF;
   --primary: #C4A1FF;
   --primary-hover: #9678FF;
   --primary-foreground: #000000;
@@ -244,7 +228,6 @@
   --accent-foreground: #000000;
   --destructive: #FE3B3B;
   --destructive-foreground: #FFFFFF;
-  --ring: #000000;
 }
 
 .dark .theme-lavender {
@@ -254,10 +237,7 @@
   --muted-foreground: #c7b6f3;
   --card: #1a1820;
   --card-foreground: #ffffff;
-  --popover: #1a1820;
-  --popover-foreground: #ffffff;
   --border: #2a2a2e;
-  --input: #2a2a2e;
   --primary: #C4A1FF;
   --primary-hover: #9678FF;
   --primary-foreground: #000000;
@@ -267,7 +247,6 @@
   --accent-foreground: #000000;
   --destructive: #FE3B3B;
   --destructive-foreground: #ffffff;
-  --ring: #C4A1FF;
 }
 
 .theme-orange {
@@ -277,10 +256,7 @@
   --muted-foreground: #8C3D00;
   --card: #FFFFFF;
   --card-foreground: #000000;
-  --popover: #FFFFFF;
-  --popover-foreground: #000000;
   --border: #000000;
-  --input: #FFFFFF;
   --primary: #F07200;
   --primary-hover: #ff8011;
   --primary-foreground: #FDEAD9;
@@ -290,7 +266,6 @@
   --accent-foreground: #000000;
   --destructive: #FE3B3B;
   --destructive-foreground: #FFFFFF;
-  --ring: #000000;
 }
 
 .dark .theme-orange {
@@ -300,10 +275,7 @@
   --muted-foreground: #ffb679;
   --card: #1a1a1a;
   --card-foreground: #ffffff;
-  --popover: #1a1a1a;
-  --popover-foreground: #ffffff;
   --border: #2a2a2a;
-  --input: #2a2a2a;
   --primary: #F07200;
   --primary-hover: #ff8011;
   --primary-foreground: #FDEAD9;
@@ -313,7 +285,6 @@
   --accent-foreground: #000000;
   --destructive: #FE3B3B;
   --destructive-foreground: #ffffff;
-  --ring: #F07200;
 }
 
 .theme-green {
@@ -323,10 +294,7 @@
   --muted-foreground: #1F7751;
   --card: #F9F5F2;
   --card-foreground: #000000;
-  --popover: #FFFFFF;
-  --popover-foreground: #000000;
   --border: #000000;
-  --input: #FFFFFF;
   --primary: #599D77;
   --primary-hover: #39654c;
   --primary-foreground: #FFFFFF;
@@ -336,7 +304,6 @@
   --accent-foreground: #000000;
   --destructive: #F05D5D;
   --destructive-foreground: #FFFFFF;
-  --ring: #000000;
 }
 
 .dark .theme-green {
@@ -346,10 +313,7 @@
   --muted-foreground: #9cd9b8;
   --card: #181c19;
   --card-foreground: #ffffff;
-  --popover: #181c19;
-  --popover-foreground: #ffffff;
   --border: #2a2e2b;
-  --input: #2a2e2b;
   --primary: #599D77;
   --primary-hover: #39654c;
   --primary-foreground: #ffffff;
@@ -359,7 +323,6 @@
   --accent-foreground: #000000;
   --destructive: #F05D5D;
   --destructive-foreground: #ffffff;
-  --ring: #599D77;
 }
 
 body {

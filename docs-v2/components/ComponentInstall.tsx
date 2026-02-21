@@ -75,7 +75,7 @@ export function CliCommand({
           bun
         </Tab>
       </TabList>
-      <TabPanels className="text-sm text-accent">
+      <TabPanels className="text-sm text-accent-foreground">
         <TabPanel>
           <CopyableCommand command={pnpmCommand} />
         </TabPanel>

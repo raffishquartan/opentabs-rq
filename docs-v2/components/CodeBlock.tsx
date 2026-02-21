@@ -6,13 +6,6 @@ import { Button } from "@/components/retroui";
 
 interface ICodeBlock extends React.HTMLAttributes<HTMLPreElement> {}
 
-export async function copyToClipboardWithMeta(value: string, event?: Event) {
-  navigator.clipboard.writeText(value);
-  if (event) {
-    // trackEvent(event);
-  }
-}
-
 export function CodeBlock({ className, children, ...props }: ICodeBlock) {
   const [hasCopied, setHasCopied] = React.useState(false);
   const preRef = React.useRef<HTMLPreElement>(null);
