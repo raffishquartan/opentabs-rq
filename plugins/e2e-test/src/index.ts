@@ -5,6 +5,11 @@ import { failingTool } from './tools/failing-tool.js';
 import { getStatus } from './tools/get-status.js';
 import { greet } from './tools/greet.js';
 import { listItems } from './tools/list-items.js';
+import { sdkFetchJson } from './tools/sdk-fetch-json.js';
+import { sdkGetLocalStorage } from './tools/sdk-get-local-storage.js';
+import { sdkGetPageGlobal } from './tools/sdk-get-page-global.js';
+import { sdkRetry } from './tools/sdk-retry.js';
+import { sdkWaitForSelector } from './tools/sdk-wait-for-selector.js';
 import { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
 import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
 
@@ -14,7 +19,19 @@ class E2eTestPlugin extends OpenTabsPlugin {
   readonly description = 'Dead-simple plugin for E2E testing — relays to a local test web server';
   override readonly displayName = 'E2E Test';
   readonly urlPatterns = ['http://localhost/*'];
-  readonly tools: ToolDefinition[] = [echo, greet, listItems, getStatus, createItem, failingTool];
+  readonly tools: ToolDefinition[] = [
+    echo,
+    greet,
+    listItems,
+    getStatus,
+    createItem,
+    failingTool,
+    sdkWaitForSelector,
+    sdkFetchJson,
+    sdkGetLocalStorage,
+    sdkGetPageGlobal,
+    sdkRetry,
+  ];
 
   constructor() {
     super();

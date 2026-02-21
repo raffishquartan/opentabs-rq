@@ -36,7 +36,7 @@
     "zod": "^4.0.0"
   },
   "dependencies": {
-    "@opentabs-dev/plugin-sdk": "^0.0.10"
+    "@opentabs-dev/plugin-sdk": "file:../../platform/plugin-sdk"
   },
   "devDependencies": {
     "@opentabs-dev/plugin-tools": "^0.0.10",

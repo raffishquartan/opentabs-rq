@@ -54,6 +54,7 @@ interface ServerState {
   }>;
   nextItemId: number;
   startedAt: number;
+  flakyCallCount: number;
 }
 
 const createDefaultState = (): ServerState => ({
@@ -95,6 +96,7 @@ const createDefaultState = (): ServerState => ({
   ],
   nextItemId: 6,
   startedAt: Date.now(),
+  flakyCallCount: 0,
 });
 
 let state = createDefaultState();
@@ -279,6 +281,39 @@ const INTERACTIVE_HTML = `<!DOCTYPE html>
 </html>`;
 
 // ---------------------------------------------------------------------------
+// SDK utilities test page HTML — for SDK E2E tests (US-006)
+// ---------------------------------------------------------------------------
+
+const SDK_TEST_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SDK Test Page</title>
+</head>
+<body>
+  <h1>SDK Utilities Test Page</h1>
+  <p id="known-text">Hello from SDK test</p>
+
+  <script>
+    // Set localStorage value for getLocalStorage testing
+    localStorage.setItem('sdk-test-key', 'sdk-test-value');
+
+    // Set a global for getPageGlobal testing
+    window.__sdkTestGlobal = { nested: { value: 42 } };
+
+    // Add a delayed element for waitForSelector testing (appears after 500ms)
+    setTimeout(function() {
+      var el = document.createElement('div');
+      el.id = 'delayed-element';
+      el.textContent = 'Delayed element appeared';
+      document.body.appendChild(el);
+    }, 500);
+  </script>
+</body>
+</html>`;
+
+// ---------------------------------------------------------------------------
 // Server
 // ---------------------------------------------------------------------------
 
@@ -343,6 +378,13 @@ const server = Bun.serve({
 </body>
 </html>`;
       return new Response(postTestHtml, {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }
+
+    // --- SDK utilities test page ---
+    if (path === '/sdk-test') {
+      return new Response(SDK_TEST_HTML, {
         headers: { 'Content-Type': 'text/html' },
       });
     }
@@ -523,6 +565,31 @@ const server = Bun.serve({
         error_code: errorCode,
         error_message: errorMessage,
       });
+    }
+
+    // --- Flaky endpoint (fails first N calls, then succeeds) ---
+    // Used to test sdk.retry. The first 3 calls return 500, subsequent calls succeed.
+    // Reset via POST /control/reset.
+    if (path === '/api/flaky' && req.method === 'POST') {
+      const body = await readBody(req);
+      recordInvocation(req, path, body);
+      state.flakyCallCount++;
+      if (state.flakyCallCount <= 3) {
+        return jsonResponse(
+          { ok: false, error: 'flaky_error', error_message: `Flaky failure (attempt ${state.flakyCallCount})` },
+          500,
+        );
+      }
+      return jsonResponse({ ok: true, data: 'flaky-success', attempts: state.flakyCallCount });
+    }
+
+    // --- SDK fetch test endpoint ---
+    if (path === '/api/sdk-fetch-test' && req.method === 'POST') {
+      const body = await readBody(req);
+      recordInvocation(req, path, body);
+      const sc = await maybeShortCircuit();
+      if (sc) return sc;
+      return jsonResponse({ ok: true, data: 'sdk-fetch-works' });
     }
 
     // --- 404 ---

@@ -165,10 +165,10 @@ describe('opentabs-plugin build E2E', () => {
       copyPlugin(pluginDir);
 
       // Modify the compiled dist/index.js to set tools to an empty array.
-      // The compiled output uses class field syntax: `tools = [echo, greet, ...];`
+      // The compiled output uses class field syntax: `tools = [\n  echo, greet, ...];`
       const distIndex = join(pluginDir, 'dist', 'index.js');
       const content = await Bun.file(distIndex).text();
-      const modified = content.replace(/tools\s*=\s*\[echo[\s\S]*?\];/, 'tools = [];');
+      const modified = content.replace(/tools\s*=\s*\[\s*echo[\s\S]*?\];/, 'tools = [];');
       await Bun.write(distIndex, modified);
 
       const { exitCode, stderr } = runBuild(pluginDir);
