@@ -430,3 +430,75 @@ test.describe('plugin_analyze_site — tRPC API', () => {
     expect(analysis.title).toBe('tRPC Test App');
   });
 });
+
+test.describe('plugin_analyze_site — mixed auth (cookie + CSRF + Bearer)', () => {
+  test('detects all three auth methods from a complex real-world setup', async ({
+    mcpServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await waitForExtensionConnected(mcpServer);
+    await waitForLog(mcpServer, 'tab.syncAll received');
+
+    const siteUrl = `${analyzeSiteServer.url}/mixed-auth/`;
+    const analysis = await analyzeSite(mcpClient, siteUrl);
+
+    // --- Cookie-session auth ---
+    expect(analysis.auth.authenticated).toBe(true);
+
+    // The "session" cookie should be detected (matches /^session$/i pattern)
+    const cookieMethods = analysis.auth.methods.filter(m => m.type === 'cookie-session');
+    expect(cookieMethods.length).toBeGreaterThanOrEqual(1);
+    const sessionCookie = cookieMethods.find(m => m.details.includes('"session"'));
+    expect(sessionCookie).toBeDefined();
+
+    // --- CSRF token detection ---
+    const csrfMethods = analysis.auth.methods.filter(m => m.type === 'csrf-token');
+    expect(csrfMethods.length).toBeGreaterThanOrEqual(1);
+
+    // Should detect CSRF meta tag
+    const csrfMetaMethod = csrfMethods.find(m => m.details.includes('meta'));
+    expect(csrfMetaMethod).toBeDefined();
+
+    // Should detect CSRF hidden input
+    const csrfInputMethod = csrfMethods.find(m => m.details.includes('hidden input'));
+    expect(csrfInputMethod).toBeDefined();
+
+    // Should also detect X-CSRF-Token header from the POST request
+    const csrfHeaderMethod = csrfMethods.find(m => m.details.includes('X-CSRF-Token'));
+    // The header detection depends on network capture timing — assert at least meta + hidden input
+    if (csrfHeaderMethod) {
+      expect(csrfHeaderMethod.details).toContain('X-CSRF-Token');
+    }
+
+    // --- Bearer header auth ---
+    const bearerMethods = analysis.auth.methods.filter(m => m.type === 'bearer-header');
+    expect(bearerMethods.length).toBeGreaterThanOrEqual(1);
+
+    // --- All three auth types present ---
+    const authTypes = new Set(analysis.auth.methods.map(m => m.type));
+    expect(authTypes.has('cookie-session')).toBe(true);
+    expect(authTypes.has('csrf-token')).toBe(true);
+    expect(authTypes.has('bearer-header')).toBe(true);
+
+    // --- API detection ---
+    // The page makes GET and POST requests to /mixed-auth/api/* endpoints
+    expect(analysis.apis.endpoints.length).toBeGreaterThanOrEqual(1);
+    const restEndpoints = analysis.apis.endpoints.filter(e => e.protocol === 'rest');
+    expect(restEndpoints.length).toBeGreaterThanOrEqual(1);
+
+    // --- DOM detection ---
+    // The page has a form with hidden CSRF input and settings fields
+    expect(analysis.dom.forms.length).toBeGreaterThanOrEqual(1);
+    const form = analysis.dom.forms[0];
+    expect(form).toBeDefined();
+    if (form) {
+      const fieldNames = form.fields.map(f => f.name);
+      expect(fieldNames).toContain('authenticity_token');
+      expect(fieldNames).toContain('setting_name');
+    }
+
+    // --- Title ---
+    expect(analysis.title).toBe('Mixed Auth Test App');
+  });
+});

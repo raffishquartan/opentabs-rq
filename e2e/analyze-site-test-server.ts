@@ -16,6 +16,7 @@
  *   /nextjs-app/        — Next.js-style SSR app with __NEXT_DATA__ and auth data in globals
  *   /apikey-app/        — API key header auth with X-API-Key on all API requests
  *   /trpc-app/          — tRPC-style API with /api/trpc/<procedure> endpoints
+ *   /mixed-auth/        — Mixed auth: cookie session + CSRF meta/hidden + Bearer token from window global
  *
  * Start: `bun e2e/analyze-site-test-server.ts`
  * Default port: 0 (dynamic, override with PORT env var)
@@ -526,6 +527,103 @@ const TRPC_HTML = `<!DOCTYPE html>
 </html>`;
 
 // ---------------------------------------------------------------------------
+// Mixed auth scenario HTML
+// ---------------------------------------------------------------------------
+
+/**
+ * Simulates a real-world app (like Slack) that uses multiple auth mechanisms:
+ * - Session cookie (session_id) set via Set-Cookie on the page response
+ * - CSRF meta tag in <head> AND hidden input in a form
+ * - Bearer token for XHR API calls, read from a window global (window.__APP_CONFIG__.apiToken)
+ * - The window global also has auth-related data for globals detection
+ */
+const MIXED_AUTH_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="csrf-mixed-token-xyz789" />
+  <title>Mixed Auth Test App</title>
+</head>
+<body>
+  <div id="app">
+    <h1>Mixed Auth Dashboard</h1>
+    <p id="status">Loading...</p>
+
+    <form action="/mixed-auth/api/update-settings" method="POST">
+      <input type="hidden" name="authenticity_token" value="csrf-mixed-token-xyz789" />
+      <input type="text" name="setting_name" placeholder="Setting" />
+      <input type="text" name="setting_value" placeholder="Value" />
+      <button type="submit">Save Settings</button>
+    </form>
+  </div>
+
+  <script>
+    // App-level config global with auth data (simulates real apps that expose
+    // tokens and session info via a server-rendered script tag).
+    window.__APP_CONFIG__ = {
+      apiToken: 'bearer-mixed-token-1234567890abcdef',
+      session: {
+        user: { id: 'user-1', name: 'Test User', email: 'test@example.com' },
+        expiresAt: '2099-12-31T23:59:59Z'
+      },
+      appVersion: '2.4.1',
+      environment: 'production'
+    };
+
+    // Delay API calls to allow the orchestrator to enable network capture
+    setTimeout(function() {
+      (async function() {
+        try {
+          var token = window.__APP_CONFIG__.apiToken;
+
+          // GET request with Bearer token
+          var dashboardRes = await fetch('/mixed-auth/api/dashboard', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            }
+          });
+          var dashboard = await dashboardRes.json();
+
+          // GET request with Bearer token
+          var notificationsRes = await fetch('/mixed-auth/api/notifications', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            }
+          });
+          var notifications = await notificationsRes.json();
+
+          document.getElementById('status').textContent =
+            'Loaded: ' + dashboard.data.widgets + ' widgets, ' +
+            notifications.notifications.length + ' notifications';
+
+          // POST request with Bearer token and CSRF header
+          await fetch('/mixed-auth/api/actions', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token,
+              'X-CSRF-Token': 'csrf-mixed-token-xyz789'
+            },
+            body: JSON.stringify({ action: 'mark_read', ids: ['n-1', 'n-2'] })
+          });
+        } catch (e) {
+          document.getElementById('status').textContent = 'Error: ' + e.message;
+        }
+      })();
+    }, 1500);
+  </script>
+</body>
+</html>`;
+
+// ---------------------------------------------------------------------------
 // Server
 // ---------------------------------------------------------------------------
 
@@ -543,7 +641,7 @@ const server = Bun.serve({
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-API-Key',
+          'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization, X-CSRF-Token',
         },
       });
     }
@@ -1019,6 +1117,92 @@ const server = Bun.serve({
         }),
         { headers: { 'Content-Type': 'application/json' } },
       );
+    }
+
+    // ===================================================================
+    // Mixed auth scenario (cookie + CSRF + Bearer from global)
+    // ===================================================================
+
+    // Page — serves HTML with Set-Cookie header for session
+    if (path === '/mixed-auth/' || path === '/mixed-auth') {
+      return new Response(MIXED_AUTH_HTML, {
+        headers: {
+          'Content-Type': 'text/html',
+          'Set-Cookie': 'session=mixed-session-abcdef12345; Path=/; HttpOnly',
+        },
+      });
+    }
+
+    // API — GET /mixed-auth/api/dashboard (requires Bearer token)
+    if (path === '/mixed-auth/api/dashboard' && req.method === 'GET') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          data: { widgets: 5, activeUsers: 42, lastUpdated: '2026-02-21T12:00:00Z' },
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // API — GET /mixed-auth/api/notifications (requires Bearer token)
+    if (path === '/mixed-auth/api/notifications' && req.method === 'GET') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          notifications: [
+            { id: 'n-1', text: 'New comment on your post', read: false },
+            { id: 'n-2', text: 'System maintenance scheduled', read: true },
+          ],
+          total: 2,
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // API — POST /mixed-auth/api/actions (requires Bearer token + CSRF header)
+    if (path === '/mixed-auth/api/actions' && req.method === 'POST') {
+      const authHeader = req.headers.get('authorization');
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      let body: Record<string, unknown> = {};
+      try {
+        body = (await req.json()) as Record<string, unknown>;
+      } catch {
+        // ignore parse errors
+      }
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          action: body.action ?? 'unknown',
+          processed: true,
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+
+    // API — POST /mixed-auth/api/update-settings (form target)
+    if (path === '/mixed-auth/api/update-settings' && req.method === 'POST') {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // --- 404 ---
