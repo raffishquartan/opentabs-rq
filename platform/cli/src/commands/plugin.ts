@@ -1,11 +1,18 @@
 /**
- * `opentabs plugin` command — plugin management (create, search, install).
+ * `opentabs plugin` command — plugin management (create, search, install, remove).
  */
 
-import { getConfigPath, readConfig } from '../config.js';
+import {
+  atomicWriteConfig,
+  getConfigPath,
+  getLocalPluginsFromConfig,
+  readConfig,
+  resolvePluginPath,
+} from '../config.js';
 import { resolvePort } from '../parse-port.js';
 import { scaffoldPlugin, ScaffoldError } from '../scaffold.js';
 import pc from 'picocolors';
+import { join } from 'node:path';
 import type { Command } from 'commander';
 
 // --- npm registry types ---
@@ -89,6 +96,64 @@ const handlePluginInstall = async (name: string, options: { port?: number }): Pr
   }
 
   console.log(pc.green(`Successfully installed ${pkg}.`));
+  await notifyServer(options);
+};
+
+// --- Remove handler ---
+
+/**
+ * Remove matching entries from localPlugins in config.
+ * An entry matches if its resolved package.json `name` field equals the package name.
+ */
+const removeFromLocalPlugins = async (pkg: string): Promise<void> => {
+  const configPath = getConfigPath();
+  const config = await readConfig(configPath);
+  if (!config) return;
+
+  const localPlugins = getLocalPluginsFromConfig(config);
+  if (localPlugins.length === 0) return;
+
+  const remaining: string[] = [];
+  for (const entry of localPlugins) {
+    const resolved = resolvePluginPath(entry, configPath);
+    const pkgJsonPath = join(resolved, 'package.json');
+    try {
+      const pkgJson: unknown = JSON.parse(await Bun.file(pkgJsonPath).text());
+      if (typeof pkgJson === 'object' && pkgJson !== null && (pkgJson as Record<string, unknown>).name === pkg) {
+        continue;
+      }
+    } catch {
+      // Cannot read package.json — keep the entry
+    }
+    remaining.push(entry);
+  }
+
+  if (remaining.length < localPlugins.length) {
+    const removed = localPlugins.length - remaining.length;
+    config.localPlugins = remaining;
+    await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
+    console.log(
+      pc.dim(`Removed ${removed.toString()} local plugin ${removed === 1 ? 'entry' : 'entries'} from config.`),
+    );
+  }
+};
+
+const handlePluginRemove = async (name: string, options: { port?: number }): Promise<void> => {
+  const pkg = normalizePluginName(name);
+  console.log(`Removing ${pc.bold(pkg)}...`);
+
+  const proc = Bun.spawn(['npm', 'uninstall', '-g', pkg], {
+    stdio: ['inherit', 'inherit', 'inherit'],
+  });
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    console.error(pc.red(`npm uninstall failed (exit code ${exitCode}).`));
+    process.exit(1);
+  }
+
+  console.log(pc.green(`Successfully removed ${pkg}.`));
+  await removeFromLocalPlugins(pkg);
   await notifyServer(options);
 };
 
@@ -184,6 +249,20 @@ Examples:
     .action((name: string, _options: unknown, command: Command) =>
       handlePluginInstall(name, command.optsWithGlobals()),
     );
+
+  pluginCmd
+    .command('remove')
+    .description('Remove a globally installed plugin')
+    .argument('<name>', 'Plugin name or full package name (e.g., slack or opentabs-plugin-slack)')
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ opentabs plugin remove slack
+  $ opentabs plugin remove opentabs-plugin-slack
+  $ opentabs plugin remove @my-org/opentabs-plugin-custom`,
+    )
+    .action((name: string, _options: unknown, command: Command) => handlePluginRemove(name, command.optsWithGlobals()));
 
   pluginCmd
     .command('create')
