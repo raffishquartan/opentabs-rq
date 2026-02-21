@@ -1,0 +1,484 @@
+---
+title: Plugin Development
+description: Build an OpenTabs plugin from scratch — scaffold, define tools, use SDK utilities, test with hot reload, and publish to npm.
+lastUpdated: 2026-02-21
+---
+
+This guide walks you through creating an OpenTabs plugin from scratch. By the end, you'll have a working plugin that gives AI agents access to a web application through the user's browser.
+
+## Scaffold Your Plugin
+
+The fastest way to start is with the scaffolder:
+
+```bash
+bunx create-opentabs-plugin my-app --domain .example.com --display "My App"
+cd my-app
+bun install
+```
+
+Or use the `opentabs` CLI:
+
+```bash
+opentabs plugin create my-app --domain .example.com --display "My App"
+```
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Flag</Table.Head>
+      <Table.Head>Required</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`<name>`</Table.Cell>
+      <Table.Cell>Yes</Table.Cell>
+      <Table.Cell>Plugin name — lowercase, alphanumeric, hyphens only</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`--domain`</Table.Cell>
+      <Table.Cell>Yes</Table.Cell>
+      <Table.Cell>Target domain (prefix with `.` for subdomains — `.slack.com` matches `app.slack.com`)</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`--display`</Table.Cell>
+      <Table.Cell>No</Table.Cell>
+      <Table.Cell>Human-readable name shown in the side panel</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`--description`</Table.Cell>
+      <Table.Cell>No</Table.Cell>
+      <Table.Cell>Plugin description</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+This creates a standalone npm package with everything you need:
+
+```
+my-app/
+├── package.json          # Plugin metadata and dependencies
+├── tsconfig.json         # TypeScript config (strict, ES2022)
+├── eslint.config.ts      # Lint config
+├── .prettierrc           # Formatting config
+├── .gitignore
+└── src/
+    ├── index.ts          # Plugin class
+    └── tools/
+        └── example.ts    # Example tool
+```
+
+The scaffolder also auto-registers the plugin in `~/.opentabs/config.json` so the MCP server discovers it immediately.
+
+## Understand the Plugin Class
+
+Open `src/index.ts`. Every plugin extends `OpenTabsPlugin` and exports a default instance:
+
+```typescript
+import { OpenTabsPlugin, type ToolDefinition } from "@opentabs-dev/plugin-sdk";
+import { exampleTool } from "./tools/example.js";
+
+class MyAppPlugin extends OpenTabsPlugin {
+  readonly name = "my-app";
+  readonly version = "0.0.1";
+  readonly description = "OpenTabs plugin for My App";
+  override readonly displayName = "My App";
+  readonly urlPatterns = ["*://*.example.com/*"];
+  readonly tools: ToolDefinition[] = [exampleTool];
+
+  async isReady(): Promise<boolean> {
+    return true;
+  }
+}
+
+export default new MyAppPlugin();
+```
+
+Here's what each field does:
+
+- **`name`** — unique identifier used as the tool prefix in MCP. A tool called `get_items` becomes `my-app_get_items` when exposed to AI agents.
+- **`urlPatterns`** — [Chrome match patterns](https://developer.chrome.com/docs/extensions/develop/concepts/match-patterns) that determine which tabs get your adapter injected. Use `*://*.example.com/*` to match all subdomains.
+- **`tools`** — array of tool definitions (covered below).
+- **`isReady()`** — return `true` when the user is authenticated. The extension calls this to determine whether the plugin's tab is ready for tool dispatch.
+
+### Implementing isReady()
+
+`isReady()` runs in the page context, so you have access to the DOM, localStorage, and cookies. Common patterns:
+
+```typescript
+// Check for an auth token in localStorage
+async isReady(): Promise<boolean> {
+  return localStorage.getItem("session_token") !== null;
+}
+
+// Check for a DOM element that only appears after login
+async isReady(): Promise<boolean> {
+  return document.querySelector("[data-user-id]") !== null;
+}
+
+// Check for an auth cookie
+async isReady(): Promise<boolean> {
+  return document.cookie.includes("auth=");
+}
+```
+
+The extension gives `isReady()` 5 seconds to resolve. If it takes longer, the tab is treated as unavailable.
+
+For pages that load asynchronously, you can wait for authentication to complete:
+
+```typescript
+import { waitUntil } from "@opentabs-dev/plugin-sdk";
+
+async isReady(): Promise<boolean> {
+  try {
+    await waitUntil(() => localStorage.getItem("token") !== null, {
+      timeout: 3000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+```
+
+## Define Tools
+
+Each tool lives in its own file under `src/tools/`. Use `defineTool()` to create one:
+
+```typescript
+import { defineTool } from "@opentabs-dev/plugin-sdk";
+import { z } from "zod";
+
+export const getItems = defineTool({
+  name: "get_items",
+  displayName: "Get Items",
+  description: "Retrieve items from the current workspace.",
+  icon: "list",
+  input: z.object({
+    limit: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe("Maximum items to return (default 20, max 100)"),
+    status: z
+      .enum(["active", "archived"])
+      .optional()
+      .describe("Filter by status"),
+  }),
+  output: z.object({
+    items: z.array(
+      z.object({
+        id: z.string().describe("Item ID"),
+        title: z.string().describe("Item title"),
+        status: z.string().describe("Current status"),
+      }),
+    ),
+  }),
+  handle: async (params) => {
+    const response = await fetch("/api/items?" + new URLSearchParams({
+      limit: String(params.limit ?? 20),
+      ...(params.status && { status: params.status }),
+    }), { credentials: "include" });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { items: data.items };
+  },
+});
+```
+
+### Tool naming conventions
+
+- **`name`** — `snake_case`, descriptive of the action. Becomes `<plugin>_<name>` in MCP (e.g., `my-app_get_items`).
+- **`displayName`** — human-readable, shown in the side panel.
+- **`description`** — shown to AI agents. Be specific about what the tool does, what it returns, and when to use it.
+- **`icon`** — a [Lucide icon](https://lucide.dev/icons/) name in `kebab-case` (e.g., `list`, `send`, `search`).
+
+### The handle function
+
+`handle()` runs in the page's MAIN world. You have full access to:
+
+- **DOM** — `document.querySelector`, `document.createElement`, etc.
+- **`fetch()`** — with the page's session cookies (use `credentials: 'include'`)
+- **`localStorage` / `sessionStorage`** — the page's storage
+- **Page globals** — anything the web app exposes on `window`
+
+You do **not** have access to Chrome extension APIs or Node.js modules.
+
+### Writing good descriptions
+
+Tool descriptions are how AI agents decide which tool to use. Write them like you're explaining the tool to a colleague:
+
+```typescript
+// Bad — too vague
+description: "Gets data from the page."
+
+// Good — specific and actionable
+description: "List channels in the workspace. Returns channel ID, name, topic, and member count. Use the cursor parameter for pagination."
+```
+
+Include parameter descriptions on every field — AI agents use them to fill in the right values:
+
+```typescript
+input: z.object({
+  channel: z.string().min(1).describe("Channel ID (e.g., C01234567)"),
+  text: z.string().min(1).describe("Message text — supports Slack mrkdwn formatting"),
+  thread_ts: z.string().optional().describe("Thread timestamp to reply in a thread"),
+}),
+```
+
+### Wiring tools to the plugin
+
+Import your tools and add them to the `tools` array in your plugin class:
+
+```typescript
+import { getItems } from "./tools/get-items.js";
+import { createItem } from "./tools/create-item.js";
+import { deleteItem } from "./tools/delete-item.js";
+
+class MyAppPlugin extends OpenTabsPlugin {
+  // ...
+  readonly tools: ToolDefinition[] = [getItems, createItem, deleteItem];
+}
+```
+
+## Use SDK Utilities
+
+The plugin SDK provides utility functions that reduce boilerplate for common operations. All utilities run in the page context.
+
+### Fetch with session cookies
+
+Use `fetchJSON` and `postJSON` instead of raw `fetch` — they include credentials automatically, handle timeouts, and throw structured `ToolError` on failure:
+
+```typescript
+import { fetchJSON, postJSON } from "@opentabs-dev/plugin-sdk";
+
+// GET request — returns parsed JSON
+const data = await fetchJSON<{ items: Item[] }>("/api/items?limit=20");
+
+// POST request — stringifies body, sets Content-Type
+const result = await postJSON<{ id: string }>("/api/items", {
+  title: "New item",
+  status: "active",
+});
+```
+
+### Wait for DOM elements
+
+Use `waitForSelector` when the page loads asynchronously:
+
+```typescript
+import { waitForSelector, getTextContent } from "@opentabs-dev/plugin-sdk";
+
+// Wait up to 10s for the dashboard to load
+const dashboard = await waitForSelector(".dashboard-loaded");
+
+// Get text content from an element
+const username = getTextContent(".user-profile-name");
+```
+
+### Retry on failure
+
+Use `retry` for flaky operations:
+
+```typescript
+import { retry } from "@opentabs-dev/plugin-sdk";
+
+const data = await retry(
+  () => fetchJSON("/api/items"),
+  { maxAttempts: 3, delay: 1000, backoff: true },
+);
+```
+
+### Read page state
+
+Use `getPageGlobal` to safely access deeply nested globals:
+
+```typescript
+import { getPageGlobal } from "@opentabs-dev/plugin-sdk";
+
+// Safe deep access — returns undefined if any segment is missing
+const token = getPageGlobal("app.config.apiToken") as string | undefined;
+```
+
+### Storage helpers
+
+Use the storage utilities for safe access to localStorage and cookies:
+
+```typescript
+import { getLocalStorage, getCookie } from "@opentabs-dev/plugin-sdk";
+
+// Returns null instead of throwing on SecurityError
+const session = getLocalStorage("session_id");
+const authCookie = getCookie("auth_token");
+```
+
+## Handle Errors
+
+Use `ToolError` for structured errors that AI agents can understand and act on:
+
+```typescript
+import { ToolError } from "@opentabs-dev/plugin-sdk";
+
+handle: async (params) => {
+  const response = await fetch(`/api/items/${params.id}`, {
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    throw ToolError.auth("Not authenticated — please log in to My App");
+  }
+  if (response.status === 404) {
+    throw ToolError.notFound(`Item ${params.id} not found`);
+  }
+  if (response.status === 429) {
+    throw ToolError.rateLimited("Too many requests", 2000);
+  }
+
+  // ...
+};
+```
+
+`ToolError` has six factory methods — `auth()`, `notFound()`, `rateLimited()`, `timeout()`, `validation()`, and `internal()`. Each sets the right category and retryable flags so AI agents can decide whether to retry, wait, or give up. See the [Error Handling guide](/docs/guides/error-handling) for details.
+
+## Add Logging
+
+Use `log` from the SDK to send structured logs through the platform:
+
+```typescript
+import { log } from "@opentabs-dev/plugin-sdk";
+
+handle: async (params) => {
+  log.info("Fetching items", { limit: params.limit });
+  const data = await fetchJSON("/api/items");
+  log.debug("Got response", { count: data.items.length });
+  return { items: data.items };
+};
+```
+
+Logs flow from your adapter through the Chrome extension to the MCP server, where they appear in `opentabs logs --plugin my-app` and in MCP client log messages. Four levels: `log.debug`, `log.info`, `log.warn`, `log.error`. See the [Logging & Debugging guide](/docs/guides/logging-debugging) for the full debugging workflow.
+
+## Zod Schema Rules
+
+Tool schemas are serialized to JSON Schema for the MCP protocol. Keep them serialization-compatible:
+
+- **Never use `.transform()`** — transforms can't be represented in JSON Schema. Normalize input in `handle()` instead.
+- **Avoid `.pipe()` and `.preprocess()`** — same reason.
+- **`.refine()` callbacks must not throw** — Zod may run `.refine()` even when the base validator fails. Wrap throwable operations in try-catch:
+
+```typescript
+z.string()
+  .url()
+  .refine((val) => {
+    try {
+      return new URL(val).hostname.endsWith(".example.com");
+    } catch {
+      return false;
+    }
+  }, "Must be an example.com URL");
+```
+
+## Build and Test
+
+### First build
+
+```bash
+bun run build
+```
+
+This runs `tsc` (TypeScript compilation) then `opentabs-plugin build`, which:
+
+1. Validates your plugin metadata, tool names, and Zod schemas
+2. Bundles `dist/adapter.iife.js` — the adapter injected into matching tabs
+3. Generates `dist/tools.json` — serialized tool schemas for the MCP server
+4. Auto-registers the plugin in `~/.opentabs/config.json` (first build only)
+5. Calls `POST /reload` to notify the running MCP server
+
+After building, verify the server sees your plugin:
+
+```bash
+opentabs status
+```
+
+### Development workflow
+
+Use watch mode for a fast iteration loop:
+
+```bash
+bun run dev
+```
+
+This runs `tsc --watch` and `opentabs-plugin build --watch` in parallel. When you save a file:
+
+1. `tsc` compiles to `dist/index.js`
+2. `opentabs-plugin build` detects the change and re-bundles the adapter
+3. The build notifies the MCP server via `POST /reload`
+4. The server pushes the updated adapter to the Chrome extension
+5. The extension re-injects the adapter into matching tabs
+
+No server restart or extension reload needed — just save and test.
+
+### Testing with an AI agent
+
+1. Start the MCP server if it's not running: `opentabs start`
+2. Open the target web app in Chrome and log in
+3. Check the extension side panel — your plugin should show as **Ready**
+4. Ask your AI agent to use a tool: *"Use the my-app_get_items tool to list items"*
+5. Edit your code, save, and the adapter hot-reloads automatically
+
+Use `opentabs status` to verify plugin state, `opentabs logs --plugin my-app` to see your log output, and `opentabs audit` to inspect recent tool invocations.
+
+## Publish to npm
+
+When your plugin is ready, publish it so others can install it with a single command.
+
+### Prepare package.json
+
+The scaffolder already sets up the right fields. Verify these are present:
+
+```json
+{
+  "name": "opentabs-plugin-my-app",
+  "keywords": ["opentabs-plugin"],
+  "main": "dist/adapter.iife.js",
+  "opentabs": {
+    "displayName": "My App",
+    "description": "OpenTabs plugin for My App",
+    "urlPatterns": ["*://*.example.com/*"]
+  }
+}
+```
+
+The `opentabs-plugin-*` naming convention and `opentabs-plugin` keyword enable automatic discovery — users find your plugin with `opentabs plugin search`.
+
+### Publish
+
+```bash
+bun run build
+npm publish
+```
+
+### How users install your plugin
+
+Users install globally and restart the server:
+
+```bash
+npm install -g opentabs-plugin-my-app
+opentabs start
+```
+
+The MCP server auto-discovers packages matching `opentabs-plugin-*` in global `node_modules`.
+
+## Next Steps
+
+- [Error Handling](/docs/guides/error-handling) — structured errors for AI agent retry logic
+- [Logging & Debugging](/docs/guides/logging-debugging) — debug your plugin with `opentabs logs` and `opentabs doctor`
+- [Resources & Prompts](/docs/guides/resources-prompts) — expose read-only data and prompt templates
+- [Streaming & Progress](/docs/guides/streaming-progress) — report progress for long-running tools
+- [SDK Reference](/docs/sdk/plugin-class) — full API reference for `OpenTabsPlugin`, `defineTool`, and utilities
