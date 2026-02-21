@@ -17,8 +17,8 @@ const renderTOCItems = (items: TOCItem[], level = 0): ReactElement | null => {
 
   return (
     <ul className={cn('space-y-1', level > 0 && 'mt-1 ml-4')}>
-      {items.map((item, index) => (
-        <li key={index}>
+      {items.map(item => (
+        <li key={item.url}>
           <a
             href={item.url}
             title={item.title}
