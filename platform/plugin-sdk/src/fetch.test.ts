@@ -1,6 +1,7 @@
 import { ToolError } from './errors.js';
 import { fetchFromPage, fetchJSON, postJSON } from './fetch.js';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'bun:test';
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Test HTTP server — lightweight alternative to fetch mocking
@@ -316,6 +317,31 @@ describe('fetchJSON', () => {
       expect(toolError.category).toBe('timeout');
     }
   });
+
+  test('validates response against Zod schema when provided', async () => {
+    const schema = z.object({ status: z.string() });
+    const data = await fetchJSON(`${baseUrl}/ok`, undefined, schema);
+    expect(data).toEqual({ status: 'success' });
+  });
+
+  test('throws ToolError.validation when response does not match schema', async () => {
+    const schema = z.object({ count: z.number() });
+    try {
+      await fetchJSON(`${baseUrl}/ok`, undefined, schema);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ToolError);
+      const toolError = error as ToolError;
+      expect(toolError.code).toBe('VALIDATION_ERROR');
+      expect(toolError.category).toBe('validation');
+      expect(toolError.message).toContain('failed schema validation');
+    }
+  });
+
+  test('returns unchecked cast when schema is omitted (backward compat)', async () => {
+    const data = await fetchJSON<{ status: string }>(`${baseUrl}/ok`);
+    expect(data.status).toBe('success');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -365,6 +391,26 @@ describe('postJSON', () => {
       const toolError = error as ToolError;
       expect(toolError.code).toBe('TIMEOUT');
       expect(toolError.category).toBe('timeout');
+    }
+  });
+
+  test('validates response against Zod schema when provided', async () => {
+    const schema = z.object({ received: z.object({ name: z.string() }) });
+    const data = await postJSON(`${baseUrl}/echo-post`, { name: 'test' }, undefined, schema);
+    expect(data).toEqual({ received: { name: 'test' } });
+  });
+
+  test('throws ToolError.validation when response does not match schema', async () => {
+    const schema = z.object({ received: z.object({ count: z.number() }) });
+    try {
+      await postJSON(`${baseUrl}/echo-post`, { name: 'test' }, undefined, schema);
+      expect.unreachable('should have thrown');
+    } catch (error) {
+      expect(error).toBeInstanceOf(ToolError);
+      const toolError = error as ToolError;
+      expect(toolError.code).toBe('VALIDATION_ERROR');
+      expect(toolError.category).toBe('validation');
+      expect(toolError.message).toContain('failed schema validation');
     }
   });
 });

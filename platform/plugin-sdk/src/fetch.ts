@@ -3,6 +3,7 @@
 // ---------------------------------------------------------------------------
 
 import { ToolError } from './errors.js';
+import type { z } from 'zod';
 
 export interface FetchFromPageOptions extends RequestInit {
   /** Request timeout in milliseconds (default: 30000) */
@@ -81,30 +82,83 @@ export const fetchFromPage = async (url: string, init?: FetchFromPageOptions): P
   return response;
 };
 
-/**
- * Fetches a URL and parses the response as JSON. Uses the page's session
- * cookies (credentials: 'include') and provides timeout + error handling.
- */
-export const fetchJSON = async <T>(url: string, init?: FetchFromPageOptions): Promise<T> => {
+/** Shared implementation for fetchJSON and postJSON — fetches, parses JSON, optionally validates. */
+export const fetchJSONImpl = async (url: string, init?: FetchFromPageOptions, schema?: z.ZodType): Promise<unknown> => {
   const response = await fetchFromPage(url, init);
 
+  let data: unknown;
   try {
-    return (await response.json()) as T;
+    data = await response.json();
   } catch {
     throw ToolError.validation(`fetchJSON: failed to parse JSON response from ${url}`);
   }
+
+  if (schema) {
+    const result = schema.safeParse(data);
+    if (!result.success) {
+      throw ToolError.validation(`fetchJSON: response from ${url} failed schema validation: ${result.error.message}`);
+    }
+    return result.data;
+  }
+
+  return data;
 };
 
 /**
- * Convenience wrapper for POST requests with a JSON body. Sets Content-Type,
- * stringifies the body, and parses the JSON response.
+ * Overloaded call signature for fetchJSON — validates against a Zod schema
+ * when provided, or returns an unchecked cast when omitted.
  */
-export const postJSON = async <T>(url: string, body: unknown, init?: FetchFromPageOptions): Promise<T> => {
+export interface FetchJSON {
+  /** Fetch JSON and validate against a Zod schema. Returns the validated, typed result. */
+  <T extends z.ZodType>(url: string, init: FetchFromPageOptions | undefined, schema: T): Promise<z.infer<T>>;
+  /** Fetch JSON with an unchecked cast to T (backward compatible). */
+  <T>(url: string, init?: FetchFromPageOptions): Promise<T>;
+}
+
+/**
+ * Fetches a URL and parses the response as JSON. Uses the page's session
+ * cookies (credentials: 'include') and provides timeout + error handling.
+ * When a Zod schema is provided as the third argument, the parsed JSON is
+ * validated against it and a ToolError.validation is thrown on failure.
+ */
+export const fetchJSON: FetchJSON = fetchJSONImpl as FetchJSON;
+
+/**
+ * Overloaded call signature for postJSON — validates against a Zod schema
+ * when provided, or returns an unchecked cast when omitted.
+ */
+export interface PostJSON {
+  /** POST JSON and validate the response against a Zod schema. Returns the validated, typed result. */
+  <T extends z.ZodType>(
+    url: string,
+    body: unknown,
+    init: FetchFromPageOptions | undefined,
+    schema: T,
+  ): Promise<z.infer<T>>;
+  /** POST JSON with an unchecked cast to T (backward compatible). */
+  <T>(url: string, body: unknown, init?: FetchFromPageOptions): Promise<T>;
+}
+
+/**
+ * Convenience wrapper for POST requests with a JSON body. Sets Content-Type,
+ * stringifies the body, and parses the JSON response. When a Zod schema is
+ * provided as the fourth argument, the parsed JSON is validated against it.
+ */
+export const postJSON: PostJSON = (async (
+  url: string,
+  body: unknown,
+  init?: FetchFromPageOptions,
+  schema?: z.ZodType,
+): Promise<unknown> => {
   const extraHeaders = init?.headers ? Object.fromEntries(new Headers(init.headers).entries()) : {};
-  return fetchJSON<T>(url, {
-    ...init,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...extraHeaders },
-    body: JSON.stringify(body),
-  });
-};
+  return fetchJSONImpl(
+    url,
+    {
+      ...init,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...extraHeaders },
+      body: JSON.stringify(body),
+    },
+    schema,
+  );
+}) as PostJSON;
