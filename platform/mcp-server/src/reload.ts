@@ -13,7 +13,7 @@
 
 import { browserTools } from './browser-tools/index.js';
 import { loadConfig, getConfigDir } from './config.js';
-import { discoverPluginsLegacy } from './discovery-legacy.js';
+import { discoverPlugins } from './discovery.js';
 import { ensureExtensionInstalled } from './extension-install.js';
 import { sendSyncFull, sendPluginUpdate, cleanupStaleExecFiles } from './extension-protocol.js';
 import { startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
@@ -23,7 +23,6 @@ import { registerMcpHandlers, rebuildCachedBrowserTools, notifyToolListChanged }
 import { buildRegistry } from './registry.js';
 import { prefixedToolName } from './state.js';
 import { checkForUpdates } from './version-check.js';
-import { isAbsolute, resolve } from 'node:path';
 import type { McpServerInstance } from './mcp-setup.js';
 import type { ServerState } from './state.js';
 import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
@@ -47,6 +46,48 @@ const getReloadGuard = (): Promise<void> | undefined =>
 
 const setReloadGuard = (promise: Promise<void> | undefined): void => {
   (globalThis as Record<string, unknown>)[RELOAD_GUARD_KEY] = promise;
+};
+
+/**
+ * Remove stale entries from state maps after a registry swap.
+ * Prunes tabMapping, activeDispatches, toolConfig, and outdatedPlugins
+ * for plugins/tools that no longer exist in the current registry.
+ */
+const pruneStaleState = (state: ServerState): void => {
+  for (const pluginName of state.tabMapping.keys()) {
+    if (!state.registry.plugins.has(pluginName)) {
+      state.tabMapping.delete(pluginName);
+    }
+  }
+
+  for (const pluginName of state.activeDispatches.keys()) {
+    if (!state.registry.plugins.has(pluginName)) {
+      state.activeDispatches.delete(pluginName);
+    }
+  }
+
+  // Prune stale toolConfig entries for removed plugins/tools
+  const validToolNames = new Set<string>();
+  for (const plugin of state.registry.plugins.values()) {
+    for (const tool of plugin.tools) {
+      validToolNames.add(prefixedToolName(plugin.name, tool.name));
+    }
+  }
+  let prunedToolConfigCount = 0;
+  for (const key of Object.keys(state.toolConfig)) {
+    if (!validToolNames.has(key)) {
+      Reflect.deleteProperty(state.toolConfig, key);
+      prunedToolConfigCount++;
+    }
+  }
+  if (prunedToolConfigCount > 0) {
+    log.info(`Pruned ${prunedToolConfigCount} stale tool config entry/entries`);
+  }
+
+  // Keep only outdatedPlugins entries for still-present plugins
+  state.outdatedPlugins = state.outdatedPlugins.filter(o =>
+    Array.from(state.registry.plugins.values()).some(p => p.npmPackageName === o.name),
+  );
 };
 
 /** Arguments for the shared reload core */
@@ -121,87 +162,40 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     },
   };
 
-  // Track resolved plugin paths across the try/catch so the file watcher
-  // can watch pending paths even if discovery partially fails.
-  let resolvedPaths: string[] = [];
-
   try {
-    // Load config and discover plugins into a new Map. The Map is swapped
-    // onto state atomically so concurrent tools/list requests see either
-    // the old complete set or the new complete set, never an empty intermediate.
+    // Load config, discover plugins, and swap state atomically
     const config = await loadConfig();
-    // Config stores raw paths (may be relative). Resolve them against the config
-    // directory before passing to discoverPlugins, which expects absolute paths.
     const configDir = getConfigDir();
-    resolvedPaths = config.plugins.map(p => (isAbsolute(p) ? p : resolve(configDir, p)));
-    const { plugins: newPlugins, failures } = await discoverPluginsLegacy(resolvedPaths, []);
+    const { registry, errors } = await discoverPlugins(config.plugins, configDir);
 
-    // Build immutable registry from discovery results and swap atomically
-    state.registry = buildRegistry(Array.from(newPlugins.values()), failures);
+    // Atomic state swap
+    state.registry = registry;
     state.toolConfig = { ...config.tools };
     state.pluginPaths = [...config.plugins];
     state.wsSecret = config.secret ?? null;
+
+    if (errors.length > 0) {
+      for (const e of errors) {
+        log.warn(`Plugin discovery failed for "${e.specifier}": ${e.error}`);
+      }
+    }
 
     log.info(
       `Config loaded: ${config.plugins.length} plugin path(s), ${Object.keys(config.tools).length} tool setting(s)`,
     );
 
-    // Rebuild cached browser tool JSON schemas
     rebuildCachedBrowserTools(state);
-
-    // Prune stale tabMapping entries for plugins that were removed from config
-    for (const pluginName of state.tabMapping.keys()) {
-      if (!state.registry.plugins.has(pluginName)) {
-        state.tabMapping.delete(pluginName);
-      }
-    }
-
-    // Prune stale activeDispatches entries for removed plugins
-    for (const pluginName of state.activeDispatches.keys()) {
-      if (!state.registry.plugins.has(pluginName)) {
-        state.activeDispatches.delete(pluginName);
-      }
-    }
-
-    // Prune stale toolConfig entries for plugins/tools that no longer exist.
-    // Over time, uninstalled plugins and renamed tools leave orphan entries
-    // in config that accumulate as garbage. Build a set of all valid prefixed
-    // tool names, then remove any config key not in that set.
-    const validToolNames = new Set<string>();
-    for (const plugin of state.registry.plugins.values()) {
-      for (const tool of plugin.tools) {
-        validToolNames.add(prefixedToolName(plugin.name, tool.name));
-      }
-    }
-    let prunedToolConfigCount = 0;
-    for (const key of Object.keys(state.toolConfig)) {
-      if (!validToolNames.has(key)) {
-        Reflect.deleteProperty(state.toolConfig, key);
-        prunedToolConfigCount++;
-      }
-    }
-    if (prunedToolConfigCount > 0) {
-      log.info(`Pruned ${prunedToolConfigCount} stale tool config entry/entries`);
-    }
-
-    // outdatedPlugins stores npm package names, not plugin names. Keep only
-    // entries whose npm package name matches a still-present plugin.
-    state.outdatedPlugins = state.outdatedPlugins.filter(o =>
-      Array.from(state.registry.plugins.values()).some(p => p.npmPackageName === o.name),
-    );
+    pruneStaleState(state);
   } catch (err) {
-    // Discovery or config loading failed. State retains whatever plugins
-    // it had before this reload attempt (old set on hot reload, empty on
-    // first load). Log the error and continue — file watchers will still
-    // be restarted below so they aren't left dead.
+    // Config loading or discovery failed entirely. State retains whatever
+    // plugins it had before. File watchers are still restarted below.
     log.error('Reload failed, keeping previous state:', err);
   }
 
-  // File watching — always restart regardless of success/failure so
-  // watchers are never left in a stopped state after a partial reload.
-  // Pass resolved plugin paths so the watcher can also monitor paths
-  // that failed initial discovery and pick them up when built.
-  startFileWatching(state, fileWatcherCallbacks, resolvedPaths);
+  // File watching — always restart regardless of success/failure.
+  // Pass failed plugin paths so the watcher can monitor them for recovery.
+  const failedPaths = state.registry.failures.map(f => f.path);
+  startFileWatching(state, fileWatcherCallbacks, failedPaths);
   startConfigWatching(state, fileWatcherCallbacks);
 
   // Re-sync extension if connected

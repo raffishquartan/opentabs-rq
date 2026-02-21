@@ -36,30 +36,36 @@ const writeConfig = (configDir: string, plugins: string[] = [], tools: Record<st
   writeFileSync(join(configDir, 'config.json'), JSON.stringify({ plugins, tools, secret: 'test-secret' }));
 };
 
-/** Create a minimal valid plugin directory with manifest and adapter */
+/** Create a minimal valid plugin directory with package.json, tools.json, and adapter */
 const createPluginDir = (baseDir: string, name: string): string => {
   const pluginDir = join(baseDir, name);
   const distDir = join(pluginDir, 'dist');
   mkdirSync(distDir, { recursive: true });
   writeFileSync(
-    join(pluginDir, 'opentabs-plugin.json'),
+    join(pluginDir, 'package.json'),
     JSON.stringify({
-      name,
+      name: `opentabs-plugin-${name}`,
       version: '1.0.0',
-      displayName: name,
-      description: 'A test plugin',
-      url_patterns: ['http://localhost/*'],
-      tools: [
-        {
-          name: 'test_tool',
-          displayName: 'Test Tool',
-          description: 'A test tool',
-          icon: 'wrench',
-          input_schema: {},
-          output_schema: {},
-        },
-      ],
+      main: 'dist/adapter.iife.js',
+      opentabs: {
+        displayName: name,
+        description: 'A test plugin',
+        urlPatterns: ['http://localhost/*'],
+      },
     }),
+  );
+  writeFileSync(
+    join(distDir, 'tools.json'),
+    JSON.stringify([
+      {
+        name: 'test_tool',
+        displayName: 'Test Tool',
+        description: 'A test tool',
+        icon: 'wrench',
+        input_schema: {},
+        output_schema: {},
+      },
+    ]),
   );
   writeFileSync(join(distDir, 'adapter.iife.js'), '(function(){window.__test=true})()');
   return pluginDir;
