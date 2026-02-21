@@ -37,6 +37,9 @@ export default function TopNav() {
           </div>
 
           <div className="flex items-center space-x-4 lg:hidden">
+            <button onClick={toggleDarkMode} aria-label="Toggle dark mode">
+              {isDarkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
+            </button>
             <Link
               href="https://github.com/AnomalyCo/opentabs"
               target="_blank"

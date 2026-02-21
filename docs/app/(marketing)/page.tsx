@@ -509,7 +509,7 @@ export default function Home() {
             reverse engineering. Just your browser.
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <Link href="/docs/install" passHref>
+            <Link href="/docs/quick-start" passHref>
               <Button>Get Started</Button>
             </Link>
             <Link href="https://github.com/AnomalyCo/opentabs" target="_blank" passHref>
@@ -564,9 +564,9 @@ export default function Home() {
             </p>
           </div>
           <div className="flex flex-shrink-0 flex-col gap-4 sm:flex-row">
-            <Link href="/docs/install" passHref>
+            <Link href="/docs/quick-start" passHref>
               <Button className="bg-background" variant="outline">
-                Installation Guide
+                Quick Start
               </Button>
             </Link>
             <Link href="https://github.com/AnomalyCo/opentabs" target="_blank" passHref>
