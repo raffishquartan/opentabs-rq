@@ -15,8 +15,19 @@
  *   - Chromium is installed for Playwright
  */
 
-import { test, expect } from './fixtures.js';
+import {
+  test,
+  expect,
+  startMcpServer,
+  createMcpClient,
+  createMinimalPlugin,
+  cleanupTestConfigDir,
+  writeTestConfig,
+} from './fixtures.js';
 import { setupToolTest } from './helpers.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Resources
@@ -203,5 +214,89 @@ test.describe('Typed prompts — Zod args schema', () => {
     expect(msg.role).toBe('user');
     expect(msg.content.type).toBe('text');
     expect(msg.content.text).toBe('Dear Bob!');
+  });
+
+  test('get typed prompt with missing required argument renders with undefined value', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // The typed_greet prompt requires 'name' but we omit it. The MCP server
+    // does not validate individual prompt arguments — they pass through to
+    // the adapter, which renders with the missing value as undefined.
+    const messages = await mcpClient.getPrompt('e2e-test_typed_greet', {});
+
+    expect(messages.length).toBeGreaterThanOrEqual(1);
+    const msg = messages[0];
+    if (!msg) throw new Error('No message returned');
+    expect(msg.role).toBe('user');
+    expect(msg.content.type).toBe('text');
+    // The render function uses args.name directly — with no name, it produces "Hey undefined!"
+    expect(msg.content.text).toContain('undefined');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Empty resource/prompt lists — standalone server with no plugin resources/prompts
+// ---------------------------------------------------------------------------
+
+test.describe('Empty resource/prompt lists', () => {
+  test('resource list returns empty array when no plugins define resources', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-rp-nores-'));
+
+    // Create a minimal plugin that defines tools but no resources or prompts
+    const pluginDir = createMinimalPlugin(tmpDir, 'no-resources', [{ name: 'ping', description: 'A ping tool' }]);
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-rp-nores-cfg-'));
+    writeTestConfig(configDir, {
+      localPlugins: [pluginDir],
+      tools: { 'no-resources_ping': true },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const client = createMcpClient(server.port, server.secret);
+    try {
+      await client.initialize();
+      await server.waitForHealth(h => h.status === 'ok');
+
+      const resources = await client.listResources();
+      expect(resources).toHaveLength(0);
+    } finally {
+      await client.close();
+      await server.kill();
+      cleanupTestConfigDir(configDir);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test('prompt list returns empty array when no plugins define prompts', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-rp-noprompts-'));
+
+    // Create a minimal plugin that defines tools but no resources or prompts
+    const pluginDir = createMinimalPlugin(tmpDir, 'no-prompts', [{ name: 'ping', description: 'A ping tool' }]);
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-rp-noprompts-cfg-'));
+    writeTestConfig(configDir, {
+      localPlugins: [pluginDir],
+      tools: { 'no-prompts_ping': true },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const client = createMcpClient(server.port, server.secret);
+    try {
+      await client.initialize();
+      await server.waitForHealth(h => h.status === 'ok');
+
+      const prompts = await client.listPrompts();
+      expect(prompts).toHaveLength(0);
+    } finally {
+      await client.close();
+      await server.kill();
+      cleanupTestConfigDir(configDir);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
