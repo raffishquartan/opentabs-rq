@@ -1,11 +1,16 @@
 /**
  * `opentabs audit` command — shows recent tool invocation history.
+ *
+ * By default, queries the running MCP server's in-memory audit buffer.
+ * With --file, reads from the persistent disk log (~/.opentabs/audit.log)
+ * for post-restart forensics.
  */
 
-import { getConfigPath, isConnectionRefused, readConfig } from '../config.js';
+import { getConfigDir, getConfigPath, isConnectionRefused, readConfig } from '../config.js';
 import { resolvePort } from '../parse-port.js';
 import { InvalidArgumentError } from 'commander';
 import pc from 'picocolors';
+import { join } from 'node:path';
 import type { Command } from 'commander';
 
 interface AuditOptions {
@@ -15,6 +20,7 @@ interface AuditOptions {
   tool?: string;
   since?: string;
   json?: boolean;
+  file?: boolean;
 }
 
 interface AuditEntry {
@@ -78,7 +84,89 @@ const formatDuration = (ms: number): string => {
   return `${(ms / 1000).toFixed(1)}s`;
 };
 
+/**
+ * Read audit entries from the persistent disk log (~/.opentabs/audit.log).
+ * Parses NDJSON (one JSON object per line), applies the same filters as the server mode.
+ */
+const handleAuditFromFile = async (options: AuditOptions): Promise<void> => {
+  const limit = options.limit ?? 20;
+  const auditPath = join(getConfigDir(), 'audit.log');
+
+  let sinceMs: number | null = null;
+  if (options.since) {
+    sinceMs = parseDuration(options.since);
+  }
+
+  const auditFile = Bun.file(auditPath);
+  if (!(await auditFile.exists())) {
+    console.log(pc.dim('No audit log file found at ' + auditPath));
+    return;
+  }
+
+  const raw = await auditFile.text();
+  const lines = raw.split('\n').filter(line => line.trim().length > 0);
+
+  let entries: AuditEntry[] = [];
+  for (const line of lines) {
+    try {
+      entries.push(JSON.parse(line) as AuditEntry);
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  // Reverse to show newest first (matching server behavior)
+  entries.reverse();
+
+  // Apply filters
+  if (options.plugin) entries = entries.filter(e => e.plugin === options.plugin);
+  if (options.tool) entries = entries.filter(e => e.tool === options.tool);
+  if (sinceMs !== null) {
+    const cutoff = Date.now() - sinceMs;
+    entries = entries.filter(e => new Date(e.timestamp).getTime() >= cutoff);
+  }
+
+  entries = entries.slice(0, limit);
+
+  if (options.json) {
+    console.log(JSON.stringify(entries, null, 2));
+    return;
+  }
+
+  if (entries.length === 0) {
+    console.log(pc.dim('No audit entries found.'));
+    return;
+  }
+
+  // Table output (same format as server mode)
+  const timeCol = 15;
+  const toolCol = 30;
+  const statusCol = 4;
+  const durationCol = 10;
+
+  console.log(
+    pc.bold(
+      `${'Time'.padEnd(timeCol)}${'Tool'.padEnd(toolCol)}${'OK'.padEnd(statusCol)}${'Duration'.padEnd(durationCol)}`,
+    ),
+  );
+  console.log(pc.dim('─'.repeat(timeCol + toolCol + statusCol + durationCol)));
+
+  for (const entry of entries) {
+    const time = formatTimestamp(entry.timestamp).padEnd(timeCol);
+    const tool = entry.tool.padEnd(toolCol);
+    const statusIcon = entry.success ? pc.green('✓') : pc.red('✗');
+    const status = statusIcon + ' '.repeat(Math.max(0, statusCol - 1));
+    const duration = formatDuration(entry.durationMs).padEnd(durationCol);
+    console.log(`${time}${tool}${status}${duration}`);
+  }
+};
+
 const handleAudit = async (options: AuditOptions): Promise<void> => {
+  // --file mode reads from disk log instead of the running server
+  if (options.file) {
+    return handleAuditFromFile(options);
+  }
+
   const port = resolvePort(options);
   const limit = options.limit ?? 20;
 
@@ -184,6 +272,7 @@ const registerAuditCommand = (program: Command): void => {
     .option('--tool <name>', 'Filter by tool name')
     .option('--since <duration>', 'Show entries from the last duration (e.g., 30m, 1h, 2d)')
     .option('--json', 'Output raw JSON from the audit endpoint')
+    .option('--file', 'Read from persistent disk log (~/.opentabs/audit.log) instead of the running server')
     .addHelpText(
       'after',
       `
@@ -194,7 +283,9 @@ Examples:
   $ opentabs audit --tool slack_send_message
   $ opentabs audit --since 1h
   $ opentabs audit --since 30m --plugin slack
-  $ opentabs audit --json`,
+  $ opentabs audit --json
+  $ opentabs audit --file
+  $ opentabs audit --file --since 1h --plugin slack`,
     )
     .action((_options: AuditOptions, command: Command) => handleAudit(command.optsWithGlobals()));
 };

@@ -7,6 +7,7 @@
  * fresh empty instances on each bun --hot re-evaluation.
  */
 
+import { appendAuditEntryToDisk } from './audit-disk.js';
 import type { BrowserToolDefinition } from './browser-tools/definition.js';
 import type { PermissionsConfig } from './config.js';
 import type {
@@ -216,12 +217,15 @@ export interface AuditEntry {
 /** Maximum entries retained in the audit log circular buffer */
 export const MAX_AUDIT_ENTRIES = 500;
 
-/** Append an entry to the audit log, trimming oldest entries beyond MAX_AUDIT_ENTRIES */
+/** Append an entry to the audit log, trimming oldest entries beyond MAX_AUDIT_ENTRIES.
+ *  Also persists the entry to ~/.opentabs/audit.log as NDJSON (fire-and-forget). */
 export const appendAuditEntry = (state: ServerState, entry: AuditEntry): void => {
   state.auditLog.push(entry);
   if (state.auditLog.length > MAX_AUDIT_ENTRIES) {
     state.auditLog.splice(0, state.auditLog.length - MAX_AUDIT_ENTRIES);
   }
+  // Fire-and-forget disk write — errors are logged internally, never block dispatch
+  void appendAuditEntryToDisk(entry);
 };
 
 /** Server state singleton — shared across hot reloads via globalThis */
