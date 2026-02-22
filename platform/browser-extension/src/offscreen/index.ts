@@ -448,21 +448,59 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
   return undefined;
 });
 
-// Request the MCP server URL from the background script on startup.
-// The background reads from chrome.storage.local (unavailable here) and responds.
-chrome.runtime.sendMessage(
-  { type: 'offscreen:getUrl' } satisfies InternalMessage,
-  (response: { url?: string } | undefined) => {
-    if (chrome.runtime.lastError) {
-      // Background not ready yet — use default URL
-      console.log(`[opentabs:offscreen] Could not get URL from background, using default: ${mcpServerUrl}`);
-      void connect();
-      return;
+/**
+ * Bootstrap the shared secret and server URL from auth.json.
+ *
+ * The MCP server writes auth.json to the managed extension directory
+ * (~/.opentabs/extension/auth.json) on startup. The offscreen document
+ * reads it via chrome.runtime.getURL to obtain the secret and port,
+ * avoiding an unauthenticated HTTP request to /ws-info.
+ */
+const bootstrapFromAuthFile = async (): Promise<void> => {
+  try {
+    const res = await fetch(chrome.runtime.getURL('auth.json'), { signal: AbortSignal.timeout(1_000) });
+    if (res.ok) {
+      const auth = (await res.json()) as { secret?: string; port?: number };
+      if (typeof auth.secret === 'string' && auth.secret !== '') {
+        wsSecret = auth.secret;
+      }
+      if (typeof auth.port === 'number' && auth.port > 0) {
+        mcpServerUrl = `ws://localhost:${auth.port}/ws`;
+      }
     }
-    if (response?.url && typeof response.url === 'string') {
+  } catch {
+    // auth.json may not exist yet (server not started) — use defaults
+  }
+};
+
+// Bootstrap from auth.json, then check for a custom URL override from the
+// background script (chrome.storage.local), and connect.
+void (async () => {
+  await bootstrapFromAuthFile();
+
+  // Check if the user has configured a custom server URL in chrome.storage.local.
+  // The background script reads it and relays here since offscreen docs cannot
+  // access chrome.storage APIs directly.
+  try {
+    const response = await new Promise<{ url?: string } | undefined>(resolve => {
+      chrome.runtime.sendMessage(
+        { type: 'offscreen:getUrl' } satisfies InternalMessage,
+        (resp: { url?: string } | undefined) => {
+          if (chrome.runtime.lastError) {
+            resolve(undefined);
+            return;
+          }
+          resolve(resp);
+        },
+      );
+    });
+    if (response?.url && typeof response.url === 'string' && response.url !== mcpServerUrl) {
       mcpServerUrl = response.url;
     }
-    console.log(`[opentabs:offscreen] Connecting to ${mcpServerUrl}`);
-    void connect();
-  },
-);
+  } catch {
+    // Background not ready — use URL from auth.json or default
+  }
+
+  console.log(`[opentabs:offscreen] Connecting to ${mcpServerUrl}`);
+  void connect();
+})();

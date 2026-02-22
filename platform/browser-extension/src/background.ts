@@ -144,30 +144,17 @@ chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => {
 chrome.runtime.onMessage.addListener((message: InternalMessage, _sender, sendResponse) => {
   switch (message.type) {
     case 'offscreen:getUrl': {
+      // Return the user-configured server URL (or default). The offscreen
+      // document uses this only as an override — it reads auth.json directly
+      // for the secret and port, so no /ws-info fetch is needed here.
       (async () => {
         const stored: Record<string, unknown> = await chrome.storage.local
           .get('mcpServerUrl')
           .catch(() => ({}) as Record<string, unknown>);
-        const baseWsUrl = typeof stored.mcpServerUrl === 'string' ? stored.mcpServerUrl : 'ws://localhost:9515/ws';
-
-        const httpBase = baseWsUrl.replace(/^ws/, 'http').replace(/\/ws(\?.*)?$/, '');
-        try {
-          const res = await fetch(`${httpBase}/ws-info`, { signal: AbortSignal.timeout(3_000) });
-          if (res.ok) {
-            const wsInfo = (await res.json()) as { wsUrl?: string };
-            if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '') {
-              sendResponse({ url: wsInfo.wsUrl });
-              return;
-            } else if (typeof wsInfo.wsUrl === 'string') {
-              console.warn('[opentabs:background] /ws-info returned empty wsUrl, using fallback URL');
-            }
-          }
-        } catch {
-          // Server may not be running yet — fall back to unauthenticated URL
-        }
+        const baseWsUrl = typeof stored.mcpServerUrl === 'string' ? stored.mcpServerUrl : undefined;
         sendResponse({ url: baseWsUrl });
       })().catch(() => {
-        sendResponse({ url: 'ws://localhost:9515/ws' });
+        sendResponse({ url: undefined });
       });
       return true;
     }

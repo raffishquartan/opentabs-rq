@@ -42,6 +42,7 @@
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
+import { writeAuthFile } from './config.js';
 import { isDev } from './dev-mode.js';
 import { createHandlers } from './http-routes.js';
 import { log } from './logger.js';
@@ -212,6 +213,15 @@ const actualPort = server.port ?? PORT;
 if (!isHotReload) {
   const modeLabel = isDev() ? ' (dev mode)' : '';
   log.info(`MCP server v${version} listening on http://localhost:${actualPort}${modeLabel}`);
+}
+
+// Write auth.json so the Chrome extension can bootstrap the secret and port
+// without an unauthenticated HTTP request. Written on every reload in case
+// the secret was rotated or the port changed.
+if (state.wsSecret) {
+  writeAuthFile(state.wsSecret, actualPort).catch((err: unknown) => {
+    log.warn('Failed to write auth.json:', err);
+  });
 }
 
 // Install graceful shutdown handlers (once per process, survives hot reloads).
