@@ -14,7 +14,6 @@ import {
   MAX_DISPATCH_TIMEOUT_MS,
   CONFIRMATION_TIMEOUT_MS,
 } from './state.js';
-import { SIDE_PANEL_PROTOCOL_VERSION } from '@opentabs-dev/shared';
 import { mkdir, readdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { PluginLogEntry } from './log-buffer.js';
@@ -219,11 +218,15 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
     trustTier: p.trustTier,
     sourcePath: p.sourcePath,
     adapterHash: p.adapterHash,
+    iconSvg: p.iconSvg,
+    iconInactiveSvg: p.iconInactiveSvg,
     tools: p.tools.map(t => ({
       name: t.name,
       displayName: t.displayName,
       description: t.description,
       icon: t.icon,
+      iconSvg: t.iconSvg,
+      iconInactiveSvg: t.iconInactiveSvg,
       enabled: isToolEnabled(state, prefixedToolName(p.name, t.name)),
     })),
   }));
@@ -478,11 +481,15 @@ const sendPluginUpdate = async (
       trustTier: plugin.trustTier,
       sourcePath: plugin.sourcePath,
       adapterHash: plugin.adapterHash,
+      iconSvg: plugin.iconSvg,
+      iconInactiveSvg: plugin.iconInactiveSvg,
       tools: plugin.tools.map(t => ({
         name: t.name,
         displayName: t.displayName,
         description: t.description,
         icon: t.icon,
+        iconSvg: t.iconSvg,
+        iconInactiveSvg: t.iconInactiveSvg,
         enabled: isToolEnabled(state, prefixedToolName(plugin.name, t.name)),
       })),
     },
@@ -751,11 +758,15 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
         tabState: tabInfo?.state ?? 'closed',
         urlPatterns: p.urlPatterns,
         ...(p.sdkVersion ? { sdkVersion: p.sdkVersion } : {}),
+        iconSvg: p.iconSvg,
+        iconInactiveSvg: p.iconInactiveSvg,
         tools: p.tools.map(t => ({
           name: t.name,
           displayName: t.displayName,
           description: t.description,
           icon: t.icon,
+          iconSvg: t.iconSvg,
+          iconInactiveSvg: t.iconInactiveSvg,
           enabled: isToolEnabled(state, prefixedToolName(p.name, t.name)),
         })),
       };
@@ -767,7 +778,6 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
       plugins,
       failedPlugins: state.discoveryErrors.map(e => ({ specifier: e.specifier, error: e.error })),
       outdatedPlugins: state.outdatedPlugins,
-      protocolVersion: SIDE_PANEL_PROTOCOL_VERSION,
     },
     id,
   });

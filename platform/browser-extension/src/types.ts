@@ -154,5 +154,7 @@ export interface PluginMeta {
   trustTier: TrustTier;
   sourcePath?: string;
   adapterHash?: string;
+  iconSvg?: string;
+  iconInactiveSvg?: string;
   tools: WireToolDef[];
 }

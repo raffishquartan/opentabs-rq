@@ -4,7 +4,6 @@ import { PluginList } from './PluginList';
 import { Button } from './retro/Button';
 import { Input } from './retro/Input';
 import { ReturningUserEmptyState } from './ReturningUserEmptyState';
-import { VersionMismatchBanner } from './VersionMismatchBanner';
 import { Moon, Search, Sun, X } from 'lucide-react';
 import { useState } from 'react';
 import { fn } from 'storybook/test';
@@ -219,17 +218,14 @@ const FooterPreview = () => {
 
 const SidePanelShell = ({
   children,
-  versionMismatch = false,
   searchBar,
   centered = false,
 }: {
   children: React.ReactNode;
-  versionMismatch?: boolean;
   searchBar?: React.ReactNode;
   centered?: boolean;
 }) => (
   <div className="text-foreground flex min-h-screen flex-col">
-    {versionMismatch && <VersionMismatchBanner />}
     {searchBar}
     <main className={`flex-1 px-3 py-2 ${centered ? 'flex items-center justify-center' : ''}`}>{children}</main>
     <FooterPreview />
@@ -435,22 +431,7 @@ const ActiveToolExecutionDemo = () => {
 const ActiveToolExecution: Story = { render: () => <ActiveToolExecutionDemo /> };
 
 // ---------------------------------------------------------------------------
-// 12: Version mismatch banner
-// ---------------------------------------------------------------------------
-
-const VersionMismatchDemo = () => {
-  const [plugins, setPlugins] = useState([mockPlugin()]);
-  return (
-    <SidePanelShell versionMismatch>
-      <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
-    </SidePanelShell>
-  );
-};
-
-const VersionMismatch: Story = { render: () => <VersionMismatchDemo /> };
-
-// ---------------------------------------------------------------------------
-// 13: All tools disabled
+// 12: All tools disabled
 // ---------------------------------------------------------------------------
 
 const AllToolsDisabledDemo = () => {
@@ -491,7 +472,7 @@ const AllToolsDisabledDemo = () => {
 const AllToolsDisabled: Story = { render: () => <AllToolsDisabledDemo /> };
 
 // ---------------------------------------------------------------------------
-// 14: Tool filter active (pre-filled search)
+// 13: Tool filter active (pre-filled search)
 // ---------------------------------------------------------------------------
 
 const ToolFilterActiveDemo = () => {
@@ -530,7 +511,6 @@ export {
   WithFailedPlugins,
   ManyToolsWithSearch,
   ActiveToolExecution,
-  VersionMismatch,
   AllToolsDisabled,
   ToolFilterActive,
 };

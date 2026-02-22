@@ -92,6 +92,8 @@ interface ValidatedPluginPayload {
   trustTier: TrustTier;
   sourcePath?: string;
   adapterHash?: string;
+  iconSvg?: string;
+  iconInactiveSvg?: string;
   tools: WireToolDef[];
 }
 
@@ -104,6 +106,8 @@ const toPluginMeta = (p: ValidatedPluginPayload): PluginMeta => ({
   trustTier: p.trustTier,
   sourcePath: p.sourcePath,
   adapterHash: p.adapterHash,
+  iconSvg: p.iconSvg,
+  iconInactiveSvg: p.iconInactiveSvg,
   tools: p.tools,
 });
 
@@ -170,6 +174,8 @@ const validatePluginPayload = (raw: unknown): ValidatedPluginPayload | null => {
         : 'local',
     sourcePath: typeof obj.sourcePath === 'string' ? obj.sourcePath : undefined,
     adapterHash: typeof obj.adapterHash === 'string' ? obj.adapterHash : undefined,
+    iconSvg: typeof obj.iconSvg === 'string' ? obj.iconSvg : undefined,
+    iconInactiveSvg: typeof obj.iconInactiveSvg === 'string' ? obj.iconInactiveSvg : undefined,
     tools,
   };
 };

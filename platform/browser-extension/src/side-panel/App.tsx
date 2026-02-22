@@ -12,9 +12,7 @@ import { OnboardingState } from './components/OnboardingState.js';
 import { PluginList } from './components/PluginList.js';
 import { Input } from './components/retro/Input.js';
 import { ReturningUserEmptyState } from './components/ReturningUserEmptyState.js';
-import { VersionMismatchBanner } from './components/VersionMismatchBanner.js';
 import { VALID_PLUGIN_NAME } from '../constants.js';
-import { SIDE_PANEL_PROTOCOL_VERSION } from '@opentabs-dev/shared';
 import { Search, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { FailedPluginState, PluginState } from './bridge.js';
@@ -32,7 +30,6 @@ const App = () => {
   const [failedPlugins, setFailedPlugins] = useState<FailedPluginState[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTools, setActiveTools] = useState<Set<string>>(new Set());
-  const [versionMismatch, setVersionMismatch] = useState(false);
   const [toolFilter, setToolFilter] = useState('');
   const [hasEverHadPlugins, setHasEverHadPlugins] = useState<boolean | null>(null);
   const [pendingConfirmations, setPendingConfirmations] = useState<ConfirmationData[]>([]);
@@ -71,11 +68,6 @@ const App = () => {
         if (updatedPlugins.length > 0 && hasEverHadPluginsRef.current !== true) {
           setHasEverHadPlugins(true);
           void chrome.storage.local.set({ [STORAGE_KEY_HAS_EVER_HAD_PLUGINS]: true });
-        }
-        if (result.protocolVersion !== undefined && result.protocolVersion !== SIDE_PANEL_PROTOCOL_VERSION) {
-          setVersionMismatch(true);
-        } else if (result.protocolVersion !== undefined) {
-          setVersionMismatch(false);
         }
       })
       .catch(() => {
@@ -200,7 +192,6 @@ const App = () => {
           setPlugins([]);
           setFailedPlugins([]);
           setActiveTools(new Set());
-          setVersionMismatch(false);
           setPendingConfirmations([]);
           rejectAllPending();
         }
@@ -267,7 +258,6 @@ const App = () => {
 
   return (
     <div className="text-foreground flex min-h-screen flex-col">
-      {versionMismatch && <VersionMismatchBanner />}
       {connected && pendingConfirmations.length > 0 && (
         <ConfirmationDialog
           confirmations={pendingConfirmations}

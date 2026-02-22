@@ -242,7 +242,6 @@ export interface ConfigStateResult {
     latestVersion: string;
     updateCommand: string;
   }>;
-  protocolVersion?: number;
 }
 
 /** config.setToolEnabled request params */
@@ -288,16 +287,6 @@ export interface BrowserExecuteScriptParams {
 export interface PluginUninstallParams {
   name: string;
 }
-
-// ---------------------------------------------------------------------------
-// Protocol version — side panel ↔ MCP server communication
-// ---------------------------------------------------------------------------
-
-/**
- * Protocol version for side panel ↔ MCP server communication.
- * Increment when the config.getState response shape changes in a breaking way.
- */
-export const SIDE_PANEL_PROTOCOL_VERSION = 1;
 
 // ---------------------------------------------------------------------------
 // Security constants — shared between MCP server and Chrome extension
