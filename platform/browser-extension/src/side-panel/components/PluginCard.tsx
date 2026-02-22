@@ -135,7 +135,7 @@ const PluginCard = ({
               <Tooltip.Provider>
                 <Tooltip>
                   <Tooltip.Trigger asChild>
-                    <span className="ml-1.5 inline-block rounded border border-yellow-500/50 bg-yellow-500/10 px-1 py-0.5 align-middle text-[9px] leading-none font-medium text-yellow-600 dark:text-yellow-400">
+                    <span className="border-accent bg-accent/10 text-accent-foreground ml-1.5 inline-block rounded border px-1 py-0.5 align-middle text-[9px] leading-none font-medium">
                       SDK
                     </span>
                   </Tooltip.Trigger>
