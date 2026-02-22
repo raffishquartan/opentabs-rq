@@ -492,21 +492,33 @@ const bundleIIFE = async (sourceEntry: string, outDir: string, pluginName: strin
 
   const name = JSON.stringify(pluginName);
   const wrapperCode = `import plugin from ${JSON.stringify(relativeImport)};
-(globalThis as any).__openTabs = (globalThis as any).__openTabs || {};
-(globalThis as any).__openTabs.adapters = (globalThis as any).__openTabs.adapters || {};
-const adapters = (globalThis as any).__openTabs.adapters;
+import type { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
+
+// Typed accessor for the globalThis.__openTabs runtime namespace, replacing
+// untyped \`(globalThis as any).__openTabs\` casts throughout the wrapper.
+interface LogEntry { level: string; message: string; data: unknown[]; ts: string }
+interface OpenTabsRuntime {
+  adapters: Record<string, OpenTabsPlugin>;
+  _setLogTransport?: (fn: (entry: LogEntry) => void) => () => void;
+  _logNonce?: string;
+}
+declare global {
+  var __openTabs: OpenTabsRuntime | undefined;
+}
+
+globalThis.__openTabs = globalThis.__openTabs || {} as OpenTabsRuntime;
+globalThis.__openTabs.adapters = globalThis.__openTabs.adapters || {};
+const adapters = globalThis.__openTabs.adapters;
 
 // --- Log transport: batch entries and flush via postMessage to the relay ---
 // Access _setLogTransport from globalThis (registered by the SDK's log module
 // at import time) rather than via a direct import, so the wrapper works even
 // when the plugin's installed SDK version predates the log module.
-const setLogTransport = (globalThis as any).__openTabs?._setLogTransport as
-  | ((fn: (entry: { level: string; message: string; data: unknown[]; ts: string }) => void) => () => void)
-  | undefined;
+const setLogTransport = globalThis.__openTabs._setLogTransport;
 
 const LOG_FLUSH_INTERVAL = 100;
 const LOG_BATCH_MAX = 50;
-let logBatch: Array<{ level: string; message: string; data: unknown[]; ts: string }> = [];
+let logBatch: LogEntry[] = [];
 let logFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 const flushLogs = () => {
@@ -514,14 +526,14 @@ const flushLogs = () => {
   const entries = logBatch;
   logBatch = [];
   try {
-    const nonce = ((globalThis as any).__openTabs as any)?._logNonce as string | undefined;
+    const nonce = globalThis.__openTabs?._logNonce;
     window.postMessage({ type: 'opentabs:plugin-logs', plugin: ${name}, entries, nonce: nonce ?? '' }, '*');
   } catch {
     // Extension not available — drop silently
   }
 };
 
-const logTransport = (entry: { level: string; message: string; data: unknown[]; ts: string }) => {
+const logTransport = (entry: LogEntry) => {
   logBatch.push(entry);
   if (logBatch.length >= LOG_BATCH_MAX) {
     if (logFlushTimer !== null) { clearTimeout(logFlushTimer); logFlushTimer = null; }
@@ -546,31 +558,29 @@ if (existing) {
 // hashAndFreeze), rebuild the adapters container with all other adapters
 // and replace __openTabs on globalThis.
 if (!Reflect.deleteProperty(adapters, ${name})) {
-  const ot = (globalThis as any).__openTabs;
-  const newAdapters: Record<string, any> = {};
+  const ot = globalThis.__openTabs!;
+  const newAdapters: Record<string, OpenTabsPlugin> = {};
   for (const key of Object.keys(adapters)) {
     if (key !== ${name}) {
       const desc = Object.getOwnPropertyDescriptor(adapters, key);
       if (desc) Object.defineProperty(newAdapters, key, desc);
     }
   }
-  delete (globalThis as any).__openTabs;
-  (globalThis as any).__openTabs = Object.assign({}, ot, { adapters: newAdapters });
+  globalThis.__openTabs = Object.assign({}, ot, { adapters: newAdapters });
 }
 
 // Wire onToolInvocationStart / onToolInvocationEnd around each tool.handle()
 if (typeof plugin.onToolInvocationStart === 'function' || typeof plugin.onToolInvocationEnd === 'function') {
   for (const tool of plugin.tools) {
     const origHandle = tool.handle;
-    tool.handle = async function() {
-      const handleArgs = arguments;
+    tool.handle = async function(...handleArgs: [unknown, ...unknown[]]) {
       const startTime = performance.now();
       if (typeof plugin.onToolInvocationStart === 'function') {
         try { plugin.onToolInvocationStart(tool.name); } catch (e) { console.warn('[OpenTabs] onToolInvocationStart failed:', e); }
       }
       let success = true;
       try {
-        return await origHandle.apply(this, handleArgs as any);
+        return await origHandle.apply(this, handleArgs);
       } catch (err) {
         success = false;
         throw err;
@@ -585,7 +595,7 @@ if (typeof plugin.onToolInvocationStart === 'function' || typeof plugin.onToolIn
 }
 
 // Re-read the adapters reference (may have been rebuilt above)
-const currentAdapters = (globalThis as any).__openTabs.adapters;
+const currentAdapters = globalThis.__openTabs!.adapters;
 currentAdapters[${name}] = plugin;
 
 // Wire onActivate
@@ -633,7 +643,7 @@ if (typeof plugin.onNavigate === 'function') {
     if (restoreTransport) restoreTransport();
     if (origTeardown) origTeardown();
   };
-  plugin.onDeactivate = undefined as any;
+  delete (plugin as Record<string, unknown>).onDeactivate;
 } else {
   // No onNavigate — still wrap teardown for onDeactivate ordering and log cleanup
   const origTeardown = typeof plugin.teardown === 'function' ? plugin.teardown.bind(plugin) : undefined;
@@ -648,7 +658,7 @@ if (typeof plugin.onNavigate === 'function') {
     if (restoreTransport) restoreTransport();
     if (origTeardown) origTeardown();
   };
-  plugin.onDeactivate = undefined as any;
+  delete (plugin as Record<string, unknown>).onDeactivate;
 }
 `;
   await Bun.write(wrapperPath, wrapperCode);
