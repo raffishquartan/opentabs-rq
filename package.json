@@ -20,6 +20,7 @@
     "build:icons": "bun scripts/generate-icons.ts",
     "build:install-extension": "bun scripts/install-extension.ts",
     "type-check": "tsc --build",
+    "check:tsconfig-coverage": "bun scripts/check-tsconfig-coverage.ts",
     "type-check:e2e": "tsc --noEmit -p e2e/tsconfig.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
