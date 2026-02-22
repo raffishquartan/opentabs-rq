@@ -14,8 +14,6 @@ interface PluginOpentabsField {
   readonly displayName: string;
   readonly description: string;
   readonly urlPatterns: string[];
-  /** Lucide icon name (kebab-case) for the plugin in the side panel */
-  readonly icon?: string;
 }
 
 /** A plugin's package.json with the required `opentabs` field */
@@ -104,11 +102,6 @@ const parsePluginPackageJson = (json: unknown, sourcePath: string): Result<Plugi
     }
   }
 
-  const icon = ot.icon;
-  if (icon !== undefined && typeof icon !== 'string') {
-    return err(`Invalid package.json at ${sourcePath}: "opentabs.icon" must be a string if provided`);
-  }
-
   return ok({
     name,
     version,
@@ -117,7 +110,6 @@ const parsePluginPackageJson = (json: unknown, sourcePath: string): Result<Plugi
       displayName,
       description,
       urlPatterns: urlPatterns as string[],
-      ...(typeof icon === 'string' ? { icon } : {}),
     },
   });
 };

@@ -40,6 +40,10 @@ interface LoadedPlugin {
   readonly sdkVersion: string | undefined;
   /** Source map content for the adapter IIFE (from dist/adapter.iife.js.map). Undefined for old plugins. */
   readonly iifeSourceMap: string | undefined;
+  /** Optional SVG icon for the plugin (from tools.json) */
+  readonly iconSvg: string | undefined;
+  /** Optional SVG icon for the inactive state (from tools.json) */
+  readonly iconInactiveSvg: string | undefined;
 }
 
 /**
@@ -345,6 +349,11 @@ const loadPlugin = async (
     // Source map not available — not an error
   }
 
+  // Extract optional SVG icons from manifest
+  const iconSvg = manifestObj && typeof manifestObj.iconSvg === 'string' ? manifestObj.iconSvg : undefined;
+  const iconInactiveSvg =
+    manifestObj && typeof manifestObj.iconInactiveSvg === 'string' ? manifestObj.iconInactiveSvg : undefined;
+
   return ok({
     name: pluginName,
     version: pkg.version,
@@ -362,6 +371,8 @@ const loadPlugin = async (
     npmPackageName: pkg.name,
     sdkVersion: pluginSdkVersion,
     iifeSourceMap,
+    iconSvg,
+    iconInactiveSvg,
   });
 };
 
