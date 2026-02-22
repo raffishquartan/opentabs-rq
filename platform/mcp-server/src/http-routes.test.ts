@@ -396,6 +396,62 @@ describe('/health endpoint', () => {
 
     expect(body.disabledBrowserTools).toEqual(['browser_execute_script', 'browser_get_cookies']);
   });
+
+  test('unauthenticated request returns minimal response when secret is set', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+
+    const body = await fetchJson<Record<string, unknown>>(handlers, 'http://localhost:9876/health');
+
+    expect(body.status).toBe('ok');
+    expect(body.version).toBe(version);
+    expect(body.extensionConnected).toBe(false);
+    // Minimal response excludes detailed fields
+    expect(body).not.toHaveProperty('pluginDetails');
+    expect(body).not.toHaveProperty('toolCount');
+    expect(body).not.toHaveProperty('uptime');
+    expect(body).not.toHaveProperty('plugins');
+    expect(body).not.toHaveProperty('failedPlugins');
+    expect(body).not.toHaveProperty('discoveryErrors');
+    expect(body).not.toHaveProperty('auditSummary');
+    expect(body).not.toHaveProperty('fileWatcher');
+    expect(body).not.toHaveProperty('mcpClients');
+    expect(body).not.toHaveProperty('mode');
+  });
+
+  test('authenticated request returns full response when secret is set', async () => {
+    const secret = 'test-secret';
+    const { handlers, state } = createTestHandlers({
+      getHotState: () => ({ reloadCount: 5, lastReloadTimestamp: 2000, lastReloadDurationMs: 10 }),
+    });
+    state.wsSecret = secret;
+
+    const body = await fetchJson<HealthResponse>(handlers, 'http://localhost:9876/health', {
+      Authorization: `Bearer ${secret}`,
+    });
+
+    expect(body.status).toBe('ok');
+    expect(body.version).toBe(version);
+    expect(body.extensionConnected).toBe(false);
+    expect(body.mcpClients).toBe(0);
+    expect(body.plugins).toBe(0);
+    expect(body.pluginDetails).toEqual([]);
+    expect(typeof body.uptime).toBe('number');
+    expect(body.reloadCount).toBe(5);
+    expect(body.toolCount).toBe(0);
+    expect(body.stateSchemaVersion).toBe(STATE_SCHEMA_VERSION);
+  });
+
+  test('unauthenticated request still returns 200 (not 401) for monitoring', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+
+    const req = new Request('http://localhost:9876/health', { headers: { Host: 'localhost:9876' } });
+    const res = await handlers.fetch(req, mockBunServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(200);
+  });
 });
 
 describe('/ws-info endpoint', () => {

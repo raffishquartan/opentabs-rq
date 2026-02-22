@@ -195,8 +195,12 @@ test.describe('Audit logging', () => {
     await callToolExpectSuccess(mcpClient, mcpServer, 'e2e-test_echo', { message: 'health-audit-2' });
     await mcpClient.callTool('e2e-test_failing_tool', {});
 
-    // Fetch health
+    // Fetch health (authenticated to get full response)
+    const healthHeaders: Record<string, string> = {};
+    if (mcpServer.secret) healthHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+
     const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+      headers: healthHeaders,
       signal: AbortSignal.timeout(5_000),
     });
     expect(res.ok).toBe(true);

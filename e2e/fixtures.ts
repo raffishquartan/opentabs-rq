@@ -96,9 +96,13 @@ interface HealthResponse {
   pluginDetails?: PluginDetail[];
 }
 
-const fetchHealth = async (port: number): Promise<HealthResponse | null> => {
+const fetchHealth = async (port: number, secret?: string): Promise<HealthResponse | null> => {
   try {
+    const headers: Record<string, string> = {};
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
+
     const res = await fetch(`http://localhost:${port}/health`, {
+      headers,
       signal: AbortSignal.timeout(2_000),
     });
     if (!res.ok) return null;
@@ -113,11 +117,12 @@ const waitForHealth = async (
   predicate: (h: HealthResponse) => boolean,
   timeoutMs = 30_000,
   intervalMs = 500,
+  secret?: string,
 ): Promise<HealthResponse> => {
   const deadline = Date.now() + timeoutMs;
   let last: HealthResponse | null = null;
   while (Date.now() < deadline) {
-    last = await fetchHealth(port);
+    last = await fetchHealth(port, secret);
     if (last && predicate(last)) return last;
     await new Promise(r => setTimeout(r, intervalMs));
   }
@@ -456,8 +461,9 @@ const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: n
         } catch {
           // Config may not be readable yet — auth will be skipped
         }
-        server.health = () => fetchHealth(actualPort);
-        server.waitForHealth = (predicate, timeoutMs) => waitForHealth(actualPort, predicate, timeoutMs);
+        server.health = () => fetchHealth(actualPort, server.secret);
+        server.waitForHealth = (predicate, timeoutMs) =>
+          waitForHealth(actualPort, predicate, timeoutMs, undefined, server.secret);
         resolve(server);
       }
     };

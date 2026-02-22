@@ -56,7 +56,7 @@ test.describe('Plugin logging — full pipeline', () => {
     const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
 
     // Check initial log buffer size
-    const healthBefore = await fetchHealth(mcpServer.port);
+    const healthBefore = await fetchHealth(mcpServer.port, mcpServer.secret);
     const pluginBefore = healthBefore?.pluginDetails?.find(p => p.name === 'e2e-test');
     const initialBufferSize = pluginBefore?.logBufferSize ?? 0;
 
@@ -67,7 +67,7 @@ test.describe('Plugin logging — full pipeline', () => {
     // Wait for logs to arrive at the server's log buffer
     await waitFor(
       async () => {
-        const h = await fetchHealth(mcpServer.port);
+        const h = await fetchHealth(mcpServer.port, mcpServer.secret);
         const pluginDetail = h?.pluginDetails?.find(p => p.name === 'e2e-test');
         return (pluginDetail?.logBufferSize ?? 0) >= initialBufferSize + 4;
       },
@@ -77,7 +77,7 @@ test.describe('Plugin logging — full pipeline', () => {
     );
 
     // Verify final buffer size
-    const healthAfter = await fetchHealth(mcpServer.port);
+    const healthAfter = await fetchHealth(mcpServer.port, mcpServer.secret);
     const pluginAfter = healthAfter?.pluginDetails?.find(p => p.name === 'e2e-test');
     expect(pluginAfter?.logBufferSize).toBeGreaterThanOrEqual(initialBufferSize + 4);
 
@@ -134,7 +134,7 @@ test.describe('Plugin logging — full pipeline', () => {
     // Buffer should contain entries from both invocations (at least 8 entries)
     await waitFor(
       async () => {
-        const h = await fetchHealth(mcpServer.port);
+        const h = await fetchHealth(mcpServer.port, mcpServer.secret);
         const pluginDetail = h?.pluginDetails?.find(p => p.name === 'e2e-test');
         return (pluginDetail?.logBufferSize ?? 0) >= 8;
       },

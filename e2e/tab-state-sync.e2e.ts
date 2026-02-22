@@ -50,7 +50,11 @@ test.describe('Tab state sync — navigate away', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -69,7 +73,11 @@ test.describe('Tab state sync — navigate away', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -114,7 +122,11 @@ test.describe('Tab state sync — multi-tab resilience', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -132,7 +144,11 @@ test.describe('Tab state sync — multi-tab resilience', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -153,7 +169,11 @@ test.describe('Tab state sync — multi-tab resilience', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -186,7 +206,11 @@ test.describe('Tab state sync — rapid close and reopen', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -208,7 +232,11 @@ test.describe('Tab state sync — rapid close and reopen', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${mcpServer.port}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${mcpServer.port}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };

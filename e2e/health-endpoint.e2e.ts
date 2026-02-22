@@ -62,7 +62,11 @@ test.describe('Health endpoint — plugin details', () => {
   }) => {
     const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
 
+    const headers: Record<string, string> = {};
+    if (mcpServer.secret) headers['Authorization'] = `Bearer ${mcpServer.secret}`;
+
     const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`, {
+      headers,
       signal: AbortSignal.timeout(5_000),
     });
     expect(res.ok).toBe(true);
@@ -111,7 +115,11 @@ test.describe('Health endpoint — failed plugins', () => {
     const server = await startMcpServer(configDir, true);
     try {
       const health = await server.waitForHealth(h => h.status === 'ok');
+      const authHeaders: Record<string, string> = {};
+      if (server.secret) authHeaders['Authorization'] = `Bearer ${server.secret}`;
+
       const raw = await fetch(`http://localhost:${String(server.port)}/health`, {
+        headers: authHeaders,
         signal: AbortSignal.timeout(5_000),
       });
       const body = (await raw.json()) as Record<string, unknown>;
@@ -152,7 +160,11 @@ test.describe('Health endpoint — tab state transitions', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -181,7 +193,11 @@ test.describe('Health endpoint — tab state transitions', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };
@@ -210,7 +226,11 @@ test.describe('Health endpoint — tab state transitions', () => {
     await expect
       .poll(
         async () => {
-          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`);
+          const pollHeaders: Record<string, string> = {};
+          if (mcpServer.secret) pollHeaders['Authorization'] = `Bearer ${mcpServer.secret}`;
+          const res = await fetch(`http://localhost:${String(mcpServer.port)}/health`, {
+            headers: pollHeaders,
+          });
           const body = (await res.json()) as {
             pluginDetails?: Array<{ name: string; tabState: string }>;
           };

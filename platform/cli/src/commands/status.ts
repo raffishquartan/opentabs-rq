@@ -2,7 +2,7 @@
  * `opentabs status` command — shows server status and connected plugins.
  */
 
-import { isConnectionRefused } from '../config.js';
+import { getConfigPath, isConnectionRefused, readConfig } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
 import pc from 'picocolors';
 import type { Command } from 'commander';
@@ -53,8 +53,15 @@ const handleStatus = async (options: StatusOptions): Promise<void> => {
   const port = resolvePort(options);
   const url = `http://localhost:${port}/health`;
 
+  const configPath = getConfigPath();
+  const { config } = await readConfig(configPath);
+  const secret = config && typeof config.secret === 'string' ? config.secret : null;
+
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(3_000) });
+    const headers: Record<string, string> = {};
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
+
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
     if (!res.ok) {
       console.error(pc.red(`Error: MCP server returned HTTP ${res.status}.`));
       console.error('The server may be misconfigured. Check the server logs for details.');

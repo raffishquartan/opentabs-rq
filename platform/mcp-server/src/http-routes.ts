@@ -269,7 +269,19 @@ const createHandleFetch =
     }
 
     // --- Health endpoint ---
+    // Unauthenticated requests get a minimal status response (alive check only).
+    // Authenticated requests get the full response with plugin details, paths, etc.
     if (url.pathname === '/health' && req.method === 'GET') {
+      const authenticated = checkBearerAuth(req, state.wsSecret) === null;
+
+      if (!authenticated) {
+        return Response.json({
+          status: 'ok',
+          version,
+          extensionConnected: state.extensionWs !== null,
+        });
+      }
+
       const hs = getHotState();
 
       const pluginDetails = [...state.registry.plugins.values()].map(p => ({
