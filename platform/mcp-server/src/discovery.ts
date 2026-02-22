@@ -9,11 +9,13 @@ import type { LoadedPlugin } from './loader.js';
 import type { FailedPlugin, PluginRegistry } from './state.js';
 import type { TrustTier } from '@opentabs-dev/shared';
 
+/** Outcome of plugin discovery: an immutable registry plus any errors from failed plugins. */
 interface DiscoveryResult {
   readonly registry: PluginRegistry;
   readonly errors: readonly DiscoveryError[];
 }
 
+/** A single plugin that failed to load during discovery, identified by its specifier. */
 interface DiscoveryError {
   readonly specifier: string;
   readonly error: string;

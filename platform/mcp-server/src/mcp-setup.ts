@@ -800,11 +800,13 @@ export interface ToolCallableOk {
   toolName: string;
 }
 
+/** A failed tool-callable check with a human-readable error message. */
 export interface ToolCallableError {
   ok: false;
   error: string;
 }
 
+/** Discriminated union returned by {@link checkToolCallable} indicating success or failure. */
 export type ToolCallableResult = ToolCallableOk | ToolCallableError;
 
 /**
