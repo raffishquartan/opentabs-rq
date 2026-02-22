@@ -298,6 +298,8 @@ export interface ServerState {
   auditLog: AuditEntry[];
   /** Whether confirmation prompts are bypassed (from CLI flag, env var, or config) */
   skipConfirmation: boolean;
+  /** Whether tool output sanitization is bypassed (from CLI flag, env var, or config) */
+  skipSanitization: boolean;
   /** Permission rules for browser tool confirmation */
   permissions: PermissionsConfig;
   /** Pending confirmation requests awaiting human approval in the side panel */
@@ -349,6 +351,7 @@ export const createState = (): ServerState => ({
   discoveryErrors: [],
   auditLog: [],
   skipConfirmation: false,
+  skipSanitization: false,
   permissions: {
     trustedDomains: ['localhost', '127.0.0.1'],
     sensitiveDomains: [],

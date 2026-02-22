@@ -32,6 +32,7 @@ import { log } from './logger.js';
 import { evaluatePermission } from './permissions.js';
 import { getResource, getPrompt, listAllResources, listAllPrompts, trustTierPrefix } from './registry.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
+import { sanitizeToolOutput } from './sanitize-tool-output.js';
 import { prefixedToolName, isToolEnabled, isBrowserToolEnabled, appendAuditEntry, isSessionAllowed } from './state.js';
 import { version } from './version.js';
 import {
@@ -491,8 +492,10 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
       let btErrorInfo: AuditEntry['error'] | undefined;
       try {
         const result = await cachedBt.tool.handler(parseResult.data, state);
+        const cleaned = sanitizeOutput(result);
+        const output = state.skipSanitization ? cleaned : sanitizeToolOutput(cleaned);
         return {
-          content: [{ type: 'text' as const, text: JSON.stringify(sanitizeOutput(result), null, 2) }],
+          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
         };
       } catch (err) {
         btSuccess = false;
@@ -640,10 +643,12 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
         { plugin: foundPlugin, tool: foundTool, input: args },
         { label: `${foundPlugin}/${foundTool}`, progressToken, onProgress },
       );
-      const output = (result as Record<string, unknown>).output ?? result;
+      const rawOutput = (result as Record<string, unknown>).output ?? result;
+      const cleaned = sanitizeOutput(rawOutput);
+      const output = state.skipSanitization ? cleaned : sanitizeToolOutput(cleaned);
 
       return {
-        content: [{ type: 'text' as const, text: JSON.stringify(sanitizeOutput(output), null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
       };
     } catch (err) {
       success = false;

@@ -48,6 +48,8 @@ interface OpentabsConfig {
   permissions: PermissionsConfig;
   /** Whether to skip all confirmation prompts (dangerous — disables human-in-the-loop) */
   skipConfirmation?: boolean;
+  /** Whether to skip sanitization of successful tool output (paths, IPs) */
+  skipSanitization?: boolean;
   /** Shared secret for WebSocket authentication between MCP server and Chrome extension */
   secret?: string;
 }
@@ -276,9 +278,10 @@ const parseConfigRecord = (record: Record<string, unknown>): Omit<OpentabsConfig
   const permissions = parsePermissionsConfig(record.permissions);
 
   const skipConfirmation = typeof record.skipConfirmation === 'boolean' ? record.skipConfirmation : undefined;
+  const skipSanitization = typeof record.skipSanitization === 'boolean' ? record.skipSanitization : undefined;
   const secret = typeof record.secret === 'string' ? record.secret : undefined;
 
-  return { localPlugins, tools, browserToolPolicy, permissions, skipConfirmation, secret };
+  return { localPlugins, tools, browserToolPolicy, permissions, skipConfirmation, skipSanitization, secret };
 };
 
 /**
@@ -391,6 +394,7 @@ const saveToolConfig = async (
       browserToolPolicy: current.browserToolPolicy,
       permissions: current.permissions,
       skipConfirmation: current.skipConfirmation,
+      skipSanitization: current.skipSanitization,
       secret: current.secret,
     };
     await atomicWriteConfig(configPath, JSON.stringify(updated, null, 2) + '\n');

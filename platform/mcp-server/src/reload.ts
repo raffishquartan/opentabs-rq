@@ -29,6 +29,7 @@ import {
 } from './mcp-setup.js';
 import { buildRegistry } from './registry.js';
 import { isCliSkipConfirmation } from './skip-confirmation.js';
+import { isCliSkipSanitization } from './skip-sanitization.js';
 import { prefixedToolName } from './state.js';
 import { checkForUpdates } from './version-check.js';
 import type { McpServerInstance } from './mcp-setup.js';
@@ -181,6 +182,7 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     state.discoveryErrors = errors;
     state.permissions = config.permissions;
     state.skipConfirmation = isCliSkipConfirmation() || config.skipConfirmation === true;
+    state.skipSanitization = isCliSkipSanitization() || config.skipSanitization === true;
 
     if (errors.length > 0) {
       log.warn(`${errors.length} plugin(s) failed to load:`);
