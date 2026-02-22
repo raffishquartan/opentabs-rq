@@ -1340,6 +1340,29 @@ const fetchWsInfo = async (port: number, secret?: string): Promise<{ wsUrl: stri
   return { wsUrl: `ws://localhost:${port}/ws`, wsSecret: null };
 };
 
+/**
+ * Fetch the connection token from the authenticated /health endpoint.
+ * The token is required to replace an existing live extension WebSocket
+ * (single-slot takeover prevention). Returns null if no token is set.
+ */
+const fetchConnectionToken = async (port: number, secret?: string): Promise<string | null> => {
+  try {
+    const headers: Record<string, string> = {};
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
+    const res = await fetch(`http://localhost:${port}/health`, {
+      headers,
+      signal: AbortSignal.timeout(3_000),
+    });
+    if (res.ok) {
+      const health = (await res.json()) as { connectionToken?: string };
+      return typeof health.connectionToken === 'string' ? health.connectionToken : null;
+    }
+  } catch {
+    // Server may not be reachable
+  }
+  return null;
+};
+
 export { expect } from '@playwright/test';
 export {
   test,
@@ -1347,6 +1370,7 @@ export {
   fetchHealth,
   fetchWsUrl,
   fetchWsInfo,
+  fetchConnectionToken,
   createTestConfigDir,
   cleanupTestConfigDir,
   readTestConfig,

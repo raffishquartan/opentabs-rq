@@ -815,6 +815,158 @@ describe('Host header validation (DNS rebinding protection)', () => {
   });
 });
 
+describe('WebSocket connection token (single-slot takeover prevention)', () => {
+  const upgradingBunServer = {
+    upgrade: () => true,
+    timeout: () => {},
+  };
+
+  test('wsOpen generates a connection token on state', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+
+    expect(state.connectionToken).toBeNull();
+    handlers.wsOpen(ws);
+    expect(state.connectionToken).toBeTypeOf('string');
+    expect((state.connectionToken ?? '').length).toBeGreaterThan(0);
+  });
+
+  test('wsOpen generates a new token on each connect', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws1 = createMockWsHandle();
+    const ws2 = createMockWsHandle();
+
+    handlers.wsOpen(ws1);
+    const token1 = state.connectionToken;
+
+    handlers.wsOpen(ws2);
+    const token2 = state.connectionToken;
+
+    expect(token1).not.toBe(token2);
+  });
+
+  test('wsClose clears the connection token', () => {
+    const { handlers, state } = createTestHandlers();
+    const ws = createMockWsHandle();
+
+    handlers.wsOpen(ws);
+    expect(state.connectionToken).not.toBeNull();
+
+    handlers.wsClose(ws);
+    expect(state.connectionToken).toBeNull();
+  });
+
+  test('WS upgrade without token succeeds when no live extension is connected', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    // No extensionWs — first connect scenario
+    expect(state.extensionWs).toBeNull();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, test-secret',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeUndefined(); // Successful upgrade
+  });
+
+  test('WS upgrade without token returns 409 when live extension is connected', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    state.connectionToken = 'token-abc-123';
+    state.extensionWs = createMockWsHandle();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, test-secret',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(409);
+  });
+
+  test('WS upgrade with valid token succeeds when live extension is connected', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    state.connectionToken = 'token-abc-123';
+    state.extensionWs = createMockWsHandle();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, test-secret, token-abc-123',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeUndefined(); // Successful upgrade
+  });
+
+  test('WS upgrade with wrong token returns 409 when live extension is connected', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    state.connectionToken = 'token-abc-123';
+    state.extensionWs = createMockWsHandle();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, test-secret, wrong-token',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(409);
+  });
+
+  test('WS upgrade without token succeeds when extension was connected but disconnected', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    // Simulate: extension was connected, then disconnected (wsClose clears token)
+    const ws = createMockWsHandle();
+    handlers.wsOpen(ws);
+    handlers.wsClose(ws);
+
+    expect(state.extensionWs).toBeNull();
+    expect(state.connectionToken).toBeNull();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, test-secret',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeUndefined(); // Successful upgrade
+  });
+
+  test('WS upgrade without secret still returns 401 even with valid token', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+    state.connectionToken = 'token-abc-123';
+    state.extensionWs = createMockWsHandle();
+
+    const req = new Request('http://localhost:9876/ws', {
+      headers: {
+        Host: 'localhost:9876',
+        'Sec-WebSocket-Protocol': 'opentabs, token-abc-123',
+      },
+    });
+
+    const res = await handlers.fetch(req, upgradingBunServer);
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).status).toBe(401);
+  });
+});
+
 describe('WebSocket upgrade origin check', () => {
   /** Mock bunServer that reports successful upgrades */
   const upgradingBunServer = {

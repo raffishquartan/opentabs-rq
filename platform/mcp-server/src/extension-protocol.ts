@@ -223,7 +223,10 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
   const sent = sendToExtension(state, {
     jsonrpc: '2.0',
     method: 'sync.full',
-    params: { plugins },
+    params: {
+      plugins,
+      ...(state.connectionToken ? { connectionToken: state.connectionToken } : {}),
+    },
   });
   if (!sent) log.warn('Failed to send sync.full — extension not connected');
 };

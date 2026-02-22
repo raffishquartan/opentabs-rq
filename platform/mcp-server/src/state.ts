@@ -215,6 +215,9 @@ export interface ServerState {
   fileWatcherTimers: Map<string, ReturnType<typeof setTimeout>>;
   /** Shared secret for WebSocket authentication (loaded from config) */
   wsSecret: string | null;
+  /** Connection token — generated on first extension connect, required to replace a live connection.
+   *  Prevents a malicious process that only has the wsSecret from displacing the real extension. */
+  connectionToken: string | null;
   /** Cached browser tools with pre-computed JSON Schema. Rebuilt on each reload. */
   cachedBrowserTools: CachedBrowserTool[];
   /** Maps each MCP session server to its transport ID for accurate stale session sweeping */
@@ -275,6 +278,7 @@ export const createState = (): ServerState => ({
   fileWatcherEntries: [],
   fileWatcherTimers: new Map(),
   wsSecret: null,
+  connectionToken: null,
   cachedBrowserTools: [],
   sessionTransportIds: new WeakMap(),
   configWriteMutex: Promise.resolve(),

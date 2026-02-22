@@ -226,13 +226,25 @@ const createHandleFetch =
         const protocols = req.headers.get('sec-websocket-protocol');
         const parts = protocols?.split(',').map(p => p.trim()) ?? [];
         let secretMatched = false;
+        let tokenMatched = false;
         for (const part of parts) {
           if (constantTimeEqual(part, state.wsSecret)) {
             secretMatched = true;
           }
+          if (state.connectionToken && constantTimeEqual(part, state.connectionToken)) {
+            tokenMatched = true;
+          }
         }
         if (!secretMatched) {
           return new Response('Unauthorized', { status: 401 });
+        }
+        // If a live extension is already connected and the new connection does not
+        // include the connectionToken, reject with 409. This prevents a malicious
+        // process that only has the wsSecret (from config.json / auth.json) from
+        // displacing the real extension — only the real extension has the
+        // connectionToken (received via sync.full over the existing WebSocket).
+        if (state.connectionToken && !tokenMatched && state.extensionWs !== null) {
+          return new Response('Conflict: connection token required to replace active extension', { status: 409 });
         }
         const upgraded = bunServer.upgrade(req, {
           data: undefined,
@@ -313,6 +325,7 @@ const createHandleFetch =
         sdkVersion,
         mode: isDev() ? 'dev' : 'production',
         extensionConnected: state.extensionWs !== null,
+        connectionToken: state.connectionToken,
         mcpClients: transports.size,
         plugins: state.registry.plugins.size,
         pluginDetails,
@@ -511,6 +524,12 @@ const createHandleWsOpen =
     log.info('Extension WebSocket connected');
     state.extensionWs = ws;
 
+    // Generate a new connection token on every successful connect.
+    // The token is sent to the extension via sync.full and required on
+    // subsequent connections to replace a live extension (prevents
+    // single-slot takeover by a process that only has the wsSecret).
+    state.connectionToken = crypto.randomUUID();
+
     if (previousWs && previousWs !== ws) {
       log.info('Closing previous extension WebSocket (replaced by new connection)');
       try {
@@ -536,6 +555,9 @@ const createHandleWsClose =
     log.info('Extension WebSocket disconnected');
     if (state.extensionWs === ws) {
       state.extensionWs = null;
+      // Clear the connection token so a new first-connect can proceed
+      // without needing a token (no live connection to protect).
+      state.connectionToken = null;
 
       // Reject all pending dispatches immediately so MCP clients get a fast
       // error instead of hanging until the 30-second dispatch timeout fires.
