@@ -39,8 +39,8 @@ The server runs on port 9515 by default (override with the `PORT` environment va
     <Table.Row>
       <Table.Cell className="font-medium">`/health`</Table.Cell>
       <Table.Cell>GET</Table.Cell>
-      <Table.Cell>None</Table.Cell>
-      <Table.Cell>Server health, plugin status, and metrics.</Table.Cell>
+      <Table.Cell>Optional Bearer token</Table.Cell>
+      <Table.Cell>Server health, plugin status, and metrics. Authenticated requests return the full payload.</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`/audit`</Table.Cell>
@@ -121,7 +121,21 @@ Max payload: 10 MB.
 
 ## /health — Health check
 
-Returns server status, plugin details, and metrics. No authentication required.
+Returns server status. Accepts an optional Bearer token — unauthenticated requests receive a minimal response, authenticated requests receive the full payload.
+
+### Unauthenticated response
+
+```json
+{
+  "status": "ok",
+  "version": "0.0.4",
+  "extensionConnected": true
+}
+```
+
+### Authenticated response
+
+Pass `Authorization: Bearer <secret>` to get the full payload:
 
 ```json
 {
@@ -145,12 +159,16 @@ Returns server status, plugin details, and metrics. No authentication required.
   ],
   "failedPlugins": [],
   "toolCount": 58,
+  "disabledBrowserTools": ["browser_execute_script"],
+  "confirmationBypassed": false,
   "uptime": 3600,
   "reloadCount": 2,
   "auditSummary": {
     "totalInvocations": 150,
     "successCount": 142,
-    "failureCount": 8
+    "failureCount": 8,
+    "last24h": { "total": 50, "success": 47, "failure": 3 },
+    "avgDurationMs": 312
   }
 }
 ```
@@ -162,13 +180,15 @@ Key fields:
 - `pluginDetails[].sdkVersion` — per-plugin SDK version (null if missing)
 - `pluginDetails[].logBufferSize` — number of log entries in the per-plugin ring buffer
 - `failedPlugins` — plugins that failed to load (path + error message)
-- `auditSummary` — aggregate stats from the in-memory audit log
+- `disabledBrowserTools` — browser tool names that have been disabled via config
+- `confirmationBypassed` — whether the confirmation prompt system is skipped (via `skipConfirmation` config or `OPENTABS_SKIP_CONFIRMATION` env var)
+- `auditSummary` — aggregate stats from the in-memory audit log, including `last24h` breakdown and `avgDurationMs`
 
 ---
 
 ## /audit — Tool invocation history
 
-Returns the last 500 tool invocations as a JSON array, newest first. Requires Bearer token authentication.
+Returns tool invocations as a JSON array, newest first. Requires Bearer token authentication. The server maintains a circular buffer of the last 500 entries.
 
 ```bash
 curl -s http://localhost:9515/audit \
@@ -188,13 +208,23 @@ Query parameters:
   <Table.Body>
     <Table.Row>
       <Table.Cell className="font-medium">`limit`</Table.Cell>
-      <Table.Cell>`500`</Table.Cell>
-      <Table.Cell>Maximum number of entries to return.</Table.Cell>
+      <Table.Cell>`50`</Table.Cell>
+      <Table.Cell>Maximum number of entries to return (1–500).</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`plugin`</Table.Cell>
       <Table.Cell>—</Table.Cell>
-      <Table.Cell>Filter by plugin name.</Table.Cell>
+      <Table.Cell>Filter by plugin name (e.g., `slack`, `browser`).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`tool`</Table.Cell>
+      <Table.Cell>—</Table.Cell>
+      <Table.Cell>Filter by prefixed tool name (e.g., `slack_send_message`).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`success`</Table.Cell>
+      <Table.Cell>—</Table.Cell>
+      <Table.Cell>Filter by result: `true` for successful invocations, `false` for failures.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
@@ -263,7 +293,7 @@ All authenticated endpoints use the same `secret` from `~/.opentabs/config.json`
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`/health`</Table.Cell>
-      <Table.Cell>No authentication required</Table.Cell>
+      <Table.Cell>Optional — unauthenticated returns minimal status; authenticated returns full payload</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
