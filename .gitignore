@@ -12,6 +12,4 @@ playwright-report/
 /.ralph/*
 !/.ralph/RALPH.md
 !/.ralph/ralph.sh
-!/.ralph/PERFECT.md
-!/.ralph/perfect.sh
 .claude/worktrees/
