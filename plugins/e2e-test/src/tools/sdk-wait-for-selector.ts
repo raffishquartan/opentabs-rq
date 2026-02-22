@@ -15,7 +15,7 @@ export const sdkWaitForSelector = defineTool({
     textContent: z.string().describe('Text content of the found element'),
   }),
   handle: async params => {
-    const el = await waitForSelector(params.selector, { timeout: 5_000 });
+    const el = await waitForSelector<HTMLElement>(params.selector, { timeout: 5_000 });
     return {
       ok: true,
       tagName: el.tagName.toLowerCase(),

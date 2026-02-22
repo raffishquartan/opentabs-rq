@@ -23,6 +23,8 @@ import { indeterminateProgress } from './tools/indeterminate-progress.js';
 import { noDisplayName } from './tools/no-display-name.js';
 import { errorCustomCode } from './tools/error-custom-code.js';
 import { sdkRemoveStorage } from './tools/sdk-remove-storage.js';
+import { sdkSetSessionStorage } from './tools/sdk-set-session-storage.js';
+import { sdkHttpMethods } from './tools/sdk-http-methods.js';
 import { OpenTabsPlugin, defineResource, definePrompt } from '@opentabs-dev/plugin-sdk';
 import type { ToolDefinition, ResourceDefinition, PromptDefinition } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
@@ -104,6 +106,8 @@ class E2eTestPlugin extends OpenTabsPlugin {
     noDisplayName,
     errorCustomCode,
     sdkRemoveStorage,
+    sdkSetSessionStorage,
+    sdkHttpMethods,
   ];
   override readonly resources: ResourceDefinition[] = [testResource];
   override readonly prompts: PromptDefinition[] = [testPrompt, typedGreetPrompt];
