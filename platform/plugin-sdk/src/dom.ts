@@ -53,7 +53,7 @@ export const waitForSelector = <T extends Element = Element>(
       }
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
   });
 };
 
@@ -88,7 +88,7 @@ export const waitForSelectorRemoval = (selector: string, opts?: WaitForSelectorO
       }
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
   });
 };
 
