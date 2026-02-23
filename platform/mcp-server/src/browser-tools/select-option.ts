@@ -17,13 +17,17 @@ const selectOption = defineBrowserTool({
     value: z.string().optional().describe('Option value attribute to select'),
     label: z.string().optional().describe('Option visible text to select — used when value is not provided'),
   }),
-  handler: async (args, state) =>
-    dispatchToExtension(state, 'browser.selectOption', {
+  handler: async (args, state) => {
+    if (args.value === undefined && args.label === undefined) {
+      throw new Error('At least one of "value" or "label" must be provided');
+    }
+    return dispatchToExtension(state, 'browser.selectOption', {
       tabId: args.tabId,
       selector: args.selector,
       value: args.value,
       label: args.label,
-    }),
+    });
+  },
 });
 
 export { selectOption };

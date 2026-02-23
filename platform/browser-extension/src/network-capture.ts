@@ -71,8 +71,8 @@ interface CaptureState {
   maxConsoleLogs: number;
   urlFilter?: string;
   pendingRequests: Map<string, Partial<CapturedRequest>>;
-  /** Maps requestId → index in requests[] for attaching response bodies after loadingFinished */
-  requestIdToIndex: Map<string, number>;
+  /** Maps requestId → CapturedRequest reference for attaching response bodies after loadingFinished */
+  requestIdToRequest: Map<string, CapturedRequest>;
 }
 
 interface HeaderEntry {
@@ -185,28 +185,16 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
     // Add to buffer, dropping oldest if at capacity
     if (state.requests.length >= state.maxRequests) {
       state.requests.shift();
-      // All indices in requestIdToIndex shifted down by 1 after the shift.
-      // Decrement each value; remove entries that pointed to index 0 (now gone).
-      for (const [rid, ridIdx] of state.requestIdToIndex) {
-        if (ridIdx <= 0) {
-          state.requestIdToIndex.delete(rid);
-        } else {
-          state.requestIdToIndex.set(rid, ridIdx - 1);
-        }
-      }
     }
-    const idx = state.requests.push(completed) - 1;
-    state.requestIdToIndex.set(requestId, idx);
+    state.requests.push(completed);
+    state.requestIdToRequest.set(requestId, completed);
   } else if (method === 'Network.loadingFinished') {
     const requestId = paramsRecord?.requestId as string | undefined;
     if (!requestId) return;
 
-    const idx = state.requestIdToIndex.get(requestId);
-    if (idx === undefined) return;
-    state.requestIdToIndex.delete(requestId);
-
-    const request = state.requests[idx];
+    const request = state.requestIdToRequest.get(requestId);
     if (!request) return;
+    state.requestIdToRequest.delete(requestId);
 
     // Skip binary MIME types — response body would not be useful text
     if (isBinaryMime(request.mimeType)) return;
@@ -247,13 +235,6 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
 
     if (state.requests.length >= state.maxRequests) {
       state.requests.shift();
-      for (const [rid, ridIdx] of state.requestIdToIndex) {
-        if (ridIdx <= 0) {
-          state.requestIdToIndex.delete(rid);
-        } else {
-          state.requestIdToIndex.set(rid, ridIdx - 1);
-        }
-      }
     }
     state.requests.push(completed);
   } else if (method === 'Runtime.consoleAPICalled') {
@@ -333,7 +314,7 @@ export const startCapture = async (
     maxConsoleLogs,
     urlFilter,
     pendingRequests: new Map(),
-    requestIdToIndex: new Map(),
+    requestIdToRequest: new Map(),
   });
 };
 
@@ -364,7 +345,7 @@ export const getRequests = (tabId: number, clear: boolean = false): CapturedRequ
   }));
   if (clear) {
     state.requests = [];
-    state.requestIdToIndex.clear();
+    state.requestIdToRequest.clear();
   }
   return requests;
 };
