@@ -19,7 +19,7 @@ import {
 } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { z } from 'zod';
-import { mkdirSync, rmSync, watch } from 'node:fs';
+import { mkdirSync, rmSync, statSync, watch } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve, join, relative, dirname } from 'node:path';
 import type {
@@ -41,13 +41,17 @@ const atomicWriteConfig = (configPath: string, content: string): Promise<void> =
 
 const CONFIG_LOCK_RETRY_DELAY_MS = 50;
 const CONFIG_LOCK_MAX_RETRIES = 20;
+/** Lock directories older than this threshold are considered stale (5 minutes). */
+const STALE_LOCK_THRESHOLD_MS = 5 * 60 * 1_000;
 
 /**
  * Acquire an advisory lock for the config file by atomically creating a lock
  * directory. `mkdir` is atomic on POSIX — it fails with EEXIST if the
  * directory already exists, providing safe mutual exclusion without race
- * conditions. Retries with a short delay if the lock is held. Returns a
- * release function that removes the lock directory.
+ * conditions. Retries with a short delay if the lock is held. If the lock
+ * directory is older than STALE_LOCK_THRESHOLD_MS, it is removed automatically
+ * (the owning process likely crashed). Returns a release function that removes
+ * the lock directory.
  */
 const acquireConfigLock = async (configPath: string): Promise<() => void> => {
   const lockDir = configPath + '.lock';
@@ -63,6 +67,23 @@ const acquireConfigLock = async (configPath: string): Promise<() => void> => {
       };
     } catch (err: unknown) {
       if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'EEXIST') {
+        // Check for stale lock — if the lock directory is older than the
+        // threshold, the owning process likely crashed without releasing it.
+        try {
+          const lockStat = statSync(lockDir);
+          const ageMs = Date.now() - lockStat.mtimeMs;
+          if (ageMs > STALE_LOCK_THRESHOLD_MS) {
+            console.warn(
+              pc.yellow(
+                `Warning: Stale config lock detected (${Math.round(ageMs / 1_000)}s old). Removing and retrying.`,
+              ),
+            );
+            rmSync(lockDir, { recursive: true });
+            continue;
+          }
+        } catch {
+          // stat or rmSync failed — lock may have been released concurrently
+        }
         // Lock held by another process — retry
         await new Promise<void>(r => setTimeout(r, CONFIG_LOCK_RETRY_DELAY_MS));
         continue;

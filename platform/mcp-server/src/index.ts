@@ -169,7 +169,18 @@ const handlers: HotHandlers = createHandlers({
 // Editing createHttpServer or the PORT logic requires a full process restart.
 // =========================================================================
 
-const PORT = hotState?.actualPort ?? (Bun.env.PORT !== undefined ? Number(Bun.env.PORT) : DEFAULT_PORT);
+/** Parse and validate the PORT from environment or default. Port 0 is valid (OS assigns ephemeral port). */
+const resolvePort = (): number => {
+  const raw = Bun.env.PORT;
+  if (raw === undefined) return DEFAULT_PORT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 65535 || parsed !== Math.floor(parsed)) {
+    throw new Error(`Invalid PORT value "${raw}". Must be an integer between 0 and 65535.`);
+  }
+  return parsed;
+};
+
+const PORT = hotState?.actualPort ?? resolvePort();
 
 /** Create a Bun HTTP + WebSocket server (only on first load) */
 const createHttpServer = (): ReturnType<typeof Bun.serve> => {
