@@ -363,6 +363,52 @@ cd plugins/<name> && bun run build
 
 ---
 
+## Ralph — Parallel Task Daemon
+
+Ralph (`.ralph/ralph.sh`) is a long-running daemon that processes PRD files in parallel using git worktrees. It dispatches up to N workers (default 3), each in an isolated worktree with its own branch, so agents never interfere with each other's builds, type-checks, or tests.
+
+### Architecture
+
+```
+ralph.sh (daemon, polls .ralph/ for ready PRDs)
+  ├── Worker 0 → git worktree .ralph/worktrees/<slug>/ → claude --print
+  ├── Worker 1 → git worktree .ralph/worktrees/<slug>/ → claude --print
+  └── Worker 2 → git worktree .ralph/worktrees/<slug>/ → claude --print
+```
+
+Each worker: creates worktree → `bun install` → copies PRD into worktree → launches claude → syncs PRD/progress back after each iteration → on completion: kills process group → merges branch into main → archives PRD.
+
+### Usage
+
+```bash
+# Start daemon (continuous mode, 3 workers)
+nohup bash .ralph/ralph.sh --workers 3 &
+
+# Process current queue and exit
+nohup bash .ralph/ralph.sh --workers 3 --once &
+
+# Monitor
+tail -f .ralph/ralph.log
+```
+
+### Key Design Decisions and Gotchas
+
+- **Worktrees need `bun install`.** Each worktree gets its own `node_modules/`. Bun's global cache makes this fast (~1-2 seconds), but the install MUST happen before the agent starts.
+- **Dev tooling must ignore worktrees.** ESLint, knip, and prettier will scan `.ralph/worktrees/` and `.claude/worktrees/` unless explicitly excluded. These exclusions are in `eslint.config.ts`, `knip.ts`, and `.prettierignore`. Forgetting this causes ESLint crashes (no tsconfig for worktree files) and knip reporting hundreds of false "unused files."
+- **`set -e` is intentionally NOT used.** This is a long-running daemon — a single failed `mv`, `cp`, or `jq` command must not kill the entire process tree. Every failure is handled explicitly with `|| true` or `|| return 1`.
+- **Process group isolation for e2e cleanup.** `set -m` gives each worker its own process group (PGID). On completion, ralph does a two-phase kill: `kill -- -PID` (PGID kill for most processes) then `kill_tree` (recursive walk via `pgrep -P` for processes that escaped via `setsid()`, like Chromium).
+- **Merge conflicts leave breadcrumb files.** When a merge fails, ralph writes `.ralph/<slug>.merge-conflict.txt` with the branch name, conflicted files, and resolution instructions. The branch is preserved for manual merge.
+- **Never merge a branch that has an active worktree.** Check `git worktree list` before manually merging any `ralph-*` branch — the worker may still be committing to it.
+- **`--once` mode drains the full queue.** It doesn't exit after the first batch — it keeps dispatching as slots free up until both active workers AND ready PRDs are zero.
+- **Recovery on restart.** Any `~running` PRDs from a crash are renamed back to ready and re-dispatched. Stale worktrees and branches from the previous run are cleaned up by `dispatch_prd`.
+- **Two-phase quality checks.** RALPH.md instructs agents to iterate with fast checks (build, type-check, lint, knip, test) and only run `bun run test:e2e` once before committing. This saves 3-5 minutes per fix cycle.
+
+### Log Format
+
+Every line in `ralph.log` has: `HH:MM:SS [W<slot>:<objective>] <message>`. Worker output is interleaved but clearly distinguishable by tag. Timestamps are PST.
+
+---
+
 ## Code Quality Rules
 
 ### Core Principles

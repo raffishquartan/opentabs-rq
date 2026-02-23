@@ -731,9 +731,11 @@ dispatch_prd() {
 
 # Merge a worktree branch into the current branch.
 # Returns 0 on success, 1 on conflict.
+# On conflict, writes a breadcrumb file to .ralph/ with conflict details.
 merge_worktree_branch() {
   local branch="$1"
   local tag="$2"
+  local slug="$3"
 
   # Check if the branch has any commits beyond the fork point
   local commit_count
@@ -746,12 +748,49 @@ merge_worktree_branch() {
 
   echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${DIM}Merging $commit_count commit(s) from $branch...${RESET}"
 
-  if git merge --no-edit "$branch" 2>/dev/null; then
+  local merge_output
+  if merge_output=$(git merge --no-edit "$branch" 2>&1); then
     echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${GREEN}Merge successful.${RESET}"
     return 0
   else
+    # Capture conflict details before aborting
+    local conflicted_files
+    conflicted_files=$(git diff --name-only --diff-filter=U 2>/dev/null)
+
     echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${RED}Merge conflict! Aborting merge.${RESET}"
     git merge --abort 2>/dev/null || true
+
+    # Write a breadcrumb file so the user can easily find and resolve conflicts.
+    local breadcrumb="$SCRIPT_DIR/${slug}.merge-conflict.txt"
+    {
+      echo "MERGE CONFLICT — Manual resolution required"
+      echo "============================================"
+      echo ""
+      echo "Branch:    $branch"
+      echo "Commits:   $commit_count"
+      echo "Timestamp: $(date)"
+      echo "Worker:    $tag"
+      echo ""
+      echo "To resolve:"
+      echo "  git merge $branch"
+      echo "  # Fix conflicts, then:"
+      echo "  git add <resolved files>"
+      echo "  git commit"
+      echo "  git branch -D $branch"
+      echo "  rm $(basename "$breadcrumb")"
+      echo ""
+      echo "Conflicted files:"
+      if [ -n "$conflicted_files" ]; then
+        echo "$conflicted_files" | while IFS= read -r f; do echo "  - $f"; done
+      else
+        echo "  (could not determine — run 'git merge $branch' to see)"
+      fi
+      echo ""
+      echo "Merge output:"
+      echo "$merge_output"
+    } > "$breadcrumb"
+
+    echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${YELLOW}Wrote conflict details to: $(basename "$breadcrumb")${RESET}"
     return 1
   fi
 }
@@ -809,8 +848,10 @@ reap_workers() {
     # merge_worktree_branch runs git merge which can fail in two ways:
     # 1. Conflict → abort merge, keep branch for manual resolution
     # 2. No commits → skip (fast path)
+    local slug
+    slug=$(prd_slug "$prd_file")
     local merge_failed=false
-    if ! merge_worktree_branch "$branch_name" "$tag"; then
+    if ! merge_worktree_branch "$branch_name" "$tag" "$slug"; then
       merge_failed=true
       echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${RED}Could not merge. Commits remain on branch $branch_name.${RESET}"
       echo -e "$(ts) ${CYAN}[${tag}]${RESET} ${YELLOW}Manual resolution needed: git merge $branch_name${RESET}"
