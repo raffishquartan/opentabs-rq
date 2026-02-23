@@ -54,14 +54,7 @@ const testPrompt = definePrompt({
   },
 });
 
-/**
- * Typed prompt that uses a Zod `args` schema for auto-generated argument metadata.
- *
- * The published SDK (v0.0.16) does not have the `args` field on `PromptDefinition`.
- * The local source has added it (PRD 4 US-001). A type assertion bypasses the
- * published type constraint so the runtime `args` schema is present — the local
- * build tool reads it to auto-generate the `arguments` array in dist/tools.json.
- */
+/** Typed prompt that uses a Zod `args` schema for auto-generated argument metadata. */
 const typedGreetPrompt = definePrompt({
   name: 'typed_greet',
   description: 'A typed greeting prompt with Zod args schema',
@@ -69,11 +62,11 @@ const typedGreetPrompt = definePrompt({
     name: z.string().describe('Name to greet'),
     formal: z.string().optional().describe('Whether to use formal greeting'),
   }),
-  async render(args: Record<string, string>) {
+  async render(args) {
     const greeting = args.formal === 'true' ? `Dear ${args.name}` : `Hey ${args.name}`;
     return [{ role: 'user', content: { type: 'text', text: `${greeting}!` } }];
   },
-} as unknown as PromptDefinition);
+});
 
 class E2eTestPlugin extends OpenTabsPlugin {
   readonly name = 'e2e-test';

@@ -481,12 +481,11 @@ describe('validatePlugin — resources', () => {
 // ---------------------------------------------------------------------------
 
 describe('validatePlugin — prompts', () => {
-  const makePrompt = (overrides: Partial<PromptDefinition> = {}): PromptDefinition =>
-    ({
-      name: 'greet',
-      render: () => Promise.resolve([{ role: 'user', content: { type: 'text', text: 'Hello' } }]),
-      ...overrides,
-    }) as PromptDefinition;
+  const makePrompt = (overrides: Partial<PromptDefinition> = {}): PromptDefinition => ({
+    name: 'greet',
+    render: () => Promise.resolve([{ role: 'user', content: { type: 'text', text: 'Hello' } }]),
+    ...overrides,
+  });
 
   test('valid plugin with prompts passes validation', () => {
     expect(validatePlugin(makePlugin({ prompts: [makePrompt()] }))).toEqual([]);
@@ -615,7 +614,7 @@ describe('generatePromptsManifest', () => {
           count: z.number().optional().describe('How many'),
         }),
         render: () => Promise.resolve([{ role: 'user', content: { type: 'text' as const, text: 'Hi' } }]),
-      } as PromptDefinition,
+      },
     ];
     const result = generatePromptsManifest(prompts);
     expect(result).toEqual([
@@ -637,7 +636,7 @@ describe('generatePromptsManifest', () => {
         args: z.object({ name: z.string() }),
         arguments: [{ name: 'name', description: 'Custom', required: true }],
         render: () => Promise.resolve([{ role: 'user', content: { type: 'text' as const, text: 'Hi' } }]),
-      } as PromptDefinition,
+      },
     ];
     const result = generatePromptsManifest(prompts);
     expect(result).toEqual([
@@ -654,7 +653,7 @@ describe('generatePromptsManifest', () => {
         name: 'no_desc',
         args: z.object({ value: z.string() }),
         render: () => Promise.resolve([{ role: 'user', content: { type: 'text' as const, text: 'Hi' } }]),
-      } as PromptDefinition,
+      },
     ];
     const result = generatePromptsManifest(prompts);
     expect(result).toEqual([{ name: 'no_desc', arguments: [{ name: 'value', required: true }] }]);

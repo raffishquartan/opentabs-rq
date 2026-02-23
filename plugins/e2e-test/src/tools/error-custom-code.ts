@@ -12,23 +12,15 @@ import { z } from 'zod';
 export const errorCustomCode = defineTool({
   name: 'error_custom_code',
   displayName: 'Error: Custom Code',
-  description:
-    'Throws ToolError with custom error codes — tests custom code propagation',
+  description: 'Throws ToolError with custom error codes — tests custom code propagation',
   icon: 'alert-triangle',
   input: z.object({
     factory: z
-      .enum([
-        'auth',
-        'not_found',
-        'rate_limited',
-        'validation',
-        'timeout',
-        'internal',
-      ])
+      .enum(['auth', 'not_found', 'rate_limited', 'validation', 'timeout', 'internal'])
       .describe('Which error category to throw with a custom code'),
   }),
   output: z.object({ ok: z.boolean() }),
-  handle: async (params) => {
+  handle: async params => {
     switch (params.factory) {
       case 'auth':
         throw new ToolError('Custom auth error', 'CUSTOM_AUTH', {
