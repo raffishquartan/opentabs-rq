@@ -88,6 +88,11 @@ if ! [[ "$MAX_WORKERS" =~ ^[0-9]+$ ]] || [ "$MAX_WORKERS" -lt 1 ]; then
   exit 1
 fi
 
+if ! [[ "$POLL_INTERVAL" =~ ^[0-9]+$ ]] || [ "$POLL_INTERVAL" -lt 1 ]; then
+  echo "Error: --poll must be a positive integer (got '$POLL_INTERVAL')."
+  exit 1
+fi
+
 # --- Setup ---
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -840,6 +845,8 @@ echo -e "$(ts)   Mode:     ${CYAN}$([ "$ONCE" = true ] && echo "single batch" ||
 echo -e "$(ts)   Watching: ${CYAN}${SCRIPT_DIR}${RESET}"
 echo ""
 
+DISPATCHED_ANY=false
+
 # Recovery: resume any ~running PRDs from a previous crash.
 RUNNING_PRDS=$(find_running_prds)
 if [ -n "$RUNNING_PRDS" ]; then
@@ -854,14 +861,12 @@ if [ -n "$RUNNING_PRDS" ]; then
     mv "$rprd" "$local_ready" 2>/dev/null || true
     SLOT=$(find_free_slot)
     if [ -n "$SLOT" ]; then
-      dispatch_prd "$local_ready" "$SLOT" || true
+      dispatch_prd "$local_ready" "$SLOT" && DISPATCHED_ANY=true || true
     else
       echo -e "$(ts) ${YELLOW}  (no free slots — will dispatch when a slot opens)${RESET}"
     fi
   done <<< "$RUNNING_PRDS"
 fi
-
-DISPATCHED_ANY=false
 
 while true; do
   # Reap completed workers first
