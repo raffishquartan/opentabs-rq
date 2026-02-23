@@ -1,6 +1,6 @@
 {
   "name": "@opentabs-dev/cli",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "type": "module",
   "exports": {
     "./scaffold": {
@@ -21,10 +21,10 @@
     "build": "tsc --build"
   },
   "dependencies": {
-    "@opentabs-dev/mcp-server": "^0.0.19",
-    "@opentabs-dev/plugin-sdk": "^0.0.19",
-    "@opentabs-dev/plugin-tools": "^0.0.19",
-    "@opentabs-dev/shared": "^0.0.19",
+    "@opentabs-dev/mcp-server": "^0.0.20",
+    "@opentabs-dev/plugin-sdk": "^0.0.20",
+    "@opentabs-dev/plugin-tools": "^0.0.20",
+    "@opentabs-dev/shared": "^0.0.20",
     "commander": "^14.0.3",
     "picocolors": "^1.1.1"
   },

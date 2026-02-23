@@ -1,6 +1,6 @@
 {
   "name": "@opentabs-dev/mcp-server",
-  "version": "0.0.19",
+  "version": "0.0.20",
   "type": "module",
   "exports": {
     ".": "./dist/index.js"
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "@opentabs-dev/shared": "^0.0.19",
+    "@opentabs-dev/shared": "^0.0.20",
     "ajv": "^8.18.0",
     "zod": "^4.3.6"
   }
