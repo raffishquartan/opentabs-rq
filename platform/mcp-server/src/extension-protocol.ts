@@ -752,10 +752,15 @@ const handleTabStateChanged = (
 };
 
 const handleConfigGetState = (state: ServerState, id: string | number): void => {
+  const outdatedByPkg = new Map(
+    state.outdatedPlugins.map(o => [o.name, { latestVersion: o.latestVersion, updateCommand: o.updateCommand }]),
+  );
+
   const plugins = Array.from(state.registry.plugins.values())
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(p => {
       const tabInfo = state.tabMapping.get(p.name);
+      const update = p.npmPackageName ? outdatedByPkg.get(p.npmPackageName) : undefined;
       return {
         name: p.name,
         displayName: p.displayName,
@@ -767,6 +772,7 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
         ...(p.sdkVersion ? { sdkVersion: p.sdkVersion } : {}),
         ...(p.iconSvg ? { iconSvg: p.iconSvg } : {}),
         ...(p.iconInactiveSvg ? { iconInactiveSvg: p.iconInactiveSvg } : {}),
+        ...(update ? { update } : {}),
         tools: p.tools.map(t => ({
           name: t.name,
           displayName: t.displayName,
@@ -784,7 +790,6 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
     result: {
       plugins,
       failedPlugins: state.discoveryErrors.map(e => ({ specifier: e.specifier, error: e.error })),
-      outdatedPlugins: state.outdatedPlugins,
     },
     id,
   });

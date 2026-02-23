@@ -8,7 +8,6 @@ import {
 import { ConfirmationDialog } from './components/ConfirmationDialog.js';
 import { DisconnectedState, NoPluginsState, LoadingState } from './components/EmptyStates.js';
 import { Footer } from './components/Footer.js';
-import { OutdatedPluginsBadge } from './components/OutdatedPluginsBadge.js';
 import { PluginList } from './components/PluginList.js';
 import { Input } from './components/retro/Input.js';
 import { VALID_PLUGIN_NAME } from '../constants.js';
@@ -17,7 +16,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { FailedPluginState, PluginState } from './bridge.js';
 import type { InternalMessage } from '../extension-messages.js';
 import type { ConfirmationData } from './components/ConfirmationDialog.js';
-import type { OutdatedPlugin } from './components/OutdatedPluginsBadge.js';
 import type { TabState } from '@opentabs-dev/shared';
 
 const validTabStates: ReadonlySet<string> = new Set<TabState>(['closed', 'unavailable', 'ready']);
@@ -29,7 +27,6 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [activeTools, setActiveTools] = useState<Set<string>>(new Set());
   const [toolFilter, setToolFilter] = useState('');
-  const [outdatedPlugins, setOutdatedPlugins] = useState<OutdatedPlugin[]>([]);
   const [pendingConfirmations, setPendingConfirmations] = useState<ConfirmationData[]>([]);
 
   const lastFetchRef = useRef(0);
@@ -61,7 +58,6 @@ const App = () => {
         }
         setPlugins(updatedPlugins);
         setFailedPlugins(result.failedPlugins);
-        setOutdatedPlugins(result.outdatedPlugins);
       })
       .catch(() => {
         // Server may not be ready yet
@@ -177,7 +173,6 @@ const App = () => {
         } else {
           setPlugins([]);
           setFailedPlugins([]);
-          setOutdatedPlugins([]);
           setActiveTools(new Set());
           setPendingConfirmations([]);
           rejectAllPending();
@@ -242,7 +237,7 @@ const App = () => {
   const totalTools = plugins.reduce((sum, p) => sum + p.tools.length, 0);
   const hasContent = plugins.length > 0 || failedPlugins.length > 0;
   const showPlugins = !loading && connected && hasContent;
-  const showSearchBar = connected && !loading && (totalTools > 5 || outdatedPlugins.length > 0);
+  const showSearchBar = connected && !loading && totalTools > 5;
 
   return (
     <div className="text-foreground flex min-h-screen flex-col">
@@ -254,28 +249,24 @@ const App = () => {
         />
       )}
       {showSearchBar && (
-        <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-          {totalTools > 5 && (
-            <div className="relative min-w-0 flex-1">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
-              <Input
-                value={toolFilter}
-                onChange={e => setToolFilter(e.target.value)}
-                placeholder="Filter tools..."
-                className="pr-8 pl-9"
-              />
-              {toolFilter && (
-                <button
-                  type="button"
-                  onClick={() => setToolFilter('')}
-                  className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer">
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-          )}
-          {totalTools <= 5 && <div className="flex-1" />}
-          <OutdatedPluginsBadge outdatedPlugins={outdatedPlugins} />
+        <div className="px-4 pt-4 pb-2">
+          <div className="relative">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
+            <Input
+              value={toolFilter}
+              onChange={e => setToolFilter(e.target.value)}
+              placeholder="Filter tools..."
+              className="pr-8 pl-9"
+            />
+            {toolFilter && (
+              <button
+                type="button"
+                onClick={() => setToolFilter('')}
+                className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer">
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
       <main

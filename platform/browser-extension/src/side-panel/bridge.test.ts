@@ -72,7 +72,7 @@ describe('handleServerResponse', () => {
     const promise = fetchConfigState();
     const id = getLastRequestId();
 
-    const payload = { plugins: ['stub-plugin'], outdatedPlugins: [] };
+    const payload = { plugins: ['stub-plugin'], failedPlugins: [] };
     const handled = handleServerResponse({ id, result: payload });
 
     expect(handled).toBe(true);
@@ -92,7 +92,7 @@ describe('handleServerResponse', () => {
     const handled = handleServerResponse({ id, method: 'some.method', result: {} });
     expect(handled).toBe(false);
 
-    handleServerResponse({ id, result: { plugins: [], outdatedPlugins: [] } });
+    handleServerResponse({ id, result: { plugins: [], failedPlugins: [] } });
     await promise;
   });
 
@@ -119,7 +119,7 @@ describe('handleServerResponse', () => {
     const handled = handleServerResponse({ id: 42, result: {} });
     expect(handled).toBe(false);
 
-    handleServerResponse({ id, result: { plugins: [], outdatedPlugins: [] } });
+    handleServerResponse({ id, result: { plugins: [], failedPlugins: [] } });
     await promise;
   });
 

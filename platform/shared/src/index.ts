@@ -230,6 +230,8 @@ export interface ConfigStatePlugin {
   iconSvg?: string;
   /** Optional SVG icon for the inactive state */
   iconInactiveSvg?: string;
+  /** Present when a newer version of this plugin is available on npm */
+  update?: { latestVersion: string; updateCommand: string };
 }
 
 /** A plugin that failed discovery, sent to the side panel for display */
@@ -242,12 +244,6 @@ export interface ConfigStateFailedPlugin {
 export interface ConfigStateResult {
   plugins: ConfigStatePlugin[];
   failedPlugins: ConfigStateFailedPlugin[];
-  outdatedPlugins: Array<{
-    name: string;
-    currentVersion: string;
-    latestVersion: string;
-    updateCommand: string;
-  }>;
 }
 
 /** config.setToolEnabled request params */

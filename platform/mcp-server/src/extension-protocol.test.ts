@@ -953,7 +953,7 @@ describe('handleExtensionMessage — config.getState', () => {
           urlPatterns: string[];
           tools: { name: string; displayName: string; description: string; icon: string; enabled: boolean }[];
         }[];
-        outdatedPlugins: unknown[];
+        failedPlugins: unknown[];
       };
     };
 
@@ -1060,17 +1060,27 @@ describe('handleExtensionMessage — config.getState', () => {
     });
   });
 
-  test('includes outdatedPlugins from state', () => {
+  test('attaches update info on matching plugin from state.outdatedPlugins', () => {
     const state = createState();
     const ws = createMockWs();
     state.extensionWs = ws;
 
+    state.registry = buildRegistry(
+      [
+        makePlugin({
+          name: 'my-plugin',
+          npmPackageName: 'opentabs-plugin-my',
+        }),
+      ],
+      [],
+    );
+
     state.outdatedPlugins = [
       {
-        name: 'old-plugin',
+        name: 'opentabs-plugin-my',
         currentVersion: '1.0.0',
         latestVersion: '2.0.0',
-        updateCommand: 'npm update -g old-plugin',
+        updateCommand: 'npm update -g opentabs-plugin-my',
       },
     ];
 
@@ -1080,19 +1090,17 @@ describe('handleExtensionMessage — config.getState', () => {
     expect(rawOutdated).toBeDefined();
     const response = JSON.parse(rawOutdated as string) as {
       result: {
-        plugins: unknown[];
-        outdatedPlugins: { name: string; currentVersion: string; latestVersion: string; updateCommand: string }[];
+        plugins: { name: string; update?: { latestVersion: string; updateCommand: string } }[];
       };
     };
 
-    expect(response.result.outdatedPlugins).toHaveLength(1);
-    const outdatedEntry = response.result.outdatedPlugins[0];
-    expect(outdatedEntry).toBeDefined();
-    expect(outdatedEntry).toEqual({
-      name: 'old-plugin',
-      currentVersion: '1.0.0',
+    expect(response.result.plugins).toHaveLength(1);
+    const pluginRaw = response.result.plugins[0];
+    expect(pluginRaw).toBeDefined();
+    const plugin = pluginRaw as NonNullable<typeof pluginRaw>;
+    expect(plugin.update).toEqual({
       latestVersion: '2.0.0',
-      updateCommand: 'npm update -g old-plugin',
+      updateCommand: 'npm update -g opentabs-plugin-my',
     });
   });
 
@@ -1164,11 +1172,10 @@ describe('handleExtensionMessage — config.getState', () => {
     const rawEmptyPlugins = ws.sent[0];
     expect(rawEmptyPlugins).toBeDefined();
     const response = JSON.parse(rawEmptyPlugins as string) as {
-      result: { plugins: unknown[]; outdatedPlugins: unknown[] };
+      result: { plugins: unknown[] };
     };
 
     expect(response.result.plugins).toEqual([]);
-    expect(response.result.outdatedPlugins).toEqual([]);
   });
 
   test('includes iconSvg and iconInactiveSvg in config.getState response when present', () => {
