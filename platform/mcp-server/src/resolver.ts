@@ -55,8 +55,9 @@ const isAllowedPluginPath = async (resolvedPath: string): Promise<boolean> => {
 
 /**
  * Check if a specifier is a local filesystem path.
- * Local paths start with './', '../', '/', or '~/' — everything else is
- * treated as an npm package name.
+ * Local paths start with './', '.\\', '../', '..\\', '/', '~/', '~\\',
+ * or a Windows drive letter (e.g., 'C:\') — everything else is treated
+ * as an npm package name.
  */
 const isLocalPath = (specifier: string): boolean =>
   specifier.startsWith('./') ||
@@ -65,15 +66,16 @@ const isLocalPath = (specifier: string): boolean =>
   specifier.startsWith('..\\') ||
   specifier.startsWith('/') ||
   specifier.startsWith('~/') ||
+  specifier.startsWith('~\\') ||
   /^[A-Za-z]:[/\\]/.test(specifier);
 
 /**
  * Resolve a local filesystem path specifier to an absolute directory path.
- * Paths starting with '~/' are expanded to the user's home directory.
+ * Paths starting with '~/' or '~\' are expanded to the user's home directory.
  * Other relative paths are resolved against configDir.
  */
 const resolveLocalPath = (specifier: string, configDir: string): string => {
-  if (specifier.startsWith('~/')) {
+  if (specifier.startsWith('~/') || specifier.startsWith('~\\')) {
     return resolve(homedir(), specifier.slice(2));
   }
   return resolve(configDir, specifier);

@@ -152,6 +152,16 @@ describe('resolvePluginPath — ~/ home directory paths', () => {
       expect(result.error).toContain(homedir());
     }
   });
+
+  test('resolves ~\\ path relative to home directory (Windows)', async () => {
+    const result = await resolvePluginPath('~\\nonexistent-plugin-dir-for-test', tempDir);
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      // Expanded via homedir(), so the error references the home directory path
+      expect(result.error).toContain(homedir());
+    }
+  });
 });
 
 describe('resolvePluginPath — npm package specifiers', () => {
@@ -261,6 +271,15 @@ describe('resolvePluginPath — specifier format detection', () => {
     const result = await resolvePluginPath('~/nonexistent-test-plugin', tempDir);
 
     // Should fail with a local-path-style error, not "Package not found"
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error).not.toContain('Package not found');
+    }
+  });
+
+  test('~\\ prefix is treated as local path (Windows)', async () => {
+    const result = await resolvePluginPath('~\\nonexistent-test-plugin', tempDir);
+
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
       expect(result.error).not.toContain('Package not found');
