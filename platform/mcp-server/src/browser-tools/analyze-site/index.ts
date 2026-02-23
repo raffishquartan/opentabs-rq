@@ -810,8 +810,17 @@ const analyzeSite = async (
   waitSeconds: number = DEFAULT_WAIT_SECONDS,
 ): Promise<SiteAnalysis> => {
   // Step 1: Open a new tab
-  const openResult = (await dispatchToExtension(state, 'browser.openTab', { url })) as { id: number };
-  const tabId = openResult.id;
+  const openResult = await dispatchToExtension(state, 'browser.openTab', { url });
+  if (
+    typeof openResult !== 'object' ||
+    openResult === null ||
+    typeof (openResult as Record<string, unknown>).id !== 'number'
+  ) {
+    throw new Error(
+      `browser.openTab returned invalid result: expected { id: number }, got ${JSON.stringify(openResult)}`,
+    );
+  }
+  const tabId = (openResult as { id: number }).id;
 
   try {
     // Step 2: Enable network capture
@@ -827,34 +836,108 @@ const analyzeSite = async (
     // Sequential execution avoids the extension's per-method rate limit
     // (max 10 browser.executeScript calls per second) and is reliable
     // since each script completes quickly (~5-50ms in page context).
-    const csrfTokens = (await executeInTab(state, tabId, CSRF_SCRIPT)) as CsrfDomToken[];
-    const globalsAuth = (await executeInTab(state, tabId, GLOBALS_AUTH_SCRIPT)) as GlobalEntry[];
-    const frameworkProbes = (await executeInTab(state, tabId, FRAMEWORK_PROBE_SCRIPT)) as FrameworkProbe[];
-    const spaSsrProbe = (await executeInTab(state, tabId, SPA_SSR_PROBE_SCRIPT)) as {
-      hasSingleRootElement: boolean;
-      usesPushState: boolean;
-      hasNextData: boolean;
-      hasNuxtData: boolean;
-      hasHydrationMarkers: boolean;
+    // Each call is individually wrapped in try-catch so one failure
+    // returns partial results rather than crashing the entire analysis.
+
+    let csrfTokens: CsrfDomToken[] = [];
+    try {
+      csrfTokens = ((await executeInTab(state, tabId, CSRF_SCRIPT)) ?? []) as CsrfDomToken[];
+    } catch {
+      // Partial analysis: CSRF detection skipped
+    }
+
+    let globalsAuth: GlobalEntry[] = [];
+    try {
+      globalsAuth = ((await executeInTab(state, tabId, GLOBALS_AUTH_SCRIPT)) ?? []) as GlobalEntry[];
+    } catch {
+      // Partial analysis: globals auth detection skipped
+    }
+
+    let frameworkProbes: FrameworkProbe[] = [];
+    try {
+      frameworkProbes = ((await executeInTab(state, tabId, FRAMEWORK_PROBE_SCRIPT)) ?? []) as FrameworkProbe[];
+    } catch {
+      // Partial analysis: framework detection skipped
+    }
+
+    const defaultSpaSsrProbe = {
+      hasSingleRootElement: false,
+      usesPushState: false,
+      hasNextData: false,
+      hasNuxtData: false,
+      hasHydrationMarkers: false,
     };
-    const globalsScan = (await executeInTab(state, tabId, GLOBALS_SCAN_SCRIPT)) as GlobalProperty[];
-    const forms = (await executeInTab(state, tabId, FORMS_SCRIPT)) as FormInput[];
-    const interactiveElements = (await executeInTab(
-      state,
-      tabId,
-      INTERACTIVE_ELEMENTS_SCRIPT,
-    )) as InteractiveElementInput[];
-    const dataAttributes = (await executeInTab(state, tabId, DATA_ATTRIBUTES_SCRIPT)) as string[];
-    const storageKeys = (await executeInTab(state, tabId, STORAGE_KEYS_SCRIPT)) as {
-      cookieNames: string[];
-      localStorageKeys: string[];
-      sessionStorageKeys: string[];
+    let spaSsrProbe = defaultSpaSsrProbe;
+    try {
+      spaSsrProbe =
+        ((await executeInTab(state, tabId, SPA_SSR_PROBE_SCRIPT)) as typeof defaultSpaSsrProbe | null) ??
+        defaultSpaSsrProbe;
+    } catch {
+      // Partial analysis: SPA/SSR detection skipped
+    }
+
+    let globalsScan: GlobalProperty[] = [];
+    try {
+      globalsScan = ((await executeInTab(state, tabId, GLOBALS_SCAN_SCRIPT)) ?? []) as GlobalProperty[];
+    } catch {
+      // Partial analysis: globals scan skipped
+    }
+
+    let forms: FormInput[] = [];
+    try {
+      forms = ((await executeInTab(state, tabId, FORMS_SCRIPT)) ?? []) as FormInput[];
+    } catch {
+      // Partial analysis: forms detection skipped
+    }
+
+    let interactiveElements: InteractiveElementInput[] = [];
+    try {
+      const result = (await executeInTab(state, tabId, INTERACTIVE_ELEMENTS_SCRIPT)) ?? [];
+      interactiveElements = result as InteractiveElementInput[];
+    } catch {
+      // Partial analysis: interactive elements detection skipped
+    }
+
+    let dataAttributes: string[] = [];
+    try {
+      dataAttributes = ((await executeInTab(state, tabId, DATA_ATTRIBUTES_SCRIPT)) ?? []) as string[];
+    } catch {
+      // Partial analysis: data attributes detection skipped
+    }
+
+    const defaultStorageKeys = {
+      cookieNames: [] as string[],
+      localStorageKeys: [] as string[],
+      sessionStorageKeys: [] as string[],
     };
-    const storageEntries = (await executeInTab(state, tabId, STORAGE_ENTRIES_SCRIPT)) as {
-      localEntries: StorageEntry[];
-      sessionEntries: StorageEntry[];
+    let storageKeys = defaultStorageKeys;
+    try {
+      storageKeys =
+        ((await executeInTab(state, tabId, STORAGE_KEYS_SCRIPT)) as typeof defaultStorageKeys | null) ??
+        defaultStorageKeys;
+    } catch {
+      // Partial analysis: storage keys detection skipped
+    }
+
+    const defaultStorageEntries = {
+      localEntries: [] as StorageEntry[],
+      sessionEntries: [] as StorageEntry[],
     };
-    const pageTitle = (await executeInTab(state, tabId, 'return document.title')) as string;
+    let storageEntries = defaultStorageEntries;
+    try {
+      storageEntries =
+        ((await executeInTab(state, tabId, STORAGE_ENTRIES_SCRIPT)) as typeof defaultStorageEntries | null) ??
+        defaultStorageEntries;
+    } catch {
+      // Partial analysis: storage entries detection skipped
+    }
+
+    let pageTitle = '';
+    try {
+      pageTitle = ((await executeInTab(state, tabId, 'return document.title')) as string | null) ?? '';
+    } catch {
+      // Partial analysis: page title detection skipped
+    }
 
     // Step 5: Get captured network requests
     const networkResult = (await dispatchToExtension(state, 'browser.getNetworkRequests', {
