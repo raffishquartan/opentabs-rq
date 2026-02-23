@@ -285,6 +285,7 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
     case 'sp:connectionState':
     case 'sp:serverMessage':
     case 'sp:confirmationRequest':
+    case 'port-changed':
       return false;
   }
 });

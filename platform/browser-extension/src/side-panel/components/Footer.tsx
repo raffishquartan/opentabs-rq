@@ -1,12 +1,114 @@
 import { Button } from './retro/Button.js';
+import { Input } from './retro/Input.js';
 import { useTheme } from '../hooks/useTheme.js';
 import { Moon, Sun } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { PortChangedMessage } from '../../extension-messages.js';
+
+const DEFAULT_PORT = 9515;
+const STORAGE_KEY = 'serverPort';
+
+const isValidPort = (value: string): boolean => {
+  const num = Number(value);
+  return Number.isInteger(num) && num >= 1 && num <= 65535;
+};
+
+const PortEditor = () => {
+  const [port, setPort] = useState(DEFAULT_PORT);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [invalid, setInvalid] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    chrome.storage.local.get(STORAGE_KEY).then(
+      result => {
+        const stored = result[STORAGE_KEY] as number | undefined;
+        if (typeof stored === 'number' && isValidPort(String(stored))) {
+          setPort(stored);
+        }
+      },
+      () => {
+        // Storage unavailable — keep default
+      },
+    );
+  }, []);
+
+  const startEditing = useCallback(() => {
+    setDraft(String(port));
+    setInvalid(false);
+    setEditing(true);
+  }, [port]);
+
+  const savePort = useCallback(() => {
+    if (!isValidPort(draft)) {
+      setInvalid(true);
+      return;
+    }
+    const newPort = Number(draft);
+    setPort(newPort);
+    setEditing(false);
+    setInvalid(false);
+    chrome.storage.local.set({ [STORAGE_KEY]: newPort }).catch(() => {});
+    const message: PortChangedMessage = { type: 'port-changed', port: newPort };
+    chrome.runtime.sendMessage(message).catch(() => {});
+  }, [draft]);
+
+  const cancelEditing = useCallback(() => {
+    setEditing(false);
+    setInvalid(false);
+  }, []);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-muted-foreground font-mono text-xs">Port:</span>
+        <Input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          value={draft}
+          onChange={e => {
+            setDraft(e.target.value);
+            setInvalid(false);
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') savePort();
+            if (e.key === 'Escape') cancelEditing();
+          }}
+          onBlur={savePort}
+          aria-invalid={invalid || undefined}
+          aria-label="Server port"
+          placeholder="9515"
+          className="h-7 w-[5.5rem] px-2 py-0 font-mono text-xs"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={startEditing}
+      className="text-muted-foreground hover:text-foreground cursor-pointer font-mono text-xs transition"
+      aria-label="Edit server port">
+      Port: {port}
+    </button>
+  );
+};
 
 const Footer = () => {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <footer className="border-border bg-card sticky bottom-0 flex items-center border-t-2 px-4 pt-3 pb-5 text-sm">
+    <footer className="border-border bg-card sticky bottom-0 flex items-center justify-between border-t-2 px-3 py-3 text-sm">
       <div className="flex items-center gap-2">
         <Button variant="outline" size="icon" className="h-9 w-9" asChild>
           <a
@@ -28,6 +130,7 @@ const Footer = () => {
           {theme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
         </Button>
       </div>
+      <PortEditor />
     </footer>
   );
 };

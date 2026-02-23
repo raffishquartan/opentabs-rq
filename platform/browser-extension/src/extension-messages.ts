@@ -143,7 +143,13 @@ export type InternalMessage =
   | SpConnectionStateMessage
   | SpRelayMessage
   | SpConfirmationRequestMessage
-  | SpConfirmationResponseMessage;
+  | SpConfirmationResponseMessage
+  | PortChangedMessage;
+
+export interface PortChangedMessage {
+  type: 'port-changed';
+  port: number;
+}
 
 /** Lightweight plugin metadata stored in the `plugins_meta` index (no IIFE content) */
 export interface PluginMeta {
