@@ -114,14 +114,15 @@ const followFile = async (filePath: string, initialOffset: number, filter?: stri
 
   const watcher = watch(filePath, () => readNewContent());
 
-  process.on('SIGINT', () => {
+  const cleanup = () => {
     watcher.close();
     process.exit(0);
-  });
-  process.on('SIGTERM', () => {
-    watcher.close();
-    process.exit(0);
-  });
+  };
+
+  process.on('SIGINT', cleanup);
+  if (process.platform !== 'win32') {
+    process.on('SIGTERM', cleanup);
+  }
 
   return new Promise<never>(() => {
     // Runs forever until interrupted

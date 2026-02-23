@@ -184,7 +184,11 @@ const children: Array<ReturnType<typeof Bun.spawn>> = [];
 
 const cleanup = (): void => {
   for (const child of children) {
-    child.kill('SIGTERM');
+    if (process.platform === 'win32') {
+      child.kill();
+    } else {
+      child.kill('SIGTERM');
+    }
   }
 };
 
@@ -193,10 +197,12 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
-  cleanup();
-  process.exit(0);
-});
+if (process.platform !== 'win32') {
+  process.on('SIGTERM', () => {
+    cleanup();
+    process.exit(0);
+  });
+}
 
 // 1. Start tsc --build --watch
 console.log('[dev] Starting tsc --build --watch...');

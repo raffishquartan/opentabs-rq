@@ -916,7 +916,9 @@ const handleBuild = async (options: { watch?: boolean }): Promise<void> => {
   };
 
   process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  if (process.platform !== 'win32') {
+    process.on('SIGTERM', cleanup);
+  }
 
   // Keep the process alive
   await new Promise<never>(() => {});
