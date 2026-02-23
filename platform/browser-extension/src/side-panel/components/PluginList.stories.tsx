@@ -1,0 +1,152 @@
+import { PluginList } from './PluginList';
+import { useState } from 'react';
+import type { FailedPluginState, PluginState } from '../bridge';
+import type { Meta, StoryObj } from '@storybook/react';
+
+const mockPlugin = (overrides?: Partial<PluginState>): PluginState => ({
+  name: 'slack',
+  displayName: 'Slack',
+  version: '0.1.0',
+  trustTier: 'local',
+  source: 'local',
+  tabState: 'ready',
+  urlPatterns: ['*://*.slack.com/*'],
+  sdkVersion: '0.0.3',
+  tools: [
+    {
+      name: 'send_message',
+      displayName: 'Send Message',
+      description: 'Send a message to a channel',
+      icon: 'send',
+      enabled: true,
+    },
+    {
+      name: 'list_channels',
+      displayName: 'List Channels',
+      description: 'List all channels',
+      icon: 'list',
+      enabled: true,
+    },
+  ],
+  ...overrides,
+});
+
+const mockPlugins: PluginState[] = [
+  mockPlugin(),
+  mockPlugin({
+    name: 'github',
+    displayName: 'GitHub',
+    urlPatterns: ['*://github.com/*'],
+    tabState: 'closed',
+    tools: [
+      {
+        name: 'create_issue',
+        displayName: 'Create Issue',
+        description: 'Create a new issue',
+        icon: 'plus',
+        enabled: true,
+      },
+      {
+        name: 'list_prs',
+        displayName: 'List PRs',
+        description: 'List pull requests',
+        icon: 'git-pull-request',
+        enabled: true,
+      },
+    ],
+  }),
+  mockPlugin({
+    name: 'datadog',
+    displayName: 'Datadog',
+    urlPatterns: ['*://*.datadoghq.com/*'],
+    tabState: 'unavailable',
+    source: 'npm',
+    tools: [
+      {
+        name: 'query_metrics',
+        displayName: 'Query Metrics',
+        description: 'Query metrics data',
+        icon: 'bar-chart',
+        enabled: true,
+      },
+    ],
+  }),
+];
+
+const mockFailedPlugins: FailedPluginState[] = [
+  { specifier: '/Users/dev/plugins/broken-auth', error: 'Missing dist/tools.json — run opentabs-plugin build' },
+  { specifier: '@opentabs-dev/plugin-legacy', error: 'SDK version 0.0.1 is incompatible with server 0.0.3' },
+];
+
+const meta: Meta<typeof PluginList> = {
+  title: 'Components/PluginList',
+  component: PluginList,
+  decorators: [Story => <div className="w-80">{Story()}</div>],
+};
+
+type Story = StoryObj<typeof PluginList>;
+
+const DefaultDemo = () => {
+  const [plugins, setPlugins] = useState(mockPlugins);
+  return (
+    <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+  );
+};
+
+const Default: Story = {
+  render: () => <DefaultDemo />,
+};
+
+const WithFailedPluginsDemo = () => {
+  const [plugins, setPlugins] = useState(mockPlugins);
+  return (
+    <PluginList
+      plugins={plugins}
+      failedPlugins={mockFailedPlugins}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      toolFilter=""
+    />
+  );
+};
+
+const WithFailedPlugins: Story = {
+  render: () => <WithFailedPluginsDemo />,
+};
+
+const FilteredByToolDemo = () => {
+  const [plugins, setPlugins] = useState(mockPlugins);
+  return (
+    <PluginList
+      plugins={plugins}
+      failedPlugins={[]}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      toolFilter="send"
+    />
+  );
+};
+
+const FilteredByTool: Story = {
+  render: () => <FilteredByToolDemo />,
+};
+
+const NoFilterMatchDemo = () => {
+  const [plugins, setPlugins] = useState(mockPlugins);
+  return (
+    <PluginList
+      plugins={plugins}
+      failedPlugins={mockFailedPlugins}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      toolFilter="nonexistent"
+    />
+  );
+};
+
+const NoFilterMatch: Story = {
+  render: () => <NoFilterMatchDemo />,
+};
+
+export default meta;
+export { Default, WithFailedPlugins, FilteredByTool, NoFilterMatch };
