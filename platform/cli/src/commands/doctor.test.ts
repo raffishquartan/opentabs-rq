@@ -5,6 +5,7 @@ import {
   checkMcpClientConfig,
   checkNpmPlugins,
   checkPlugins,
+  checkServerHealth,
 } from './doctor.js';
 import { afterAll, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
@@ -59,6 +60,114 @@ describe('checkBunVersion', () => {
     expect(result.ok).toBe(true);
     expect(result.label).toBe('Bun runtime');
     expect(result.detail).toContain(Bun.version);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkServerHealth
+// ---------------------------------------------------------------------------
+
+describe('checkServerHealth', () => {
+  test('sends Authorization header when secret is provided', async () => {
+    let receivedAuth = '';
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        receivedAuth = req.headers.get('Authorization') ?? '';
+        return Response.json({ status: 'ok', version: '1.0.0' });
+      },
+    });
+    const port = server.port as number;
+    try {
+      const { result } = await checkServerHealth(port, 'test-secret');
+      expect(result.ok).toBe(true);
+      expect(receivedAuth).toBe('Bearer test-secret');
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('sends no Authorization header when secret is null', async () => {
+    let receivedAuth: string | null = null;
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        receivedAuth = req.headers.get('Authorization');
+        return Response.json({ status: 'ok', version: '1.0.0' });
+      },
+    });
+    const port = server.port as number;
+    try {
+      const { result } = await checkServerHealth(port, null);
+      expect(result.ok).toBe(true);
+      expect(receivedAuth).toBeNull();
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('sends no Authorization header when secret is undefined', async () => {
+    let receivedAuth: string | null = null;
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        receivedAuth = req.headers.get('Authorization');
+        return Response.json({ status: 'ok', version: '1.0.0' });
+      },
+    });
+    const port = server.port as number;
+    try {
+      const { result } = await checkServerHealth(port);
+      expect(result.ok).toBe(true);
+      expect(receivedAuth).toBeNull();
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('returns fail when server returns non-ok status', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response('Unauthorized', { status: 401 });
+      },
+    });
+    const port = server.port as number;
+    try {
+      const { result, data } = await checkServerHealth(port, 'bad-secret');
+      expect(result.ok).toBe(false);
+      expect(result.fatal).toBe(true);
+      expect(result.detail).toContain('401');
+      expect(data).toBeNull();
+    } finally {
+      await server.stop(true);
+    }
+  });
+
+  test('returns fail when server is not reachable', async () => {
+    const { result, data } = await checkServerHealth(19999);
+    expect(result.ok).toBe(false);
+    expect(result.fatal).toBe(true);
+    expect(result.detail).toContain('not reachable');
+    expect(data).toBeNull();
+  });
+
+  test('returns health data on success', async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return Response.json({ status: 'ok', version: '2.0.0', extensionConnected: true });
+      },
+    });
+    const port = server.port as number;
+    try {
+      const { result, data } = await checkServerHealth(port);
+      expect(result.ok).toBe(true);
+      expect(result.detail).toContain('v2.0.0');
+      expect(data).toEqual({ status: 'ok', version: '2.0.0', extensionConnected: true });
+    } finally {
+      await server.stop(true);
+    }
   });
 });
 
@@ -206,12 +315,14 @@ describe('checkPlugins', () => {
 // ---------------------------------------------------------------------------
 
 describe('checkNpmPlugins', () => {
-  test('returns pass with info message when health data is null', () => {
+  test('returns warn when health data is null (server not reachable)', () => {
     const results = checkNpmPlugins(null);
     expect(results).toHaveLength(1);
-    expect(results[0]?.ok).toBe(true);
+    expect(results[0]?.ok).toBe(false);
+    expect(results[0]?.fatal).toBe(false);
     expect(results[0]?.label).toBe('npm plugins');
     expect(results[0]?.detail).toContain('requires running server');
+    expect(results[0]?.hint).toBe('Start the MCP server first');
   });
 
   test('returns pass when no npm plugins are discovered', () => {

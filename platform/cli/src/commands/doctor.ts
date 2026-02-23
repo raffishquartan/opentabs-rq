@@ -71,10 +71,13 @@ const checkConfigFile = async (): Promise<{ result: CheckResult; config: Record<
 
 const checkServerHealth = async (
   port: number,
+  secret?: string | null,
 ): Promise<{ result: CheckResult; data: Record<string, unknown> | null }> => {
   const url = `http://localhost:${port}/health`;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(3_000) });
+    const headers: Record<string, string> = {};
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
+    const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
     if (!res.ok) {
       return {
         result: fail('MCP server', `HTTP ${res.status}`, 'Check server logs for errors'),
@@ -175,7 +178,7 @@ interface HealthFailedPlugin {
 
 const checkNpmPlugins = (data: Record<string, unknown> | null): CheckResult[] => {
   if (!data) {
-    return [pass('npm plugins', 'requires running server to check')];
+    return [warn('npm plugins', 'requires running server to check', 'Start the MCP server first')];
   }
 
   const pluginDetails = Array.isArray(data.pluginDetails) ? (data.pluginDetails as HealthPluginDetail[]) : [];
@@ -314,7 +317,8 @@ const handleDoctor = async (options: DoctorOptions): Promise<void> => {
   results.push(configResult);
 
   // 3. MCP server health
-  const { result: serverResult, data: healthData } = await checkServerHealth(port);
+  const secret = config && typeof config.secret === 'string' ? config.secret : null;
+  const { result: serverResult, data: healthData } = await checkServerHealth(port, secret);
   results.push(serverResult);
 
   // 4. Extension connected
@@ -390,6 +394,7 @@ export {
   checkMcpClientConfig,
   checkNpmPlugins,
   checkPlugins,
+  checkServerHealth,
   registerDoctorCommand,
 };
 export type { CheckResult };

@@ -196,6 +196,7 @@ export const waitForToolList = async (
 // Tool result parsing
 // ---------------------------------------------------------------------------
 
+/** Parse the JSON text content from a tool call result into an object. */
 export const parseToolResult = (content: string): Record<string, unknown> =>
   JSON.parse(content) as Record<string, unknown>;
 
@@ -203,7 +204,11 @@ export const parseToolResult = (content: string): Record<string, unknown> =>
 // Browser tool names
 // ---------------------------------------------------------------------------
 
-/** Known browser tool names that should always be present */
+/**
+ * Known browser tool names that should always be present in `tools/list`,
+ * regardless of which plugins are installed. Used by tests to verify that
+ * built-in browser tools are registered correctly.
+ */
 export const BROWSER_TOOL_NAMES = [
   'browser_list_tabs',
   'browser_open_tab',

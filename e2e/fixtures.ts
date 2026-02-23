@@ -8,11 +8,41 @@
  *   - Its own MCP client for tool dispatch
  *   - Proper cleanup on teardown
  *
+ * ## Fixture Hierarchy
+ *
+ * Fixtures compose hierarchically — each depends on the previous:
+ *
+ *   1. `mcpServer` — spawns an MCP server subprocess with an isolated config
+ *      directory (OPENTABS_CONFIG_DIR), ephemeral port (PORT=0), and the
+ *      e2e-test plugin registered in localPlugins.
+ *   2. `testServer` — spawns a controllable test web server (independent of
+ *      mcpServer, can be requested in parallel).
+ *   3. `extensionContext` — creates a port-patched copy of the Chrome extension,
+ *      launches Chromium with the extension loaded, and symlinks the adapters
+ *      directory so the server and extension share adapter IIFEs. Depends on
+ *      `mcpServer` to know which port to patch into the extension.
+ *   4. `backgroundPage` — locates the extension's service worker from the
+ *      `extensionContext`. Depends on `extensionContext`.
+ *   5. `mcpClient` — creates an MCP streamable HTTP client, initializes a
+ *      session against this test's MCP server. Depends on `mcpServer`.
+ *
+ * Each test receives isolated instances of these fixtures. Parallel tests
+ * never share ports, config directories, browser contexts, or server
+ * processes.
+ *
+ * ## Exported Helpers
+ *
+ * In addition to the `test` fixture object, this module exports lower-level
+ * factory functions (e.g., `startMcpServer`, `createMcpClient`,
+ * `createExtensionCopy`) for tests that need custom setup beyond what the
+ * standard fixtures provide (e.g., lifecycle tests that kill and restart
+ * servers, or file-watcher tests that modify plugin manifests).
+ *
  * Fixtures:
- *   - `testPorts`       — dynamically allocated free ports for this test
  *   - `mcpServer`       — MCP server subprocess on a unique port
  *   - `mcpServerNoHot`  — MCP server without --hot
  *   - `testServer`      — controllable test web server on a unique port
+ *   - `strictCspServer` — test web server with strict CSP headers
  *   - `extensionContext` — Chromium with the extension pointed at this test's MCP port
  *   - `backgroundPage`  — the extension's service-worker
  *   - `mcpClient`       — MCP streamable HTTP client pointed at this test's MCP server
@@ -75,29 +105,53 @@ const ensureSdkVersionInManifest = (pluginDir: string): void => {
 // Health helper (MCP server)
 // ---------------------------------------------------------------------------
 
+/** Per-plugin detail returned in the /health endpoint's `pluginDetails` array. */
 interface PluginDetail {
+  /** Plugin package name (e.g., 'e2e-test'). */
   name: string;
+  /** Human-readable display name from the plugin's opentabs field. */
   displayName: string;
+  /** Number of tools registered by this plugin. */
   toolCount: number;
+  /** Current tab state: 'closed', 'unavailable', or 'ready'. */
   tabState: string;
+  /** Discovery source: 'local' (localPlugins) or 'npm' (auto-discovered). */
   source: string;
+  /** SDK version the plugin was built with, or null if not present in the manifest. */
   sdkVersion: string | null;
+  /** Number of log entries currently in the plugin's circular log buffer. */
   logBufferSize: number;
+  /** Optional SVG icon from the plugin's package.json opentabs field. */
   iconSvg?: string;
 }
 
+/** JSON body returned by the MCP server's GET /health endpoint. */
 interface HealthResponse {
+  /** Server status string (e.g., 'ok'). */
   status: string;
+  /** MCP server package version. */
   version: string;
+  /** Plugin SDK version the server was built with. */
   sdkVersion: string;
+  /** Server operating mode: 'dev' (file watchers, hot reload) or 'production'. */
   mode: 'dev' | 'production';
+  /** Whether a Chrome extension is currently connected via WebSocket. */
   extensionConnected: boolean;
+  /** Number of active MCP client sessions. */
   mcpClients: number;
+  /** Number of successfully discovered plugins. */
   plugins: number;
+  /** Number of times plugin discovery has run (increments on POST /reload and hot reload). */
   reloadCount: number;
+  /** Detailed per-plugin information (present when plugins > 0). */
   pluginDetails?: PluginDetail[];
 }
 
+/**
+ * Fetch the MCP server's /health endpoint once.
+ * Returns the parsed HealthResponse, or null if the server is unreachable
+ * or returns a non-OK status. Includes Bearer auth when a secret is provided.
+ */
 const fetchHealth = async (port: number, secret?: string): Promise<HealthResponse | null> => {
   try {
     const headers: Record<string, string> = {};
@@ -114,6 +168,11 @@ const fetchHealth = async (port: number, secret?: string): Promise<HealthRespons
   }
 };
 
+/**
+ * Poll the MCP server's /health endpoint until the predicate returns true.
+ * Throws after `timeoutMs` if the predicate never passes. Used to wait for
+ * server readiness conditions like extension connection or plugin count.
+ */
 const waitForHealth = async (
   port: number,
   predicate: (h: HealthResponse) => boolean,
@@ -148,24 +207,21 @@ const parsePortFromLogs = (logs: string[]): number | null => {
 // Config management — per-test isolated config directories
 // ---------------------------------------------------------------------------
 
+/** Shape of the ~/.opentabs/config.json file written per-test. */
 interface OpentabsConfig {
+  /** Filesystem paths to locally-developed plugin directories. */
   localPlugins: string[];
+  /** Map of prefixed tool names to enabled/disabled state. */
   tools: Record<string, boolean>;
+  /** Bearer auth secret for the MCP server (auto-generated if omitted). */
   secret?: string;
 }
 
 /**
- * Create an isolated config directory for a single test.
- * Writes a config.json with the e2e-test plugin registered and all its
- * tools enabled. Returns the path to the temp directory — pass it as
- * OPENTABS_CONFIG_DIR to the MCP server subprocess.
- *
- * This eliminates the shared ~/.opentabs/config.json problem where
- * parallel tests clobber each other's config.
- */
-/**
- * Read tool names from the e2e-test plugin's dist/tools.json instead of hardcoding.
- * Returns prefixed tool names (e.g., 'e2e-test_echo').
+ * Read tool names from the e2e-test plugin's dist/tools.json.
+ * Returns prefixed tool names (e.g., 'e2e-test_echo') matching the format
+ * used in config.json's `tools` map. Also ensures the manifest has an
+ * `sdkVersion` field (see `ensureSdkVersionInManifest`).
  */
 const readPluginToolNames = (): string[] => {
   // Ensure the source plugin has sdkVersion before any test reads it
@@ -177,6 +233,17 @@ const readPluginToolNames = (): string[] => {
   return tools.map(t => `e2e-test_${t.name}`);
 };
 
+/**
+ * Create an isolated config directory for a single test.
+ *
+ * Writes a config.json with the e2e-test plugin registered (in localPlugins)
+ * and all its tools enabled. Returns the path to the temp directory — pass it
+ * as OPENTABS_CONFIG_DIR to the MCP server subprocess.
+ *
+ * Each test gets its own config directory, eliminating the shared
+ * ~/.opentabs/config.json problem where parallel tests would clobber
+ * each other's config.
+ */
 const createTestConfigDir = (): string => {
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-config-'));
   if (process.platform !== 'win32') fs.chmodSync(configDir, 0o700);
@@ -202,6 +269,7 @@ const createTestConfigDir = (): string => {
   return configDir;
 };
 
+/** Remove an isolated test config directory (best-effort, ignores errors). */
 const cleanupTestConfigDir = (configDir: string): void => {
   try {
     fs.rmSync(configDir, { recursive: true, force: true });
@@ -371,8 +439,17 @@ const killProcess = (proc: ChildProcess, graceMs = 5_000): Promise<void> => {
 // MCP server subprocess manager
 // ---------------------------------------------------------------------------
 
+/**
+ * An MCP server subprocess managed by the test fixture.
+ *
+ * Wraps the child process and provides convenience methods for health
+ * checking, hot reload triggering, and graceful shutdown. Each test gets
+ * its own server instance with isolated config, port, and wrapper file.
+ */
 interface McpServer {
+  /** The underlying Node.js child process running `bun [--hot] server.js --dev`. */
   proc: ChildProcess;
+  /** Accumulated stdout/stderr log lines from the server process. */
   logs: string[];
   /** The actual port the server is listening on (parsed from startup log). */
   port: number;
@@ -384,9 +461,13 @@ interface McpServer {
   entryFile: string;
   /** The authentication secret from the config (auto-generated by the server if absent). */
   secret: string | undefined;
+  /** Poll /health until the predicate returns true. Throws on timeout. */
   waitForHealth: (predicate: (h: HealthResponse) => boolean, timeoutMs?: number) => Promise<HealthResponse>;
+  /** Append a comment to the wrapper file, triggering bun --hot to re-evaluate the server. */
   triggerHotReload: () => void;
+  /** Kill the server subprocess (SIGTERM → SIGKILL) and clean up the wrapper directory. */
   kill: () => Promise<void>;
+  /** Fetch /health once and return the response, or null if unreachable. */
   health: () => Promise<HealthResponse | null>;
 }
 
@@ -559,17 +640,36 @@ const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: n
 // Test web server subprocess manager
 // ---------------------------------------------------------------------------
 
+/**
+ * A controllable test web server subprocess.
+ *
+ * The test server serves a simple web page that the e2e-test plugin adapter
+ * injects into. It also exposes `/control/*` endpoints for tests to
+ * manipulate server behavior (authentication state, error mode, response
+ * delays) during a test run.
+ */
 interface TestServer {
+  /** The underlying Node.js child process. */
   proc: ChildProcess;
+  /** The actual port the server is listening on (parsed from startup log). */
   port: number;
+  /** Base URL for the test server (e.g., 'http://localhost:54321'). */
   url: string;
+  /** Send a POST to `/control/<endpoint>` with an optional JSON body. */
   control: (endpoint: string, body?: Record<string, unknown>) => Promise<unknown>;
+  /** Send a GET to `/control/<endpoint>`. */
   controlGet: (endpoint: string) => Promise<unknown>;
+  /** Reset the test server to its default state (authenticated, no errors, no delay). */
   reset: () => Promise<void>;
+  /** Toggle the simulated authentication state (controls `isReady()` in the adapter). */
   setAuth: (authenticated: boolean) => Promise<void>;
+  /** Toggle error mode — when enabled, the test server returns errors for tool calls. */
   setError: (error: boolean) => Promise<void>;
+  /** Set an artificial response delay in milliseconds for tool calls. */
   setSlow: (delayMs: number) => Promise<void>;
+  /** Retrieve the list of recorded tool invocations from the test server. */
   invocations: () => Promise<Array<{ ts: number; method: string; path: string; body: unknown }>>;
+  /** Kill the test server subprocess (SIGTERM → SIGKILL fallback). */
   kill: () => Promise<void>;
 }
 
@@ -686,11 +786,14 @@ const startServerProcess = (entryFile: string, label: string): Promise<TestServe
     }, 10_000);
   });
 
+/** Start the standard test web server (e2e/test-server.ts) on an ephemeral port. */
 const startTestServer = (): Promise<TestServer> => startServerProcess(TEST_SERVER_ENTRY, 'Test server');
 
+/** Start the strict-CSP test server (`script-src 'none'`) on an ephemeral port. */
 const startStrictCspServer = (): Promise<TestServer> =>
   startServerProcess(STRICT_CSP_SERVER_ENTRY, 'Strict-CSP server');
 
+/** Start the analyze-site test server (e2e/analyze-site-test-server.ts) on an ephemeral port. */
 const startAnalyzeSiteServer = (): Promise<TestServer> =>
   startServerProcess(ANALYZE_SITE_SERVER_ENTRY, 'Analyze-site server');
 
@@ -773,6 +876,17 @@ const createExtensionCopy = (
 // while keeping the desktop clear.
 const SHOW_BROWSER = process.env['HEADED'] === '1';
 
+/**
+ * Launch a Chromium browser context with the OpenTabs extension loaded.
+ *
+ * Creates a port-patched extension copy via `createExtensionCopy`, then
+ * launches Chromium in persistent-context mode with the extension enabled.
+ * Uses `--headless=new` by default (supports extensions); set HEADED=1
+ * to show the browser window for debugging.
+ *
+ * Returns the browser context, the temp directory path (for cleanup),
+ * the extension directory path (for adapter symlinks), and the MCP port.
+ */
 const launchExtensionContext = async (
   mcpPort: number,
   secret?: string,
@@ -799,6 +913,13 @@ const launchExtensionContext = async (
   return { context, cleanupDir: path.dirname(extensionDir), extensionDir, mcpPort };
 };
 
+/**
+ * Locate the extension's background service worker from a browser context.
+ *
+ * Polls `context.serviceWorkers()` and `context.pages()` until a page
+ * with 'background' in its URL is found. Returns the service worker
+ * as a Playwright Page handle. Throws after `timeoutMs` if not found.
+ */
 const getBackgroundPage = async (context: BrowserContext, timeoutMs = 15_000): Promise<Page> => {
   const deadline = Date.now() + timeoutMs;
 
@@ -859,9 +980,20 @@ interface McpPromptMessage {
   content: { type: string; text: string };
 }
 
+/**
+ * MCP streamable HTTP client for E2E tests.
+ *
+ * Communicates with the MCP server via JSON-RPC over HTTP. Handles both
+ * direct JSON responses and SSE (Server-Sent Events) streams. Manages
+ * session state via the `mcp-session-id` header and includes Bearer auth
+ * when a secret is provided.
+ */
 interface McpClient {
+  /** Send `initialize` + `notifications/initialized` to create a new MCP session. */
   initialize: () => Promise<void>;
+  /** List all registered tools via `tools/list`. */
   listTools: () => Promise<Array<{ name: string; description: string; inputSchema?: unknown }>>;
+  /** Call a tool via `tools/call` and return the concatenated text content. */
   callTool: (
     name: string,
     args?: Record<string, unknown>,
@@ -873,15 +1005,28 @@ interface McpClient {
     args?: Record<string, unknown>,
     options?: { timeout?: number },
   ) => Promise<{ content: string; isError: boolean; progressNotifications: ProgressNotification[] }>;
+  /** List all registered resources via `resources/list`. */
   listResources: () => Promise<McpResource[]>;
+  /** Read a resource by URI via `resources/read`. */
   readResource: (uri: string) => Promise<McpResourceContent[]>;
+  /** List all registered prompts via `prompts/list`. */
   listPrompts: () => Promise<McpPrompt[]>;
+  /** Render a prompt by name via `prompts/get`. */
   getPrompt: (name: string, args?: Record<string, string>) => Promise<McpPromptMessage[]>;
+  /** Close the MCP session by sending a DELETE request. */
   close: () => Promise<void>;
   /** Reset the session so the next initialize() creates a fresh session. */
   resetSession: () => void;
 }
 
+/**
+ * Create an MCP streamable HTTP client for the given server port.
+ *
+ * The client maintains session state (session ID, request ID counter) and
+ * handles both JSON and SSE response formats. All requests include Bearer
+ * auth when a secret is provided. The client is not initialized on creation —
+ * call `client.initialize()` to start a session.
+ */
 const createMcpClient = (port: number, secret?: string): McpClient => {
   let sessionId: string | null = null;
   let nextId = 1;
@@ -1229,6 +1374,13 @@ const createMcpClient = (port: number, secret?: string): McpClient => {
 // Custom test fixture type
 // ---------------------------------------------------------------------------
 
+/**
+ * Playwright fixture type for OpenTabs E2E tests.
+ *
+ * Each fixture is lazily created and automatically torn down after the test.
+ * Fixtures that depend on each other (e.g., extensionContext → mcpServer)
+ * are resolved in dependency order by Playwright.
+ */
 interface TestFixtures {
   /** MCP server subprocess — started with bun --hot on an OS-assigned port. */
   mcpServer: McpServer;

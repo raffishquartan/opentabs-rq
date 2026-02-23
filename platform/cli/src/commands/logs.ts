@@ -1,8 +1,11 @@
 /**
- * `opentabs logs` command — tails the MCP server log output.
+ * `opentabs logs` command — shows recent MCP server log output.
  *
  * The log file is written by `opentabs start` at ~/.opentabs/server.log
  * (or $OPENTABS_CONFIG_DIR/server.log).
+ *
+ * By default, prints the last N lines and exits. Use --follow / -f to
+ * continuously tail new output (like `tail -f`).
  *
  * When --plugin <name> is specified, only lines containing [plugin:<name>]
  * are shown. This filters plugin log entries written by the MCP server's
@@ -163,7 +166,7 @@ const handleLogs = async (options: LogsOptions): Promise<void> => {
     if (!content.endsWith('\n')) process.stdout.write('\n');
   }
 
-  if (options.follow !== false) {
+  if (options.follow === true) {
     await followFile(logFilePath, fileSize, filter);
   }
 };
@@ -171,18 +174,18 @@ const handleLogs = async (options: LogsOptions): Promise<void> => {
 const registerLogsCommand = (program: Command): void => {
   program
     .command('logs')
-    .description('Tail the MCP server log output')
+    .description('Show recent MCP server log output')
     .option('--lines <n>', `Number of lines to show (default: ${DEFAULT_LINES})`, parseLines)
-    .option('--no-follow', 'Print recent lines and exit (do not follow)')
+    .option('-f, --follow', 'Follow new output (like tail -f)')
     .option('--plugin <name>', 'Show only logs from a specific plugin')
     .addHelpText(
       'after',
       `
 Examples:
-  $ opentabs logs                       # Tail logs (follows new output)
-  $ opentabs logs --lines 100           # Show last 100 lines then follow
-  $ opentabs logs --no-follow           # Show last 50 lines and exit
-  $ opentabs logs --plugin slack        # Show only Slack plugin logs (follows)`,
+  $ opentabs logs                       # Show last 50 lines and exit
+  $ opentabs logs --lines 100           # Show last 100 lines and exit
+  $ opentabs logs -f                    # Follow new output (like tail -f)
+  $ opentabs logs -f --plugin slack     # Follow only Slack plugin logs`,
     )
     .action((options: LogsOptions) => handleLogs(options));
 };
