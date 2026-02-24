@@ -6,6 +6,10 @@ import { describe, expect, test, mock } from 'bun:test';
 // Mock them so we can import methodHandlerNames without runtime errors.
 // ---------------------------------------------------------------------------
 
+await mock.module('./confirmation-badge.js', () => ({
+  notifyConfirmationRequest: mock(),
+}));
+
 await mock.module('./messaging.js', () => ({
   sendToServer: mock(),
   forwardToSidePanel: mock(),

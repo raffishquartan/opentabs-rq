@@ -116,6 +116,12 @@ const mockHandleResourceRead = mock(
 );
 const mockHandlePromptGet = mock(asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>);
 
+const mockNotifyConfirmationRequest = mock<(params: Record<string, unknown>) => void>();
+
+await mock.module('./confirmation-badge.js', () => ({
+  notifyConfirmationRequest: mockNotifyConfirmationRequest,
+}));
+
 await mock.module('./messaging.js', () => ({
   sendToServer: mockSendToServer,
   forwardToSidePanel: mockForwardToSidePanel,
@@ -196,19 +202,6 @@ await mock.module('./browser-commands/index.js', () => ({
   },
   windows: {
     getLastFocused: mock(() => Promise.resolve({ id: 1 })),
-    getCurrent: mock(() => Promise.resolve({ id: 1 })),
-  },
-  action: {
-    setBadgeText: mock(() => Promise.resolve()),
-    setBadgeBackgroundColor: mock(() => Promise.resolve()),
-  },
-  notifications: {
-    create: mock(() => Promise.resolve('')),
-    clear: mock(() => Promise.resolve(true)),
-    onClicked: { addListener: mock() },
-  },
-  sidePanel: {
-    open: mock(() => Promise.resolve()),
   },
 };
 

@@ -1,3 +1,4 @@
+import { clearAllConfirmationBadges, clearConfirmationBadge, initConfirmationBadge } from './confirmation-badge.js';
 import {
   KEEPALIVE_ALARM,
   KEEPALIVE_INTERVAL_MINUTES,
@@ -6,7 +7,7 @@ import {
   WS_CONNECTED_KEY,
 } from './constants.js';
 import { injectPluginsIntoTab, reinjectStoredPlugins } from './iife-injection.js';
-import { handleServerMessage, clearConfirmationBadge, clearAllConfirmationBadges } from './message-router.js';
+import { handleServerMessage } from './message-router.js';
 import { forwardToSidePanel, sendToServer } from './messaging.js';
 import { invalidatePluginCache } from './plugin-storage.js';
 import { checkTabStateChanges, clearTabStateCache, sendTabSyncAll } from './tab-state.js';
@@ -347,6 +348,7 @@ chrome.runtime.onStartup.addListener(() => {
 ensureOffscreenDocument().catch((err: unknown) => console.warn('[opentabs] offscreen creation failed:', err));
 setupKeepaliveAlarm().catch((err: unknown) => console.warn('[opentabs] keepalive alarm failed:', err));
 reinjectStoredPlugins().catch((err: unknown) => console.warn('[opentabs] plugin reinjection failed:', err));
+initConfirmationBadge();
 
 // Relay MCP server URL changes to the offscreen document, and invalidate
 // the plugin metadata cache when storage is modified from another context
