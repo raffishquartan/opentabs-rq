@@ -164,9 +164,10 @@ const handleStart = async (options: StartOptions): Promise<void> => {
 
   console.log(`Starting OpenTabs MCP server on port ${pc.bold(String(port))}...`);
   console.log('');
-  console.log(`  ${pc.cyan('MCP endpoint:')}  http://localhost:${port}/mcp`);
-  console.log(`  ${pc.cyan('Health check:')}  http://localhost:${port}/health`);
-  console.log(`  ${pc.cyan('Log file:')}     ${logFilePath}`);
+  const label = (s: string) => `  ${pc.cyan(s.padEnd(15))}`;
+  console.log(`${label('MCP endpoint:')}http://localhost:${port}/mcp`);
+  console.log(`${label('Health check:')}http://localhost:${port}/health`);
+  console.log(`${label('Log file:')}${logFilePath}`);
   console.log('');
 
   if (isFirstTime) {
