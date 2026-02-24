@@ -1,3 +1,9 @@
+import {
+  JSONRPC_ADAPTER_NOT_READY,
+  JSONRPC_INTERNAL_ERROR,
+  JSONRPC_INVALID_PARAMS,
+  JSONRPC_NO_USABLE_TAB,
+} from './json-rpc-errors.js';
 import { sendToServer } from './messaging.js';
 import { getPluginMeta } from './plugin-storage.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
@@ -19,14 +25,15 @@ type DispatchResult =
   | { type: 'success'; output: unknown };
 
 /**
- * Whether a DispatchResult is an adapter-not-ready error (code -32002)
+ * Whether a DispatchResult is an adapter-not-ready error (JSONRPC_ADAPTER_NOT_READY)
  * that should trigger fallback to the next matching tab.
  */
-const isAdapterNotReady = (result: DispatchResult): boolean => result.type === 'error' && result.code === -32002;
+const isAdapterNotReady = (result: DispatchResult): boolean =>
+  result.type === 'error' && result.code === JSONRPC_ADAPTER_NOT_READY;
 
 /**
  * Validate that a required parameter is a non-empty string.
- * Sends a JSON-RPC -32602 error via sendToServer if invalid.
+ * Sends a JSONRPC_INVALID_PARAMS error via sendToServer if invalid.
  * Returns the validated string on success, or null on failure.
  */
 const requireStringParam = (params: Record<string, unknown>, paramName: string, id: string | number): string | null => {
@@ -34,7 +41,10 @@ const requireStringParam = (params: Record<string, unknown>, paramName: string, 
   if (typeof value !== 'string' || value.length === 0) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32602, message: `Missing or invalid "${paramName}" param (expected non-empty string)` },
+      error: {
+        code: JSONRPC_INVALID_PARAMS,
+        message: `Missing or invalid "${paramName}" param (expected non-empty string)`,
+      },
       id,
     });
     return null;
@@ -44,7 +54,7 @@ const requireStringParam = (params: Record<string, unknown>, paramName: string, 
 
 /**
  * Look up plugin metadata by name.
- * Sends a JSON-RPC -32603 error via sendToServer if the plugin is not found.
+ * Sends a JSONRPC_INTERNAL_ERROR via sendToServer if the plugin is not found.
  * Returns the plugin metadata on success, or null on failure.
  */
 const resolvePlugin = async (pluginName: string, id: string | number): Promise<PluginMeta | null> => {
@@ -52,7 +62,7 @@ const resolvePlugin = async (pluginName: string, id: string | number): Promise<P
   if (!plugin) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32603, message: `Plugin "${pluginName}" not found` },
+      error: { code: JSONRPC_INTERNAL_ERROR, message: `Plugin "${pluginName}" not found` },
       id,
     });
     return null;
@@ -93,7 +103,7 @@ const executeWithTimeout = async (
   const result = firstResult?.result as DispatchResult | undefined;
 
   if (!result || typeof result !== 'object' || !('type' in result)) {
-    return { type: 'error', code: -32603, message: fallbackMessage };
+    return { type: 'error', code: JSONRPC_INTERNAL_ERROR, message: fallbackMessage };
   }
 
   return result;
@@ -124,7 +134,7 @@ const dispatchWithTabFallback = async (config: TabFallbackConfig): Promise<void>
   if (matchingTabs.length === 0) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32001, message: `No matching tab for plugin "${pluginName}" (state: closed)` },
+      error: { code: JSONRPC_NO_USABLE_TAB, message: `No matching tab for plugin "${pluginName}" (state: closed)` },
       id,
     });
     return;
@@ -146,11 +156,11 @@ const dispatchWithTabFallback = async (config: TabFallbackConfig): Promise<void>
     try {
       const currentTab = await chrome.tabs.get(tab.id);
       if (!currentTab.url || !urlMatchesPatterns(currentTab.url, plugin.urlPatterns)) {
-        firstError ??= { code: -32001, message: 'Tab navigated away from matching URL' };
+        firstError ??= { code: JSONRPC_NO_USABLE_TAB, message: 'Tab navigated away from matching URL' };
         continue;
       }
     } catch {
-      firstError ??= { code: -32001, message: `Tab closed before ${operationName}` };
+      firstError ??= { code: JSONRPC_NO_USABLE_TAB, message: `Tab closed before ${operationName}` };
       continue;
     }
 
@@ -178,13 +188,13 @@ const dispatchWithTabFallback = async (config: TabFallbackConfig): Promise<void>
       const msg = toErrorMessage(err);
       const isTabGone = msg.includes('No tab with id') || msg.includes('Cannot access');
       if (isTabGone && matchingTabs.length > 1) {
-        firstError ??= { code: -32001, message: `Tab closed before ${operationName}` };
+        firstError ??= { code: JSONRPC_NO_USABLE_TAB, message: `Tab closed before ${operationName}` };
         continue;
       }
       sendToServer({
         jsonrpc: '2.0',
         error: {
-          code: isTabGone ? -32001 : -32603,
+          code: isTabGone ? JSONRPC_NO_USABLE_TAB : JSONRPC_INTERNAL_ERROR,
           message: isTabGone
             ? `Tab closed before ${operationName}`
             : `Script execution failed: ${sanitizeErrorMessage(msg)}`,
@@ -205,7 +215,7 @@ const dispatchWithTabFallback = async (config: TabFallbackConfig): Promise<void>
   } else {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32001, message: 'No usable tab found (all matching tabs have undefined IDs)' },
+      error: { code: JSONRPC_NO_USABLE_TAB, message: 'No usable tab found (all matching tabs have undefined IDs)' },
       id,
     });
   }

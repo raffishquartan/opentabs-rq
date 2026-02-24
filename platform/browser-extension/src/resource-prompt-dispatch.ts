@@ -1,5 +1,6 @@
 import { SCRIPT_TIMEOUT_MS } from './constants.js';
 import { dispatchWithTabFallback, executeWithTimeout, requireStringParam, resolvePlugin } from './dispatch-helpers.js';
+import { JSONRPC_INVALID_PARAMS } from './json-rpc-errors.js';
 import { sendToServer } from './messaging.js';
 import type { DispatchResult } from './dispatch-helpers.js';
 
@@ -220,7 +221,7 @@ const handlePromptGet = async (params: Record<string, unknown>, id: string | num
   if (rawArgs !== undefined && rawArgs !== null && (typeof rawArgs !== 'object' || Array.isArray(rawArgs))) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32602, message: 'Invalid "arguments" param (expected object)' },
+      error: { code: JSONRPC_INVALID_PARAMS, message: 'Invalid "arguments" param (expected object)' },
       id,
     });
     return;

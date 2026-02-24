@@ -37,6 +37,7 @@ import {
 } from './browser-commands/index.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
 import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs } from './iife-injection.js';
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_METHOD_NOT_FOUND } from './json-rpc-errors.js';
 import { forwardToSidePanel, sendToServer } from './messaging.js';
 import { getAllPluginMeta, removePlugin, removePluginsBatch, storePluginsBatch } from './plugin-storage.js';
 import { checkRateLimit } from './rate-limiter.js';
@@ -405,7 +406,7 @@ const handlePluginUninstall = async (params: Record<string, unknown>, id: string
   if (typeof pluginName !== 'string' || pluginName.length === 0) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32602, message: 'Missing plugin name' },
+      error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing plugin name' },
       id,
     });
     return;
@@ -414,7 +415,7 @@ const handlePluginUninstall = async (params: Record<string, unknown>, id: string
   if (!isValidPluginName(pluginName)) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32602, message: `Invalid plugin name format: "${pluginName}"` },
+      error: { code: JSONRPC_INVALID_PARAMS, message: `Invalid plugin name format: "${pluginName}"` },
       id,
     });
     return;
@@ -467,7 +468,7 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
       if (id !== undefined) {
         sendToServer({
           jsonrpc: '2.0',
-          error: { code: -32603, message: `Rate limited: ${method}` },
+          error: { code: JSONRPC_INTERNAL_ERROR, message: `Rate limited: ${method}` },
           id,
         });
       }
@@ -477,11 +478,11 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
     return;
   }
 
-  // Unrecognized method with an id — send JSON-RPC -32601 'Method not found'
+  // Unrecognized method with an id — send JSONRPC_METHOD_NOT_FOUND
   if (id !== undefined) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32601, message: `Method not found: ${method}` },
+      error: { code: JSONRPC_METHOD_NOT_FOUND, message: `Method not found: ${method}` },
       id,
     });
   }

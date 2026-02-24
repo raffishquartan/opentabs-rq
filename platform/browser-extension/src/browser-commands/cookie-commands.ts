@@ -1,4 +1,5 @@
 import { requireUrl, sendErrorResult, sendSuccessResult } from './helpers.js';
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 
 /**
@@ -44,12 +45,20 @@ export const handleBrowserSetCookie = async (params: Record<string, unknown>, id
     if (url === null) return;
     const name = params.name;
     if (typeof name !== 'string' || name.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid name parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid name parameter' },
+        id,
+      });
       return;
     }
     const value = params.value;
     if (typeof value !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid value parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid value parameter' },
+        id,
+      });
       return;
     }
     const details: chrome.cookies.SetDetails = { url, name, value };
@@ -60,7 +69,7 @@ export const handleBrowserSetCookie = async (params: Record<string, unknown>, id
     if (typeof params.expirationDate === 'number') details.expirationDate = params.expirationDate;
     const cookie = await chrome.cookies.set(details);
     if (!cookie) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'Failed to set cookie' }, id });
+      sendToServer({ jsonrpc: '2.0', error: { code: JSONRPC_INTERNAL_ERROR, message: 'Failed to set cookie' }, id });
       return;
     }
     sendSuccessResult(id, {
@@ -87,7 +96,11 @@ export const handleBrowserDeleteCookies = async (
     if (url === null) return;
     const name = params.name;
     if (typeof name !== 'string' || name.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid name parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid name parameter' },
+        id,
+      });
       return;
     }
     await chrome.cookies.remove({ url, name });

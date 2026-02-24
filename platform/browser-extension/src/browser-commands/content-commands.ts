@@ -1,5 +1,6 @@
 import { extractScriptResult, requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { SCREENSHOT_RENDER_DELAY_MS } from '../constants.js';
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 
 /**
@@ -89,7 +90,7 @@ export const handleBrowserGetStorage = async (params: Record<string, unknown>, i
     if (storageType !== 'local' && storageType !== 'session') {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: "storageType must be 'local' or 'session'" },
+        error: { code: JSONRPC_INVALID_PARAMS, message: "storageType must be 'local' or 'session'" },
         id,
       });
       return;
@@ -137,7 +138,11 @@ export const handleBrowserGetStorage = async (params: Record<string, unknown>, i
       | undefined;
 
     if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INTERNAL_ERROR, message: 'No result from script execution' },
+        id,
+      });
       return;
     }
 
@@ -165,7 +170,7 @@ export const handleBrowserScreenshotTab = async (
     if (tabId === null) return;
     const tab = await chrome.tabs.update(tabId, { active: true });
     if (!tab) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: `Tab ${tabId} not found` }, id });
+      sendToServer({ jsonrpc: '2.0', error: { code: JSONRPC_INVALID_PARAMS, message: `Tab ${tabId} not found` }, id });
       return;
     }
     await chrome.windows.update(tab.windowId, { focused: true });

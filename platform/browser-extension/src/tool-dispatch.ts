@@ -1,5 +1,6 @@
 import { SCRIPT_TIMEOUT_MS, MAX_SCRIPT_TIMEOUT_MS } from './constants.js';
 import { dispatchWithTabFallback, requireStringParam, resolvePlugin } from './dispatch-helpers.js';
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS } from './json-rpc-errors.js';
 import { sendToServer } from './messaging.js';
 import { toErrorMessage } from '@opentabs-dev/shared';
 import type { DispatchResult } from './dispatch-helpers.js';
@@ -311,7 +312,7 @@ const executeToolOnTab = async (
   const result = firstResult?.result as DispatchResult | undefined;
 
   if (!result || typeof result !== 'object' || !('type' in result)) {
-    return { type: 'error', code: -32603, message: 'No result from tool execution' };
+    return { type: 'error', code: JSONRPC_INTERNAL_ERROR, message: 'No result from tool execution' };
   }
 
   return result;
@@ -337,7 +338,7 @@ const handleToolDispatch = async (params: Record<string, unknown>, id: string | 
   if (rawInput !== undefined && rawInput !== null && (typeof rawInput !== 'object' || Array.isArray(rawInput))) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: -32602, message: 'Invalid "input" param (expected object)' },
+      error: { code: JSONRPC_INVALID_PARAMS, message: 'Invalid "input" param (expected object)' },
       id,
     });
     return;
@@ -352,7 +353,7 @@ const handleToolDispatch = async (params: Record<string, unknown>, id: string | 
     sendToServer({
       jsonrpc: '2.0',
       error: {
-        code: -32602,
+        code: JSONRPC_INVALID_PARAMS,
         message: `Failed to serialize tool input: ${toErrorMessage(err)}`,
       },
       id,
@@ -363,7 +364,7 @@ const handleToolDispatch = async (params: Record<string, unknown>, id: string | 
     sendToServer({
       jsonrpc: '2.0',
       error: {
-        code: -32602,
+        code: JSONRPC_INVALID_PARAMS,
         message: `Tool input too large: ${(inputJson.length / 1024 / 1024).toFixed(1)}MB (limit: 10MB)`,
       },
       id,

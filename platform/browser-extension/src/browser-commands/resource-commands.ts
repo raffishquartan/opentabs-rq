@@ -1,4 +1,5 @@
 import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
+import { JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 import { isCapturing } from '../network-capture.js';
 import { sanitizeErrorMessage } from '../sanitize-error.js';
@@ -145,7 +146,11 @@ export const handleBrowserGetResourceContent = async (
     if (tabId === null) return;
     const url = params.url;
     if (typeof url !== 'string' || url.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid url parameter' },
+        id,
+      });
       return;
     }
     const maxLength = typeof params.maxLength === 'number' ? params.maxLength : 500_000;
@@ -163,7 +168,7 @@ export const handleBrowserGetResourceContent = async (
         sendToServer({
           jsonrpc: '2.0',
           error: {
-            code: -32602,
+            code: JSONRPC_INVALID_PARAMS,
             message: `Resource not found in page: ${url}. Use browser_list_resources to find valid resource URLs.`,
           },
           id,

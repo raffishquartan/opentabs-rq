@@ -1,6 +1,7 @@
 import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { bgLogCollector } from '../background-log-state.js';
 import { IS_READY_TIMEOUT_MS, SCRIPT_TIMEOUT_MS, WS_CONNECTED_KEY, WS_FLUSH_DELAY_MS } from '../constants.js';
+import { JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 import { getActiveCapturesSummary } from '../network-capture.js';
 import { getAllPluginMeta, getPluginMeta } from '../plugin-storage.js';
@@ -160,7 +161,7 @@ export const handleExtensionCheckAdapter = async (
     if (typeof pluginName !== 'string' || pluginName.length === 0) {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: 'Missing or invalid plugin parameter' },
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid plugin parameter' },
         id,
       });
       return;
@@ -170,7 +171,7 @@ export const handleExtensionCheckAdapter = async (
     if (!meta) {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: `Plugin not found: "${pluginName}"` },
+        error: { code: JSONRPC_INVALID_PARAMS, message: `Plugin not found: "${pluginName}"` },
         id,
       });
       return;
@@ -338,11 +339,15 @@ export const handleBrowserExecuteScript = async (
     if (tabId === null) return;
     const execFile = params.execFile;
     if (typeof execFile !== 'string' || execFile.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid execFile parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid execFile parameter' },
+        id,
+      });
       return;
     }
     if (!/^__exec-[a-f0-9-]+\.js$/.test(execFile)) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Invalid execFile format' }, id });
+      sendToServer({ jsonrpc: '2.0', error: { code: JSONRPC_INVALID_PARAMS, message: 'Invalid execFile format' }, id });
       return;
     }
 

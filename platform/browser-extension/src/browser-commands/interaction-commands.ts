@@ -1,5 +1,6 @@
 import { extractScriptResult, requireSelector, requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { withDebugger } from './resource-commands.js';
+import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 import { sanitizeErrorMessage } from '../sanitize-error.js';
 import { toErrorMessage } from '@opentabs-dev/shared';
@@ -56,7 +57,11 @@ export const handleBrowserTypeText = async (params: Record<string, unknown>, id:
     if (selector === null) return;
     const text = params.text;
     if (typeof text !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid text parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid text parameter' },
+        id,
+      });
       return;
     }
     const clear = typeof params.clear === 'boolean' ? params.clear : true;
@@ -127,7 +132,7 @@ export const handleBrowserSelectOption = async (
     if (value === undefined && label === undefined) {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: 'At least one of value or label must be provided' },
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'At least one of value or label must be provided' },
         id,
       });
       return;
@@ -277,7 +282,11 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
     if (tabId === null) return;
     const key = params.key;
     if (typeof key !== 'string' || key.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid key parameter' }, id });
+      sendToServer({
+        jsonrpc: '2.0',
+        error: { code: JSONRPC_INVALID_PARAMS, message: 'Missing or invalid key parameter' },
+        id,
+      });
       return;
     }
     const selector = typeof params.selector === 'string' && params.selector.length > 0 ? params.selector : null;
@@ -615,7 +624,7 @@ export const handleBrowserHandleDialog = async (
     if (action !== 'accept' && action !== 'dismiss') {
       sendToServer({
         jsonrpc: '2.0',
-        error: { code: -32602, message: "action must be 'accept' or 'dismiss'" },
+        error: { code: JSONRPC_INVALID_PARAMS, message: "action must be 'accept' or 'dismiss'" },
         id,
       });
       return;
@@ -637,7 +646,7 @@ export const handleBrowserHandleDialog = async (
         sendToServer({
           jsonrpc: '2.0',
           error: {
-            code: -32603,
+            code: JSONRPC_INTERNAL_ERROR,
             message: isNoDialog ? 'No JavaScript dialog is currently open on this tab' : sanitizeErrorMessage(msg),
           },
           id,
