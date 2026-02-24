@@ -9,7 +9,8 @@
  */
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 const PLUGIN_DIR = resolve('plugins/e2e-test/dist');
 const PLUGIN_SDK_PKG_PATH = resolve('platform/plugin-sdk/package.json');
@@ -38,7 +39,24 @@ const ensureSdkVersionInManifest = (): void => {
   writeFileSync(toolsJsonPath, JSON.stringify(raw, null, 2) + '\n', 'utf-8');
 };
 
+/**
+ * Fail fast if OPENTABS_CONFIG_DIR points to the real ~/.opentabs directory.
+ * E2E tests must use isolated temp directories — running against the host
+ * config would corrupt the user's real configuration.
+ */
+const assertNotRealConfigDir = (): void => {
+  const configDir = process.env['OPENTABS_CONFIG_DIR'];
+  if (configDir && resolve(configDir) === resolve(join(homedir(), '.opentabs'))) {
+    throw new Error(
+      'OPENTABS_CONFIG_DIR points to the real ~/.opentabs directory. ' +
+        'E2E tests must use isolated config directories to avoid corrupting host configuration.',
+    );
+  }
+};
+
 export default function globalSetup(): void {
+  assertNotRealConfigDir();
+
   const missing = REQUIRED_FILES.filter(file => !existsSync(resolve(PLUGIN_DIR, file)));
 
   if (missing.length > 0) {

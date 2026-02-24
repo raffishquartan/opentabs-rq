@@ -505,6 +505,17 @@ const createServerWrapper = (): {
  */
 const startMcpServer = (configDir: string, hot: boolean = true, explicitPort?: number): Promise<McpServer> =>
   new Promise<McpServer>((resolve, reject) => {
+    // Fail fast if configDir resolves to the real ~/.opentabs directory.
+    if (path.resolve(configDir) === path.resolve(path.join(os.homedir(), '.opentabs'))) {
+      reject(
+        new Error(
+          'startMcpServer: configDir points to the real ~/.opentabs directory. ' +
+            'E2E tests must use isolated config directories to avoid corrupting host configuration.',
+        ),
+      );
+      return;
+    }
+
     // Pre-create the extension version marker so ensureExtensionInstalled()
     // sees a matching version and does NOT trigger extension.reload on connect.
     // Without this, the fresh temp configDir always causes a version mismatch,
