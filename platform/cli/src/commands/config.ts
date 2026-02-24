@@ -442,7 +442,8 @@ const handleConfigReset = async (options: ConfigResetOptions): Promise<void> => 
   }
 
   await configFile.delete();
-  console.log('Config reset. Run opentabs start to regenerate.');
+  console.log(`${pc.green('Config file deleted:')} ${configPath}`);
+  console.log(pc.dim('Run opentabs start to regenerate.'));
 };
 
 /**
