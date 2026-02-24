@@ -47,7 +47,7 @@ const fail = (label: string, detail: string, hint: string): CheckResult => ({
   fatal: true,
 });
 
-const checkBunVersion = (): CheckResult => {
+const checkRuntime = (): CheckResult => {
   if (isBun) {
     return pass('Runtime', `Bun v${Bun.version}`);
   }
@@ -320,8 +320,8 @@ const handleDoctor = async (options: DoctorOptions): Promise<void> => {
   const port = resolvePort(options);
   const results: CheckResult[] = [];
 
-  // 1. Bun version
-  results.push(checkBunVersion());
+  // 1. Runtime version
+  results.push(checkRuntime());
 
   // 2. Config file
   const { result: configResult, config } = await checkConfigFile();
@@ -399,7 +399,7 @@ Examples:
 };
 
 export {
-  checkBunVersion,
+  checkRuntime,
   checkConfigFile,
   checkExtensionConnected,
   checkMcpClientConfig,

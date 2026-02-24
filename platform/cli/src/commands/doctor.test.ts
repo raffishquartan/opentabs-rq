@@ -1,5 +1,5 @@
 import {
-  checkBunVersion,
+  checkRuntime,
   checkConfigFile,
   checkExtensionConnected,
   checkMcpClientConfig,
@@ -51,12 +51,12 @@ describe('checkExtensionConnected', () => {
 });
 
 // ---------------------------------------------------------------------------
-// checkBunVersion
+// checkRuntime
 // ---------------------------------------------------------------------------
 
-describe('checkBunVersion', () => {
+describe('checkRuntime', () => {
   test('returns pass result with current runtime version', () => {
-    const result: CheckResult = checkBunVersion();
+    const result: CheckResult = checkRuntime();
     expect(result.ok).toBe(true);
     expect(result.label).toBe('Runtime');
     expect(result.detail).toContain(Bun.version);

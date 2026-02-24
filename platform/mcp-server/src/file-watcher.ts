@@ -5,7 +5,7 @@
  * to dist/tools.json and dist/adapter.iife.js. On change:
  * - IIFE change → re-read, send plugin.update to extension
  * - tools.json change → re-read tools AND IIFE, re-register MCP tools, notify MCP clients.
- *   Both files are re-read on tools.json change because `bun run build` typically produces
+ *   Both files are re-read on tools.json change because `npm run build` typically produces
  *   both new tools and a new IIFE simultaneously. Re-reading the IIFE here avoids
  *   a brief race where the extension has new tool definitions pointing at old adapter code.
  *
@@ -277,7 +277,7 @@ const parseToolsJson = (raw: string, filePath: string): ManifestTool[] | null =>
 /**
  * Handle a dist/tools.json file change for a local plugin.
  *
- * Also re-reads the IIFE from disk because `bun run build` typically updates
+ * Also re-reads the IIFE from disk because `npm run build` typically updates
  * both tools.json and IIFE simultaneously. Without this, the tools.json watcher
  * would send a plugin.update with the old IIFE, and the extension would
  * briefly have new tool definitions pointing at stale adapter code until
@@ -550,7 +550,7 @@ const startConfigWatching = (state: ServerState, callbacks: FileWatcherCallbacks
 /**
  * Start periodic mtime polling as a fallback for stale fs.watch() watchers.
  *
- * fs.watch() can go stale on macOS (FSEvents bug in long-running Bun processes)
+ * fs.watch() can go stale on macOS (FSEvents bug in long-running processes)
  * and Linux (inotify limits). This polling loop stats every watched file and
  * config.json on a fixed interval. If a file's mtime is newer than what was
  * last recorded, the appropriate handler is invoked — the same handler that

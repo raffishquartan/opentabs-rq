@@ -14,6 +14,7 @@ import {
   ok,
   err,
   getEnv,
+  isBun,
   PLUGIN_PREFIX,
   platformExec,
   readJsonFile,
@@ -156,7 +157,7 @@ const setCachedGlobalPaths = (paths: string[] | null): void => {
 };
 
 /**
- * Get global node_modules directories from both npm and bun.
+ * Get global node_modules directories from npm (and bun when running under Bun).
  * Results are cached on globalThis so the shell commands run at most once
  * per process lifetime.
  */
@@ -177,19 +178,21 @@ const getGlobalNodeModulesPaths = (): string[] => {
     log.debug(`npm root -g failed: ${toErrorMessage(e)}`);
   }
 
-  // bun global node_modules (derive from bin path: .../bin → .../node_modules)
-  try {
-    const result = spawnProcessSync(platformExec('bun'), ['pm', '-g', 'bin']);
-    if (result.exitCode === 0) {
-      const bunBinPath = result.stdout.trim();
-      if (bunBinPath.length > 0) {
-        const bunNodeModules = join(dirname(bunBinPath), 'node_modules');
-        // Avoid duplicates if npm and bun share the same global directory
-        if (!paths.includes(bunNodeModules)) paths.push(bunNodeModules);
+  // bun global node_modules (only when running under Bun — normal Node.js users
+  // install plugins via npm, so bun's global directory is irrelevant)
+  if (isBun) {
+    try {
+      const result = spawnProcessSync(platformExec('bun'), ['pm', '-g', 'bin']);
+      if (result.exitCode === 0) {
+        const bunBinPath = result.stdout.trim();
+        if (bunBinPath.length > 0) {
+          const bunNodeModules = join(dirname(bunBinPath), 'node_modules');
+          if (!paths.includes(bunNodeModules)) paths.push(bunNodeModules);
+        }
       }
+    } catch (e) {
+      log.debug(`bun pm -g bin failed: ${toErrorMessage(e)}`);
     }
-  } catch (e) {
-    log.debug(`bun pm -g bin failed: ${toErrorMessage(e)}`);
   }
 
   setCachedGlobalPaths(paths);
@@ -271,7 +274,7 @@ const scanGlobalDir = async (globalDir: string): Promise<string[]> => {
 /**
  * Discover globally installed npm plugin packages.
  *
- * Scans global node_modules directories (from both npm and bun) for packages
+ * Scans global node_modules directories (npm, and bun when available) for packages
  * matching the opentabs-plugin-* naming convention. Each match is validated
  * by checking for a package.json with an `opentabs` field.
  *
@@ -301,7 +304,7 @@ const discoverGlobalNpmPlugins = async (): Promise<{ dirs: string[]; errors: str
     try {
       const dirs = await scanGlobalDir(globalDir);
       for (const dir of dirs) {
-        // Deduplicate across npm/bun global paths (same package may appear in both)
+        // Deduplicate across global paths (same package may appear in multiple locations)
         if (!seen.has(dir)) {
           seen.add(dir);
           allDirs.push(dir);

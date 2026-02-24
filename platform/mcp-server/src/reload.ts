@@ -291,7 +291,7 @@ const performReload = async (
 
     // Ensure the managed extension in ~/.opentabs/extension/ is up to date.
     // Isolated from the rest of reload so a transient filesystem error
-    // (cpSync, mkdirSync, Bun.write) does not block plugin discovery.
+    // (cpSync, mkdirSync, writeFile) does not block plugin discovery.
     try {
       const installResult = await ensureExtensionInstalled();
       if (installResult.versionChanged) {
