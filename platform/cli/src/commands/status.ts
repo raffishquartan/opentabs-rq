@@ -61,6 +61,17 @@ const handleStatus = async (options: StatusOptions): Promise<void> => {
     if (secret) headers['Authorization'] = `Bearer ${secret}`;
 
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
+    if (res.status === 401) {
+      console.error(pc.red('Authentication failed.'));
+      console.error(
+        pc.dim(
+          'The secret in ~/.opentabs/extension/auth.json may not match the running server.\n' +
+            'Try restarting the server or running: opentabs config rotate-secret --confirm',
+        ),
+      );
+      process.exit(1);
+    }
+
     if (!res.ok) {
       console.error(pc.red(`Error: MCP server returned HTTP ${res.status}.`));
       console.error('The server may be misconfigured. Check the server logs for details.');
