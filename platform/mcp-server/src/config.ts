@@ -11,7 +11,15 @@
  */
 
 import { log } from './logger.js';
-import { atomicWrite, generateSecret, getConfigDir, getConfigPath, getExtensionDir } from '@opentabs-dev/shared';
+import {
+  atomicWrite,
+  fileExists,
+  generateSecret,
+  getConfigDir,
+  getConfigPath,
+  getExtensionDir,
+  readFile,
+} from '@opentabs-dev/shared';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -78,7 +86,7 @@ const readConfigWithRetry = async (
   let delay = initialDelayMs;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const raw = await Bun.file(configPath).text();
+      const raw = await readFile(configPath);
       const parsed: unknown = JSON.parse(raw);
 
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -266,8 +274,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
 
   await mkdir(configDir, { recursive: true, mode: 0o700 });
 
-  const configFile = Bun.file(configPath);
-  if (!(await configFile.exists())) {
+  if (!(await fileExists(configPath))) {
     const config: OpentabsConfig = {
       localPlugins: [],
       tools: {},
@@ -379,11 +386,9 @@ const writeAuthFile = async (secret: string): Promise<void> => {
 const loadSecret = async (): Promise<string> => {
   const extensionDir = getExtensionDir();
   const authPath = join(extensionDir, 'auth.json');
-  const authFile = Bun.file(authPath);
-
-  if (await authFile.exists()) {
+  if (await fileExists(authPath)) {
     try {
-      const parsed: unknown = JSON.parse(await authFile.text());
+      const parsed: unknown = JSON.parse(await readFile(authPath));
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         const secret = (parsed as Record<string, unknown>).secret;
         if (typeof secret === 'string' && secret.length > 0) {

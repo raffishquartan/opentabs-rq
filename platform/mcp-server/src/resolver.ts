@@ -6,13 +6,22 @@
  * path resolution from plugin loading so each phase can be tested independently.
  *
  * Also provides global npm plugin auto-discovery: scans global node_modules
- * directories (from both npm and bun) for packages matching the opentabs-plugin-*
- * naming convention.
+ * directories for packages matching the opentabs-plugin-* naming convention.
  */
 
 import { log } from './logger.js';
-import { ok, err, PLUGIN_PREFIX, platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import {
+  ok,
+  err,
+  getEnv,
+  PLUGIN_PREFIX,
+  platformExec,
+  readJsonFile,
+  spawnProcessSync,
+  toErrorMessage,
+} from '@opentabs-dev/shared';
 import { readdir, realpath, stat } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import type { Result } from '@opentabs-dev/shared';
@@ -81,14 +90,16 @@ const resolveLocalPath = (specifier: string, configDir: string): string => {
   return resolve(configDir, specifier);
 };
 
+const require = createRequire(import.meta.url);
+
 /**
  * Resolve an npm package specifier to the directory containing its package.json.
- * Uses Bun.resolveSync to locate the package's package.json, then returns
- * the containing directory.
+ * Uses require.resolve to locate the package's package.json, then returns
+ * the containing directory. Works in both Node.js and Bun.
  */
 const resolveNpmPackage = (specifier: string): Result<string, string> => {
   try {
-    const resolved = Bun.resolveSync(`${specifier}/package.json`, process.cwd());
+    const resolved = require.resolve(`${specifier}/package.json`, { paths: [process.cwd()] });
     return ok(dirname(resolved));
   } catch {
     return err(`Package not found: ${specifier}`);
@@ -105,7 +116,7 @@ const resolveNpmPackage = (specifier: string): Result<string, string> => {
  * For local paths, resolves relative to configDir and validates the path is
  * under an allowed root directory (homedir or tmpdir).
  *
- * For npm packages, uses Bun.resolveSync to locate the package directory.
+ * For npm packages, uses require.resolve to locate the package directory.
  *
  * Returns the directory path containing the plugin's package.json.
  */
@@ -133,10 +144,10 @@ const resolvePluginPath = async (specifier: string, configDir: string): Promise<
   return resolveNpmPackage(specifier);
 };
 
-/** globalThis key for persisting cached global paths across bun --hot reloads */
+/** globalThis key for persisting cached global paths across process lifetime */
 const GLOBAL_PATHS_KEY = '__opentabs_global_paths__' as const;
 
-/** Access the cached global paths from globalThis so the value survives bun --hot module re-evaluation */
+/** Access the cached global paths from globalThis so the value persists across process lifetime */
 const getCachedGlobalPaths = (): string[] | null =>
   ((globalThis as Record<string, unknown>)[GLOBAL_PATHS_KEY] as string[] | null | undefined) ?? null;
 
@@ -147,7 +158,7 @@ const setCachedGlobalPaths = (paths: string[] | null): void => {
 /**
  * Get global node_modules directories from both npm and bun.
  * Results are cached on globalThis so the shell commands run at most once
- * per process lifetime, surviving bun --hot module re-evaluations.
+ * per process lifetime.
  */
 const getGlobalNodeModulesPaths = (): string[] => {
   const cached = getCachedGlobalPaths();
@@ -157,9 +168,9 @@ const getGlobalNodeModulesPaths = (): string[] => {
 
   // npm global node_modules
   try {
-    const result = Bun.spawnSync([platformExec('npm'), 'root', '-g']);
+    const result = spawnProcessSync(platformExec('npm'), ['root', '-g']);
     if (result.exitCode === 0) {
-      const npmPath = result.stdout.toString().trim();
+      const npmPath = result.stdout.trim();
       if (npmPath.length > 0) paths.push(npmPath);
     }
   } catch (e) {
@@ -168,9 +179,9 @@ const getGlobalNodeModulesPaths = (): string[] => {
 
   // bun global node_modules (derive from bin path: .../bin → .../node_modules)
   try {
-    const result = Bun.spawnSync([platformExec('bun'), 'pm', '-g', 'bin']);
+    const result = spawnProcessSync(platformExec('bun'), ['pm', '-g', 'bin']);
     if (result.exitCode === 0) {
-      const bunBinPath = result.stdout.toString().trim();
+      const bunBinPath = result.stdout.trim();
       if (bunBinPath.length > 0) {
         const bunNodeModules = join(dirname(bunBinPath), 'node_modules');
         // Avoid duplicates if npm and bun share the same global directory
@@ -191,7 +202,7 @@ const getGlobalNodeModulesPaths = (): string[] => {
  */
 const hasOpentabsField = async (dir: string): Promise<boolean> => {
   try {
-    const raw = (await Bun.file(join(dir, 'package.json')).json()) as Record<string, unknown>;
+    const raw = (await readJsonFile(join(dir, 'package.json'))) as Record<string, unknown>;
     return typeof raw.opentabs === 'object' && raw.opentabs !== null && !Array.isArray(raw.opentabs);
   } catch (e) {
     log.debug(`Failed to read package.json at ${join(dir, 'package.json')}: ${toErrorMessage(e)}`);
@@ -268,7 +279,7 @@ const scanGlobalDir = async (globalDir: string): Promise<string[]> => {
  * plus any non-fatal errors encountered during scanning.
  */
 const discoverGlobalNpmPlugins = async (): Promise<{ dirs: string[]; errors: string[] }> => {
-  if (Bun.env.OPENTABS_SKIP_NPM_DISCOVERY === '1') {
+  if (getEnv('OPENTABS_SKIP_NPM_DISCOVERY') === '1') {
     log.info('Skipping npm auto-discovery (OPENTABS_SKIP_NPM_DISCOVERY=1)');
     return { dirs: [], errors: [] };
   }

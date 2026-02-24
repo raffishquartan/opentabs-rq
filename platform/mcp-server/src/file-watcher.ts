@@ -24,7 +24,14 @@ import { getConfigDir } from './config.js';
 import { extractToolsArray, loadPlugin } from './loader.js';
 import { log } from './logger.js';
 import { buildRegistry } from './registry.js';
-import { ADAPTER_FILENAME, ADAPTER_SOURCE_MAP_FILENAME, TOOLS_FILENAME, isOk } from '@opentabs-dev/shared';
+import {
+  ADAPTER_FILENAME,
+  ADAPTER_SOURCE_MAP_FILENAME,
+  TOOLS_FILENAME,
+  fileExists as runtimeFileExists,
+  isOk,
+  readFile,
+} from '@opentabs-dev/shared';
 import { statSync, watch } from 'node:fs';
 import { join } from 'node:path';
 import type { ServerState, FileWatcherEntry, RegisteredPlugin } from './state.js';
@@ -63,7 +70,7 @@ const readFileWithRetry = async (path: string, maxRetries = 3, initialDelayMs = 
   let delay = initialDelayMs;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await Bun.file(path).text();
+      return await readFile(path);
     } catch (err) {
       if (attempt === maxRetries) throw err;
       await new Promise(r => setTimeout(r, delay));
@@ -76,7 +83,7 @@ const readFileWithRetry = async (path: string, maxRetries = 3, initialDelayMs = 
 /**
  * Check if a file exists.
  */
-const fileExists = async (path: string): Promise<boolean> => Bun.file(path).exists();
+const fileExists = async (path: string): Promise<boolean> => runtimeFileExists(path);
 
 /**
  * Get the mtimeMs for a file, or null if the file does not exist or stat fails.

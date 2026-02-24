@@ -15,7 +15,10 @@ import {
   OFFICIAL_SCOPE,
   normalizePluginName,
   isValidPluginPackageName,
+  readFile,
+  readJsonFile,
   resolvePluginPackageCandidates,
+  spawnProcess,
   platformExec,
 } from '@opentabs-dev/shared';
 import { mkdir } from 'node:fs/promises';
@@ -81,32 +84,29 @@ const NPM_SUBPROCESS_TIMEOUT_MS = 60_000;
  * @throws Error with code -32603 and data { stderr, stdout } on non-zero exit
  */
 const runNpmGlobal = async (command: string, packageName: string): Promise<{ stdout: string; stderr: string }> => {
-  const proc = Bun.spawn([platformExec('npm'), command, '-g', packageName], {
-    stdout: 'pipe',
-    stderr: 'pipe',
+  const resultPromise = spawnProcess(platformExec('npm'), [command, '-g', packageName]);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(
+      () => reject(new Error(`npm ${command} timed out after ${NPM_SUBPROCESS_TIMEOUT_MS}ms`)),
+      NPM_SUBPROCESS_TIMEOUT_MS,
+    );
   });
 
-  const timeoutId = setTimeout(() => {
-    proc.kill();
-  }, NPM_SUBPROCESS_TIMEOUT_MS);
+  const result = await Promise.race([resultPromise, timeoutPromise]);
 
-  const [stdout, stderr] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
-  clearTimeout(timeoutId);
-
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0) {
-    log.error(`npm ${command} failed for ${packageName}: exit code ${exitCode}, stderr: ${stderr}`);
-    const error = new Error(`npm ${command} failed (exit code ${exitCode})`) as Error & {
+  if (result.exitCode !== 0) {
+    log.error(`npm ${command} failed for ${packageName}: exit code ${result.exitCode}, stderr: ${result.stderr}`);
+    const error = new Error(`npm ${command} failed (exit code ${result.exitCode})`) as Error & {
       code: number;
       data: { stderr: string; stdout: string };
     };
     error.code = -32603;
-    error.data = { stderr, stdout };
+    error.data = { stderr: result.stderr, stdout: result.stdout };
     throw error;
   }
 
-  return { stdout, stderr };
+  return { stdout: result.stdout, stderr: result.stderr };
 };
 
 // ---------------------------------------------------------------------------
@@ -344,7 +344,7 @@ const removeLocalPlugin = async (state: { configWriteMutex: Promise<void> }, plu
 
     let raw: string;
     try {
-      raw = await Bun.file(configPath).text();
+      raw = await readFile(configPath);
     } catch {
       log.warn('Cannot remove local plugin — config file unreadable');
       return;
@@ -386,8 +386,7 @@ const removeLocalPlugin = async (state: { configWriteMutex: Promise<void> }, plu
 
       // Check if the package.json name matches
       try {
-        const pkgRaw = await Bun.file(join(resolvedPath, 'package.json')).text();
-        const pkg = JSON.parse(pkgRaw) as Record<string, unknown>;
+        const pkg = (await readJsonFile(join(resolvedPath, 'package.json'))) as Record<string, unknown>;
         const pkgName = typeof pkg.name === 'string' ? pkg.name : '';
         const derivedPkgName = pluginNameFromPackage(pkgName);
         if (derivedPkgName === pluginName || pkgName === pluginName) {

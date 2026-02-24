@@ -50,7 +50,7 @@ import { performReload } from './reload.js';
 import { installShutdownHandlers } from './shutdown.js';
 import { createState } from './state.js';
 import { version } from './version.js';
-import { DEFAULT_PORT } from '@opentabs-dev/shared';
+import { DEFAULT_PORT, getEnv } from '@opentabs-dev/shared';
 import type { HotHandlers } from './http-routes.js';
 import type { McpServerInstance } from './mcp-setup.js';
 import type { ReloadResult } from './reload.js';
@@ -175,7 +175,7 @@ const handlers: HotHandlers = createHandlers({
 
 /** Parse and validate the PORT from environment or default. Port 0 is valid (OS assigns ephemeral port). */
 const resolvePort = (): number => {
-  const raw = Bun.env.PORT;
+  const raw = getEnv('PORT');
   if (raw === undefined) return DEFAULT_PORT;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 65535 || parsed !== Math.floor(parsed)) {
@@ -216,7 +216,7 @@ const createHttpServer = (): ReturnType<typeof Bun.serve> => {
     if (isAddrInUse) {
       log.error(`Port ${PORT} is already in use. Kill the existing process or use a different port:`);
       log.error(`  lsof -ti :${PORT} | xargs kill`);
-      log.error(`  PORT=<number> bun dev`);
+      log.error(`  PORT=<number> opentabs start`);
     }
     throw error;
   }

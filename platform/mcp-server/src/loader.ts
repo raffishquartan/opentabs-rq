@@ -19,8 +19,11 @@ import {
   PLUGIN_PREFIX,
   TOOLS_FILENAME,
   err,
+  fileExists,
   ok,
   parsePluginPackageJson,
+  readFile,
+  readJsonFile,
   validatePluginName,
   validateUrlPattern,
 } from '@opentabs-dev/shared';
@@ -392,7 +395,7 @@ const loadPlugin = async (
   const pkgJsonPath = join(dir, 'package.json');
   let pkgJsonRaw: unknown;
   try {
-    pkgJsonRaw = await Bun.file(pkgJsonPath).json();
+    pkgJsonRaw = await readJsonFile(pkgJsonPath);
   } catch {
     return err(`Failed to read package.json at ${dir}: file missing or invalid JSON`);
   }
@@ -420,15 +423,20 @@ const loadPlugin = async (
 
   // Read adapter IIFE
   const iifePath = join(dir, 'dist', ADAPTER_FILENAME);
-  const iifeFile = Bun.file(iifePath);
-  if (!(await iifeFile.exists())) {
+  if (!(await fileExists(iifePath))) {
     return err(`Adapter IIFE not found at ${iifePath}`);
   }
-  const iifeSize = iifeFile.size;
-  if (iifeSize > MAX_IIFE_SIZE) {
-    return err(`Adapter IIFE for "${pluginName}" is ${(iifeSize / 1024 / 1024).toFixed(1)}MB, exceeding the 5MB limit`);
+  let iife: string;
+  try {
+    iife = await readFile(iifePath);
+  } catch {
+    return err(`Failed to read adapter IIFE at ${iifePath}`);
   }
-  const iife = await iifeFile.text();
+  if (iife.length > MAX_IIFE_SIZE) {
+    return err(
+      `Adapter IIFE for "${pluginName}" is ${(iife.length / 1024 / 1024).toFixed(1)}MB, exceeding the 5MB limit`,
+    );
+  }
   if (iife.length === 0) {
     return err(`Adapter IIFE at ${iifePath} is empty — rebuild the plugin`);
   }
@@ -440,7 +448,7 @@ const loadPlugin = async (
   const toolsJsonPath = join(dir, 'dist', TOOLS_FILENAME);
   let manifestRaw: unknown;
   try {
-    manifestRaw = await Bun.file(toolsJsonPath).json();
+    manifestRaw = await readJsonFile(toolsJsonPath);
   } catch {
     return err(`Failed to read dist/${TOOLS_FILENAME} at ${dir}: file missing or invalid JSON`);
   }
@@ -480,7 +488,7 @@ const loadPlugin = async (
   } else {
     const compat = checkSdkCompatibility(pluginSdkVersion, serverSdkVersion);
     if (!compat.compatible && compat.error) {
-      return err(`${compat.error}. Rebuild the plugin: cd ${dir} && bun install && bun run build`);
+      return err(`${compat.error}. Rebuild the plugin: cd ${dir} && npm install && npm run build`);
     }
   }
 
@@ -498,9 +506,8 @@ const loadPlugin = async (
   const sourceMapPath = join(dir, 'dist', ADAPTER_SOURCE_MAP_FILENAME);
   let iifeSourceMap: string | undefined;
   try {
-    const sourceMapFile = Bun.file(sourceMapPath);
-    if (await sourceMapFile.exists()) {
-      iifeSourceMap = await sourceMapFile.text();
+    if (await fileExists(sourceMapPath)) {
+      iifeSourceMap = await readFile(sourceMapPath);
     }
   } catch {
     // Source map not available — not an error

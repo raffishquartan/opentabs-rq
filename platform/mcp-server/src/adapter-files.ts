@@ -5,7 +5,7 @@
 
 import { getAdaptersDir } from './config.js';
 import { log } from './logger.js';
-import { atomicWrite } from '@opentabs-dev/shared';
+import { atomicWrite, deleteFile } from '@opentabs-dev/shared';
 import { mkdir, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { ServerState } from './state.js';
@@ -103,7 +103,7 @@ const cleanupStaleAdapterFiles = async (currentPluginNames: Set<string>): Promis
 
   if (staleFiles.length === 0) return;
 
-  const results = await Promise.allSettled(staleFiles.map(f => Bun.file(join(adaptersDir, f)).delete()));
+  const results = await Promise.allSettled(staleFiles.map(f => deleteFile(join(adaptersDir, f))));
   let deleted = 0;
   for (const [i, result] of results.entries()) {
     if (result.status === 'rejected') {
@@ -166,7 +166,7 @@ const writeExecFile = async (state: ServerState, execId: string, code: string): 
 /** Delete a dynamic exec script file. Fire-and-forget — logs on failure. */
 const deleteExecFile = async (filename: string): Promise<void> => {
   try {
-    await Bun.file(join(getAdaptersDir(), filename)).delete();
+    await deleteFile(join(getAdaptersDir(), filename));
   } catch {
     log.warn(`Failed to delete exec file: ${filename}`);
   }
@@ -190,7 +190,7 @@ const cleanupStaleExecFiles = async (): Promise<void> => {
   );
   if (staleExecFiles.length === 0) return;
 
-  await Promise.allSettled(staleExecFiles.map(f => Bun.file(join(adaptersDir, f)).delete()));
+  await Promise.allSettled(staleExecFiles.map(f => deleteFile(join(adaptersDir, f))));
   log.info(`Cleaned up ${staleExecFiles.length} stale exec file(s)`);
 };
 

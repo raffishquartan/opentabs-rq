@@ -17,9 +17,11 @@
  * logger can format them appropriately per level.
  *
  * Hot reload safe: reads the env var once at module evaluation time. Under
- * bun --hot, the module is re-evaluated on each reload, picking up any
+ * hot reload, the module is re-evaluated on each reload, picking up any
  * runtime changes to the environment variable.
  */
+
+import { getEnv } from '@opentabs-dev/shared';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
@@ -58,7 +60,7 @@ const parseLevel = (raw: string | undefined): LogLevel => {
   return 'info';
 };
 
-const currentLevel = LEVELS[parseLevel(Bun.env.OPENTABS_LOG_LEVEL)];
+const currentLevel = LEVELS[parseLevel(getEnv('OPENTABS_LOG_LEVEL'))];
 
 const log = {
   /** Verbose diagnostic output — suppressed by default */

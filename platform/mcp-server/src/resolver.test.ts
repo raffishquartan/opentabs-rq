@@ -1,7 +1,7 @@
 import { discoverGlobalNpmPlugins, isAllowedPluginPath, resetGlobalPathsCache, resolvePluginPath } from './resolver.js';
 import { isErr, isOk } from '@opentabs-dev/shared';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
@@ -165,38 +165,35 @@ describe('resolvePluginPath — ~/ home directory paths', () => {
 });
 
 describe('resolvePluginPath — npm package specifiers', () => {
-  let originalResolveSync: typeof Bun.resolveSync;
+  let tempDir: string;
+  let originalCwd: () => string;
 
   beforeEach(() => {
-    originalResolveSync = Bun.resolveSync;
+    tempDir = mkdtempSync(join(tmpdir(), 'opentabs-resolver-npm-pkg-'));
+    originalCwd = process.cwd.bind(process);
+    process.cwd = () => tempDir;
   });
 
   afterEach(() => {
-    Bun.resolveSync = originalResolveSync;
+    process.cwd = originalCwd;
+    rmSync(tempDir, { recursive: true, force: true });
   });
 
-  test('resolves npm package via Bun.resolveSync', async () => {
-    const expectedDir = '/fake/node_modules/opentabs-plugin-slack';
-    Bun.resolveSync = ((specifier: string, _dir: string) => {
-      if (specifier === 'opentabs-plugin-slack/package.json') {
-        return expectedDir + '/package.json';
-      }
-      throw new Error('Not found');
-    }) as typeof Bun.resolveSync;
+  test('resolves npm package via require.resolve', async () => {
+    const pkgDir = join(tempDir, 'node_modules', 'opentabs-plugin-slack');
+    mkdirSync(pkgDir, { recursive: true });
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: 'opentabs-plugin-slack' }));
 
     const result = await resolvePluginPath('opentabs-plugin-slack', '/some/config');
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) {
-      expect(result.value).toBe(expectedDir);
+      // Canonicalize both paths — require.resolve may or may not resolve symlinks (macOS /var → /private/var)
+      expect(realpathSync(result.value)).toBe(realpathSync(pkgDir));
     }
   });
 
   test('returns error for npm package not found', async () => {
-    Bun.resolveSync = (() => {
-      throw new Error('Module not found');
-    }) as typeof Bun.resolveSync;
-
     const result = await resolvePluginPath('opentabs-plugin-nonexistent', '/some/config');
 
     expect(isErr(result)).toBe(true);
@@ -207,34 +204,27 @@ describe('resolvePluginPath — npm package specifiers', () => {
   });
 
   test('resolves scoped npm package', async () => {
-    const expectedDir = '/fake/node_modules/@myorg/opentabs-plugin-jira';
-    Bun.resolveSync = ((specifier: string, _dir: string) => {
-      if (specifier === '@myorg/opentabs-plugin-jira/package.json') {
-        return expectedDir + '/package.json';
-      }
-      throw new Error('Not found');
-    }) as typeof Bun.resolveSync;
+    const pkgDir = join(tempDir, 'node_modules', '@myorg', 'opentabs-plugin-jira');
+    mkdirSync(pkgDir, { recursive: true });
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: '@myorg/opentabs-plugin-jira' }));
 
     const result = await resolvePluginPath('@myorg/opentabs-plugin-jira', '/some/config');
 
     expect(isOk(result)).toBe(true);
     if (isOk(result)) {
-      expect(result.value).toBe(expectedDir);
+      expect(realpathSync(result.value)).toBe(realpathSync(pkgDir));
     }
   });
 });
 
 describe('resolvePluginPath — specifier format detection', () => {
   let tempDir: string;
-  let originalResolveSync: typeof Bun.resolveSync;
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), 'opentabs-resolver-spec-'));
-    originalResolveSync = Bun.resolveSync;
   });
 
   afterEach(() => {
-    Bun.resolveSync = originalResolveSync;
     rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -323,10 +313,6 @@ describe('resolvePluginPath — specifier format detection', () => {
   });
 
   test('bare name is treated as npm package specifier', async () => {
-    Bun.resolveSync = (() => {
-      throw new Error('Not found');
-    }) as typeof Bun.resolveSync;
-
     const result = await resolvePluginPath('opentabs-plugin-test', tempDir);
 
     expect(isErr(result)).toBe(true);
@@ -336,10 +322,6 @@ describe('resolvePluginPath — specifier format detection', () => {
   });
 
   test('scoped package name is treated as npm package specifier', async () => {
-    Bun.resolveSync = (() => {
-      throw new Error('Not found');
-    }) as typeof Bun.resolveSync;
-
     const result = await resolvePluginPath('@scope/opentabs-plugin-foo', tempDir);
 
     expect(isErr(result)).toBe(true);
