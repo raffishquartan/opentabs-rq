@@ -151,12 +151,15 @@ bun run dev
 | Command              | Description                                          |
 | -------------------- | ---------------------------------------------------- |
 | `bun run check`      | Run all checks (build, type-check, lint, knip, test) |
+| `bun run check:all`  | All checks + E2E tests + docs + plugins              |
 | `bun run build`      | Build all packages                                   |
 | `bun run type-check` | TypeScript type checking                             |
 | `bun run lint`       | ESLint                                               |
 | `bun run knip`       | Unused code detection                                |
 | `bun run test`       | Unit tests                                           |
 | `bun run test:e2e`   | E2E tests (Playwright)                               |
+| `bun run dev:mcp`    | MCP server only with hot reload                      |
+| `bun run clean`      | Remove all build artifacts                           |
 
 All commands must exit 0 before committing.
 
@@ -172,6 +175,7 @@ opentabs/
 │   ├── cli/                   User-facing CLI (opentabs)
 │   └── create-plugin/         Plugin scaffolding CLI
 ├── plugins/                   Example plugins (standalone projects)
+├── scripts/                   Build and maintenance scripts (clean, plugins, dev)
 ├── e2e/                       Playwright E2E tests
 └── docs/                      Documentation site (opentabs.ai)
 ```
