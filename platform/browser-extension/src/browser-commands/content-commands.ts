@@ -1,8 +1,6 @@
 import { extractScriptResult, requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { SCREENSHOT_RENDER_DELAY_MS } from '../constants.js';
 import { sendToServer } from '../messaging.js';
-import { sanitizeErrorMessage } from '../sanitize-error.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
 
 /**
  * Extracts the innerText of a DOM element in a tab's page context.
@@ -49,11 +47,8 @@ export const handleBrowserGetTabContent = async (
  */
 export const handleBrowserGetPageHtml = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const selector = typeof params.selector === 'string' ? params.selector : 'html';
     const maxLength = typeof params.maxLength === 'number' ? params.maxLength : 200000;
 
@@ -73,22 +68,11 @@ export const handleBrowserGetPageHtml = async (params: Record<string, unknown>, 
       args: [selector, maxLength],
     });
 
-    const result = results[0]?.result as { error?: string; title?: string; url?: string; html?: string } | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
-      return;
-    }
-    sendToServer({ jsonrpc: '2.0', result: { title: result.title, url: result.url, html: result.html }, id });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, { title: result.title, url: result.url, html: result.html });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -99,11 +83,8 @@ export const handleBrowserGetPageHtml = async (params: Record<string, unknown>, 
  */
 export const handleBrowserGetStorage = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const storageType = typeof params.storageType === 'string' ? params.storageType : 'local';
     if (storageType !== 'local' && storageType !== 'session') {
       sendToServer({
@@ -161,16 +142,12 @@ export const handleBrowserGetStorage = async (params: Record<string, unknown>, i
     }
 
     if (result.mode === 'single') {
-      sendToServer({ jsonrpc: '2.0', result: { key: result.key, value: result.value }, id });
+      sendSuccessResult(id, { key: result.key, value: result.value });
     } else {
-      sendToServer({ jsonrpc: '2.0', result: { entries: result.entries, count: result.count }, id });
+      sendSuccessResult(id, { entries: result.entries, count: result.count });
     }
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -184,11 +161,8 @@ export const handleBrowserScreenshotTab = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const tab = await chrome.tabs.update(tabId, { active: true });
     if (!tab) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: `Tab ${tabId} not found` }, id });
@@ -198,12 +172,8 @@ export const handleBrowserScreenshotTab = async (
     await new Promise(resolve => setTimeout(resolve, SCREENSHOT_RENDER_DELAY_MS));
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
     const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
-    sendToServer({ jsonrpc: '2.0', result: { image: base64 }, id });
+    sendSuccessResult(id, { image: base64 });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };

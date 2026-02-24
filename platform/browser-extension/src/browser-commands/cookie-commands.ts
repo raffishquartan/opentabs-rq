@@ -1,7 +1,5 @@
 import { requireUrl, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { sendToServer } from '../messaging.js';
-import { sanitizeErrorMessage } from '../sanitize-error.js';
-import { isBlockedUrlScheme, toErrorMessage } from '@opentabs-dev/shared';
 
 /**
  * Retrieves cookies for a URL, optionally filtered by cookie name.
@@ -42,22 +40,8 @@ export const handleBrowserGetCookies = async (params: Record<string, unknown>, i
  */
 export const handleBrowserSetCookie = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const url = params.url;
-    if (typeof url !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
-      return;
-    }
-    if (isBlockedUrlScheme(url)) {
-      sendToServer({
-        jsonrpc: '2.0',
-        error: {
-          code: -32602,
-          message: 'URL scheme not allowed (javascript:, data:, file:, chrome:, blob: are blocked)',
-        },
-        id,
-      });
-      return;
-    }
+    const url = requireUrl(params, id);
+    if (url === null) return;
     const name = params.name;
     if (typeof name !== 'string' || name.length === 0) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid name parameter' }, id });
@@ -79,26 +63,18 @@ export const handleBrowserSetCookie = async (params: Record<string, unknown>, id
       sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'Failed to set cookie' }, id });
       return;
     }
-    sendToServer({
-      jsonrpc: '2.0',
-      result: {
-        name: cookie.name,
-        value: cookie.value,
-        domain: cookie.domain,
-        path: cookie.path,
-        secure: cookie.secure,
-        httpOnly: cookie.httpOnly,
-        sameSite: cookie.sameSite,
-        expirationDate: cookie.expirationDate,
-      },
-      id,
+    sendSuccessResult(id, {
+      name: cookie.name,
+      value: cookie.value,
+      domain: cookie.domain,
+      path: cookie.path,
+      secure: cookie.secure,
+      httpOnly: cookie.httpOnly,
+      sameSite: cookie.sameSite,
+      expirationDate: cookie.expirationDate,
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -107,34 +83,16 @@ export const handleBrowserDeleteCookies = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const url = params.url;
-    if (typeof url !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
-      return;
-    }
-    if (isBlockedUrlScheme(url)) {
-      sendToServer({
-        jsonrpc: '2.0',
-        error: {
-          code: -32602,
-          message: 'URL scheme not allowed (javascript:, data:, file:, chrome:, blob: are blocked)',
-        },
-        id,
-      });
-      return;
-    }
+    const url = requireUrl(params, id);
+    if (url === null) return;
     const name = params.name;
     if (typeof name !== 'string' || name.length === 0) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid name parameter' }, id });
       return;
     }
     await chrome.cookies.remove({ url, name });
-    sendToServer({ jsonrpc: '2.0', result: { deleted: true, name, url }, id });
+    sendSuccessResult(id, { deleted: true, name, url });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };

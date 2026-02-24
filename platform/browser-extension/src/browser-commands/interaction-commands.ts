@@ -50,16 +50,10 @@ export const handleBrowserClickElement = async (
  */
 export const handleBrowserTypeText = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
-    const selector = params.selector;
-    if (typeof selector !== 'string' || selector.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid selector parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
+    const selector = requireSelector(params, id);
+    if (selector === null) return;
     const text = params.text;
     if (typeof text !== 'string') {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid text parameter' }, id });
@@ -110,24 +104,11 @@ export const handleBrowserTypeText = async (params: Record<string, unknown>, id:
       args: [selector, text, clear],
     });
 
-    const result = results[0]?.result as
-      | { error?: string; typed?: boolean; tagName?: string; value?: string }
-      | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
-      return;
-    }
-    sendToServer({ jsonrpc: '2.0', result: { typed: result.typed, tagName: result.tagName, value: result.value }, id });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, { typed: result.typed, tagName: result.tagName, value: result.value });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -136,16 +117,10 @@ export const handleBrowserSelectOption = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
-    const selector = params.selector;
-    if (typeof selector !== 'string' || selector.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid selector parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
+    const selector = requireSelector(params, id);
+    if (selector === null) return;
     const value = typeof params.value === 'string' ? params.value : undefined;
     const label = typeof params.label === 'string' ? params.label : undefined;
 
@@ -193,28 +168,11 @@ export const handleBrowserSelectOption = async (
       args: [selector, value ?? null, label ?? null],
     });
 
-    const result = results[0]?.result as
-      | { error?: string; selected?: boolean; value?: string; label?: string }
-      | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
-      return;
-    }
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { selected: result.selected, value: result.value, label: result.label },
-      id,
-    });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, { selected: result.selected, value: result.value, label: result.label });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -223,16 +181,10 @@ export const handleBrowserWaitForElement = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
-    const selector = params.selector;
-    if (typeof selector !== 'string' || selector.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid selector parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
+    const selector = requireSelector(params, id);
+    if (selector === null) return;
     const timeout = typeof params.timeout === 'number' ? params.timeout : 10000;
     const visible = typeof params.visible === 'boolean' ? params.visible : false;
 
@@ -267,28 +219,11 @@ export const handleBrowserWaitForElement = async (
       args: [selector, timeout, visible],
     });
 
-    const result = results[0]?.result as
-      | { error?: string; found?: boolean; tagName?: string; text?: string }
-      | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
-      return;
-    }
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { found: result.found, tagName: result.tagName, text: result.text },
-      id,
-    });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, { found: result.found, tagName: result.tagName, text: result.text });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -302,16 +237,10 @@ export const handleBrowserQueryElements = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
-    const selector = params.selector;
-    if (typeof selector !== 'string' || selector.length === 0) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid selector parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
+    const selector = requireSelector(params, id);
+    if (selector === null) return;
     const limit = typeof params.limit === 'number' ? params.limit : 100;
     const attributes = Array.isArray(params.attributes)
       ? (params.attributes as unknown[]).filter((a): a is string => typeof a === 'string')
@@ -334,28 +263,18 @@ export const handleBrowserQueryElements = async (
       args: [selector, limit, attributes],
     });
 
-    const result = results[0]?.result as { count?: number; elements?: unknown[] } | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    sendToServer({ jsonrpc: '2.0', result: { count: result.count, elements: result.elements }, id });
+    const result = extractScriptResult(results, id, 'No result from query');
+    if (!result) return;
+    sendSuccessResult(id, { count: result.count, elements: result.elements });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
 export const handleBrowserPressKey = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const key = params.key;
     if (typeof key !== 'string' || key.length === 0) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid key parameter' }, id });
@@ -493,38 +412,18 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
       args: [key, selector, shiftKey, ctrlKey, altKey, metaKey],
     });
 
-    const result = results[0]?.result as
-      | { error?: string; pressed?: boolean; key?: string; target?: { tagName: string; id?: string } }
-      | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error }, id });
-      return;
-    }
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { pressed: result.pressed, key: result.key, target: result.target },
-      id,
-    });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, { pressed: result.pressed, key: result.key, target: result.target });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
 export const handleBrowserScroll = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const selector = typeof params.selector === 'string' && params.selector.length > 0 ? params.selector : null;
     const direction = typeof params.direction === 'string' ? params.direction : null;
     const distance = typeof params.distance === 'number' ? params.distance : null;
@@ -636,22 +535,11 @@ export const handleBrowserScroll = async (params: Record<string, unknown>, id: s
       ],
     });
 
-    const result = results[0]?.result as Record<string, unknown> | undefined;
-    if (!result) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32603, message: 'No result from script execution' }, id });
-      return;
-    }
-    if (result.error) {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: result.error as string }, id });
-      return;
-    }
-    sendToServer({ jsonrpc: '2.0', result, id });
+    const result = extractScriptResult(results, id);
+    if (!result) return;
+    sendSuccessResult(id, result);
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -721,11 +609,8 @@ export const handleBrowserHandleDialog = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const action = params.action;
     if (action !== 'accept' && action !== 'dismiss') {
       sendToServer({
@@ -745,7 +630,7 @@ export const handleBrowserHandleDialog = async (
           accept,
           ...(promptText !== undefined ? { promptText } : {}),
         });
-        sendToServer({ jsonrpc: '2.0', result: { handled: true, action }, id });
+        sendSuccessResult(id, { handled: true, action });
       } catch (err) {
         const msg = toErrorMessage(err);
         const isNoDialog = msg.includes('No dialog is showing') || msg.includes('no dialog');
@@ -760,10 +645,6 @@ export const handleBrowserHandleDialog = async (
       }
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };

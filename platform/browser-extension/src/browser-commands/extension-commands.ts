@@ -1,12 +1,11 @@
+import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { bgLogCollector } from '../background-log-state.js';
 import { IS_READY_TIMEOUT_MS, SCRIPT_TIMEOUT_MS, WS_CONNECTED_KEY, WS_FLUSH_DELAY_MS } from '../constants.js';
 import { sendToServer } from '../messaging.js';
 import { getActiveCapturesSummary } from '../network-capture.js';
 import { getAllPluginMeta, getPluginMeta } from '../plugin-storage.js';
-import { sanitizeErrorMessage } from '../sanitize-error.js';
 import { findAllMatchingTabs } from '../tab-matching.js';
 import { getLastKnownStates } from '../tab-state.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
 import type { BgForceReconnectMessage, OffscreenGetLogsMessage, SpGetStateMessage } from '../extension-messages.js';
 import type { LogEntry, LogFilterOptions, LogStats } from '../log-collector.js';
 
@@ -51,22 +50,14 @@ export const handleExtensionGetState = async (id: string | number): Promise<void
       // chrome.runtime.getContexts may not be available in all Chrome versions
     }
 
-    sendToServer({
-      jsonrpc: '2.0',
-      result: {
-        connection: { wsConnected, mcpServerUrl },
-        plugins,
-        networkCaptures,
-        offscreen: { exists: offscreenExists },
-      },
-      id,
+    sendSuccessResult(id, {
+      connection: { wsConnected, mcpServerUrl },
+      plugins,
+      networkCaptures,
+      offscreen: { exists: offscreenExists },
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -121,24 +112,16 @@ export const handleExtensionGetLogs = async (params: Record<string, unknown>, id
     const limit = filterOptions.limit ?? 100;
     const entries = merged.slice(0, limit);
 
-    sendToServer({
-      jsonrpc: '2.0',
-      result: {
-        entries,
-        stats: {
-          totalBackground: bgStats.totalCaptured,
-          totalOffscreen: offscreenStats.totalCaptured,
-          bufferSize: bgStats.bufferSize + offscreenStats.bufferSize,
-        },
+    sendSuccessResult(id, {
+      entries,
+      stats: {
+        totalBackground: bgStats.totalCaptured,
+        totalOffscreen: offscreenStats.totalCaptured,
+        bufferSize: bgStats.bufferSize + offscreenStats.bufferSize,
       },
-      id,
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -312,21 +295,13 @@ export const handleExtensionCheckAdapter = async (
       }
     }
 
-    sendToServer({
-      jsonrpc: '2.0',
-      result: {
-        plugin: pluginName,
-        expectedHash: meta.adapterHash ?? null,
-        matchingTabs: matchingTabResults,
-      },
-      id,
+    sendSuccessResult(id, {
+      plugin: pluginName,
+      expectedHash: meta.adapterHash ?? null,
+      matchingTabs: matchingTabResults,
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -359,11 +334,8 @@ export const handleBrowserExecuteScript = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const execFile = params.execFile;
     if (typeof execFile !== 'string' || execFile.length === 0) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid execFile parameter' }, id });
@@ -479,12 +451,8 @@ export const handleBrowserExecuteScript = async (
       clearTimeout(timeoutId);
     }
 
-    sendToServer({ jsonrpc: '2.0', result, id });
+    sendSuccessResult(id, result);
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };

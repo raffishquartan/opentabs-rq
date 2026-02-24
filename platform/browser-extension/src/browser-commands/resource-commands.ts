@@ -1,3 +1,4 @@
+import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { sendToServer } from '../messaging.js';
 import { isCapturing } from '../network-capture.js';
 import { sanitizeErrorMessage } from '../sanitize-error.js';
@@ -95,11 +96,8 @@ export const handleBrowserListResources = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const typeFilter = typeof params.type === 'string' ? params.type : undefined;
 
     await withDebugger(tabId, async () => {
@@ -131,14 +129,10 @@ export const handleBrowserListResources = async (
 
       resources.sort((a, b) => a.type.localeCompare(b.type) || a.url.localeCompare(b.url));
 
-      sendToServer({ jsonrpc: '2.0', result: { frames, resources }, id });
+      sendSuccessResult(id, { frames, resources });
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -147,11 +141,8 @@ export const handleBrowserGetResourceContent = async (
   id: string | number,
 ): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const url = params.url;
     if (typeof url !== 'string' || url.length === 0) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
@@ -205,17 +196,9 @@ export const handleBrowserGetResourceContent = async (
         truncated = true;
       }
 
-      sendToServer({
-        jsonrpc: '2.0',
-        result: { url, content, base64Encoded, mimeType: match.mimeType, truncated },
-        id,
-      });
+      sendSuccessResult(id, { url, content, base64Encoded, mimeType: match.mimeType, truncated });
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };

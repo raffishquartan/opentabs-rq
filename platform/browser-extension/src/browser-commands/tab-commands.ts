@@ -1,7 +1,5 @@
-import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
+import { requireTabId, requireUrl, sendErrorResult, sendSuccessResult } from './helpers.js';
 import { sendToServer } from '../messaging.js';
-import { sanitizeErrorMessage } from '../sanitize-error.js';
-import { isBlockedUrlScheme, toErrorMessage } from '@opentabs-dev/shared';
 
 /** Lists all open Chrome tabs with their IDs, URLs, titles, active state, and window IDs. */
 export const handleBrowserListTabs = async (id: string | number): Promise<void> => {
@@ -14,13 +12,9 @@ export const handleBrowserListTabs = async (id: string | number): Promise<void> 
       active: tab.active,
       windowId: tab.windowId,
     }));
-    sendToServer({ jsonrpc: '2.0', result, id });
+    sendSuccessResult(id, result);
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -31,34 +25,12 @@ export const handleBrowserListTabs = async (id: string | number): Promise<void> 
  */
 export const handleBrowserOpenTab = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const url = params.url;
-    if (typeof url !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
-      return;
-    }
-    if (isBlockedUrlScheme(url)) {
-      sendToServer({
-        jsonrpc: '2.0',
-        error: {
-          code: -32602,
-          message: 'URL scheme not allowed (javascript:, data:, file:, chrome:, blob: are blocked)',
-        },
-        id,
-      });
-      return;
-    }
+    const url = requireUrl(params, id);
+    if (url === null) return;
     const tab = await chrome.tabs.create({ url });
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { id: tab.id, title: tab.title ?? '', url: tab.url ?? url, windowId: tab.windowId },
-      id,
-    });
+    sendSuccessResult(id, { id: tab.id, title: tab.title ?? '', url: tab.url ?? url, windowId: tab.windowId });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -85,39 +57,14 @@ export const handleBrowserCloseTab = async (params: Record<string, unknown>, id:
  */
 export const handleBrowserNavigateTab = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    const url = params.url;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
-    if (typeof url !== 'string') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid url parameter' }, id });
-      return;
-    }
-    if (isBlockedUrlScheme(url)) {
-      sendToServer({
-        jsonrpc: '2.0',
-        error: {
-          code: -32602,
-          message: 'URL scheme not allowed (javascript:, data:, file:, chrome:, blob: are blocked)',
-        },
-        id,
-      });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
+    const url = requireUrl(params, id);
+    if (url === null) return;
     const tab = await chrome.tabs.update(tabId, { url });
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { id: tab?.id ?? tabId, title: tab?.title ?? '', url: tab?.url ?? url },
-      id,
-    });
+    sendSuccessResult(id, { id: tab?.id ?? tabId, title: tab?.title ?? '', url: tab?.url ?? url });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -128,28 +75,17 @@ export const handleBrowserNavigateTab = async (params: Record<string, unknown>, 
  */
 export const handleBrowserFocusTab = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const tab = await chrome.tabs.update(tabId, { active: true });
     if (!tab) {
       sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: `Tab ${tabId} not found` }, id });
       return;
     }
     await chrome.windows.update(tab.windowId, { focused: true });
-    sendToServer({
-      jsonrpc: '2.0',
-      result: { id: tab.id, title: tab.title ?? '', url: tab.url ?? '', active: true },
-      id,
-    });
+    sendSuccessResult(id, { id: tab.id, title: tab.title ?? '', url: tab.url ?? '', active: true });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
 
@@ -160,31 +96,20 @@ export const handleBrowserFocusTab = async (params: Record<string, unknown>, id:
  */
 export const handleBrowserGetTabInfo = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
-    const tabId = params.tabId;
-    if (typeof tabId !== 'number') {
-      sendToServer({ jsonrpc: '2.0', error: { code: -32602, message: 'Missing or invalid tabId parameter' }, id });
-      return;
-    }
+    const tabId = requireTabId(params, id);
+    if (tabId === null) return;
     const tab = await chrome.tabs.get(tabId);
-    sendToServer({
-      jsonrpc: '2.0',
-      result: {
-        id: tab.id,
-        title: tab.title ?? '',
-        url: tab.url ?? '',
-        status: tab.status ?? '',
-        active: tab.active,
-        windowId: tab.windowId,
-        favIconUrl: tab.favIconUrl ?? '',
-        incognito: tab.incognito,
-      },
-      id,
+    sendSuccessResult(id, {
+      id: tab.id,
+      title: tab.title ?? '',
+      url: tab.url ?? '',
+      status: tab.status ?? '',
+      active: tab.active,
+      windowId: tab.windowId,
+      favIconUrl: tab.favIconUrl ?? '',
+      incognito: tab.incognito,
     });
   } catch (err) {
-    sendToServer({
-      jsonrpc: '2.0',
-      error: { code: -32603, message: sanitizeErrorMessage(toErrorMessage(err)) },
-      id,
-    });
+    sendErrorResult(id, err);
   }
 };
