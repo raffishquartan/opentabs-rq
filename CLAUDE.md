@@ -98,7 +98,7 @@ bun run dev:docs        # Docs dev server (next dev)
 
 # Quality checks
 bun run check           # Root checks: build + type-check + lint + format:check + knip + test
-bun run check:all       # Everything: root checks + E2E + docs + plugins
+bun run check:everything # Everything: root checks + E2E + docs + plugins
 bun run check:docs      # Docs checks: build + type-check + lint + knip + format:check
 bun run check:plugins   # Plugin checks: type-check + lint + format:check (all plugins)
 bun run type-check      # TypeScript check (tsc --noEmit)
@@ -261,7 +261,7 @@ bun run test:e2e      # E2E tests (Playwright)
 
 **Every command must exit 0.** A task is not done until all six pass. No exceptions.
 
-For full repository verification including docs and plugins, use `bun run check:all`.
+For full repository verification including docs and plugins, use `bun run check:everything`.
 
 - If a check fails, **fix it** — even if the failure looks pre-existing or unrelated to your change. You own the codebase.
 - Do not rationalize failures ("that's a known issue", "the build is the real type-check", "this was broken before I started"). If it fails, it is your problem. Fix it or explain to the user why you cannot.

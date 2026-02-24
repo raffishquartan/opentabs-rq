@@ -148,18 +148,18 @@ bun run dev
 
 ### Run the checks
 
-| Command              | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `bun run check`      | Run all checks (build, type-check, lint, knip, test) |
-| `bun run check:all`  | All checks + E2E tests + docs + plugins              |
-| `bun run build`      | Build all packages                                   |
-| `bun run type-check` | TypeScript type checking                             |
-| `bun run lint`       | ESLint                                               |
-| `bun run knip`       | Unused code detection                                |
-| `bun run test`       | Unit tests                                           |
-| `bun run test:e2e`   | E2E tests (Playwright)                               |
-| `bun run dev:mcp`    | MCP server only with hot reload                      |
-| `bun run clean`      | Remove all build artifacts                           |
+| Command                    | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
+| `bun run check`            | Run all checks (build, type-check, lint, knip, test) |
+| `bun run check:everything` | All checks + E2E tests + docs + plugins              |
+| `bun run build`            | Build all packages                                   |
+| `bun run type-check`       | TypeScript type checking                             |
+| `bun run lint`             | ESLint                                               |
+| `bun run knip`             | Unused code detection                                |
+| `bun run test`             | Unit tests                                           |
+| `bun run test:e2e`         | E2E tests (Playwright)                               |
+| `bun run dev:mcp`          | MCP server only with hot reload                      |
+| `bun run clean`            | Remove all build artifacts                           |
 
 All commands must exit 0 before committing.
 
