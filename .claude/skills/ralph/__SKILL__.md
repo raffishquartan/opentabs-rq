@@ -102,8 +102,9 @@ Multiple PRDs can be `~running` simultaneously (one per worker). This skill writ
 1. Receive a feature description or task from the user
 2. **Determine the target project** (see "Identifying the Target Project" above)
 3. Ask 3-5 essential clarifying questions (with lettered options) if the request is ambiguous
-4. Generate the PRD file with `~draft` suffix and NO timestamp (safe from premature pickup)
-5. Publish: use a shell command to rename with the current timestamp (ensures accurate ordering)
+4. **Validate scope** — for quality/refactoring tasks, read the code and discard any candidate stories that are subjective preferences rather than genuine issues
+5. Generate the PRD file with `~draft` suffix and NO timestamp (safe from premature pickup)
+6. Publish: use a shell command to rename with the current timestamp (ensures accurate ordering)
 
 **Important:** Do NOT start implementing. Do NOT launch ralph. Just create the PRD file. The ralph daemon (`ralph.sh`) must already be running and will pick up the file automatically.
 
@@ -148,7 +149,37 @@ This lets users respond with "1A, 2B" for quick iteration.
 
 ---
 
-## Step 3: Generate PRD File
+## Step 3: Validate Scope (Quality/Refactoring Tasks)
+
+**This step is mandatory when the task is about improving code quality, modularization, or enforcing best practices** (rather than building a new feature). Skip this step for feature work.
+
+Before writing any stories, **read the actual code** and verify that each planned story addresses a genuine, demonstrable problem — not a matter of stylistic preference or an alternative approach to something that already works correctly.
+
+For each candidate story, ask:
+
+- **Is this a real problem or a different opinion?** If the existing code follows a recognized, industry-standard pattern and is correct, do not create a story to rewrite it in a different-but-equivalent style. Two valid approaches to the same problem do not make one of them a bug.
+- **Can you articulate the concrete harm?** Every story must identify a specific, observable issue: a bug, a maintainability hazard, a performance problem, dead code, a violation of the project's own documented conventions, or duplicated logic. "I would have written it differently" is not a valid justification.
+
+**Do not create stories that:**
+
+- Rewrite working, idiomatic code into a stylistically different but equivalent form
+- Apply a "best practice" that the codebase intentionally and consistently does not follow (check if there's a documented reason)
+- Rename things that already have clear, descriptive names just because you'd prefer a different name
+- Restructure modules that are already well-organized just to match a different organizational preference
+
+**Do create stories that:**
+
+- Fix actual bugs or incorrect behavior
+- Remove genuinely dead or unreachable code
+- Eliminate real duplication (not just similar-looking code that handles different concerns)
+- Address violations of the project's own documented conventions (in CLAUDE.md, ESLint config, etc.)
+- Fix real maintainability hazards (e.g., a 500-line function, deeply nested logic, missing error handling)
+
+**Discard any candidate story that fails this validation.** A PRD with 3 genuine stories is better than one with 10 stories where 7 are subjective rewrites.
+
+---
+
+## Step 4: Generate PRD File
 
 ### File Naming
 
@@ -160,7 +191,7 @@ Use a short kebab-case objective slug with NO timestamp:
 
 Example: `.ralph/prd-improve-sdk-error-handling~draft.json`
 
-**Do NOT put a timestamp in the draft filename.** The timestamp is added by a shell command at publish time (Step 4). This prevents timestamp inaccuracies from AI model clock drift.
+**Do NOT put a timestamp in the draft filename.** The timestamp is added by a shell command at publish time (Step 5). This prevents timestamp inaccuracies from AI model clock drift.
 
 Keep the objective slug to 3-5 words max.
 
@@ -168,7 +199,7 @@ Keep the objective slug to 3-5 words max.
 
 1. **Write** the PRD to `.ralph/prd-objective-slug~draft.json` (no timestamp)
 2. **Verify** the JSON is valid: `python3 -c "import json; json.load(open('.ralph/prd-objective-slug~draft.json')); print('Valid')"`
-3. **Publish** via shell command (see Step 4)
+3. **Publish** via shell command (see Step 5)
 
 ### PRD Format
 
@@ -206,7 +237,7 @@ Keep the objective slug to 3-5 words max.
 
 ---
 
-## Step 4: Publish (Rename with Timestamp)
+## Step 5: Publish (Rename with Timestamp)
 
 After writing and validating the PRD, publish it using this exact shell command:
 
@@ -356,7 +387,7 @@ In this example, E2E runs twice: after US-003 (verifies the new adapter works en
 
 ---
 
-## Step 5: Confirm and Monitor
+## Step 6: Confirm and Monitor
 
 After publishing the PRD file, tell the user:
 
