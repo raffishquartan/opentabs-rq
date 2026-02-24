@@ -1,7 +1,6 @@
 export const KEEPALIVE_ALARM = 'opentabs-keepalive';
 export const KEEPALIVE_INTERVAL_MINUTES = 0.5; // Chrome 120+ supports 30-second alarm periods; older versions require 1 minute minimum
 export const PLUGINS_META_KEY = 'plugins_meta';
-export const SIDE_PANEL_WINDOWS_KEY = 'sidePanelOpenWindows';
 export const WS_CONNECTED_KEY = 'wsConnected';
 /**
  * Default timeout for chrome.scripting.executeScript calls (ms).

@@ -2,8 +2,6 @@
 // authoritative onOpened/onClosed events (Chrome 141+) and toggles
 // the side panel via the action click handler.
 
-import { persistOpenWindows } from './side-panel-state.js';
-
 const openWindows = new Set<number>();
 
 /** Initialize side panel toggle behavior and register Chrome event listeners */
@@ -13,12 +11,10 @@ export const initSidePanelToggle = (): void => {
 
   chrome.sidePanel.onOpened.addListener(({ windowId }) => {
     openWindows.add(windowId);
-    persistOpenWindows(openWindows);
   });
 
   chrome.sidePanel.onClosed.addListener(({ windowId }) => {
     openWindows.delete(windowId);
-    persistOpenWindows(openWindows);
   });
 
   chrome.action.onClicked.addListener(({ windowId }) => {
@@ -28,15 +24,4 @@ export const initSidePanelToggle = (): void => {
       chrome.sidePanel.open({ windowId }).catch(() => {});
     }
   });
-};
-
-/**
- * Populate the in-memory openWindows set with window IDs restored from
- * chrome.storage.local on startup. Called from background.ts after
- * restoreSidePanels() resolves.
- */
-export const trackRestoredWindows = (windowIds: Set<number>): void => {
-  for (const id of windowIds) {
-    openWindows.add(id);
-  }
 };

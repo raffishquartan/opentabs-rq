@@ -9,8 +9,7 @@ import {
 } from './constants.js';
 import { injectPluginsIntoTab, reinjectStoredPlugins } from './iife-injection.js';
 import { invalidatePluginCache } from './plugin-storage.js';
-import { restoreSidePanels } from './side-panel-state.js';
-import { initSidePanelToggle, trackRestoredWindows } from './side-panel-toggle.js';
+import { initSidePanelToggle } from './side-panel-toggle.js';
 import { checkTabChanged, checkTabRemoved } from './tab-state.js';
 import type { InternalMessage } from './extension-messages.js';
 
@@ -130,9 +129,6 @@ chrome.runtime.onStartup.addListener(() => {
 ensureOffscreenDocument().catch((err: unknown) => console.warn('[opentabs] offscreen creation failed:', err));
 setupKeepaliveAlarm().catch((err: unknown) => console.warn('[opentabs] keepalive alarm failed:', err));
 reinjectStoredPlugins().catch((err: unknown) => console.warn('[opentabs] plugin reinjection failed:', err));
-restoreSidePanels()
-  .then(restored => trackRestoredWindows(restored))
-  .catch((err: unknown) => console.warn('[opentabs] side panel restore failed:', err));
 initConfirmationBadge();
 
 // Relay MCP server URL changes to the offscreen document, and invalidate
