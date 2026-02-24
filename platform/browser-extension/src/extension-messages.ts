@@ -14,7 +14,7 @@ export interface OffscreenGetUrlMessage {
 }
 
 /** Reason the WebSocket disconnected — enables distinct error states in the side panel */
-export type DisconnectReason = 'connection_refused' | 'auth_failed';
+export type DisconnectReason = 'connection_refused' | 'auth_failed' | 'timeout';
 
 /** Background → Offscreen: WebSocket connection state changed */
 export interface WsStateMessage {

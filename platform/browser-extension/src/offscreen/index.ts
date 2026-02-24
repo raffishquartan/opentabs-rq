@@ -22,7 +22,7 @@ import {
 } from '../constants.js';
 import { ALL_ALLOWED_METHODS } from '../known-methods.js';
 import { installLogCollector } from '../log-collector.js';
-import type { DisconnectReason, InternalMessage, WsStateMessage, WsDataMessage } from '../extension-messages.js';
+import type { DisconnectReason, InternalMessage, WsDataMessage, WsStateMessage } from '../extension-messages.js';
 
 /** Capture console output in a ring buffer for retrieval by debugging tools */
 const offscreenLogCollector = installLogCollector('offscreen');
@@ -72,6 +72,71 @@ const isValidWsOrigin = (wsUrl: string, httpBase: string): boolean => {
   } catch {
     console.warn('[opentabs:offscreen] Rejected wsUrl: failed to parse URL');
     return false;
+  }
+};
+
+/** Convert a WebSocket URL to its HTTP base URL (e.g., ws://localhost:9515/ws → http://localhost:9515) */
+const wsToHttpBase = (wsUrl: string): string => wsUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
+
+/**
+ * Fetch /ws-info from the MCP server with automatic 401 retry.
+ *
+ * On 401, re-reads auth.json for the latest secret and retries once.
+ * Returns `{ response }` on success (caller inspects .ok / .status),
+ * `{ reason: 'auth_failed' }` on double-401, or
+ * `{ reason: 'connection_refused' }` on network error.
+ */
+const fetchWsInfo = async (httpBase: string): Promise<{ response: Response } | { reason: DisconnectReason }> => {
+  try {
+    const headers: Record<string, string> = {};
+    if (wsSecret) headers['Authorization'] = `Bearer ${wsSecret}`;
+    let res = await fetch(`${httpBase}/ws-info`, {
+      headers,
+      signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
+      cache: 'no-store',
+    });
+    // 401 means the secret is stale (e.g., server rotated secrets during hot
+    // reload). Re-read auth.json for the latest secret and retry once.
+    if (res.status === 401) {
+      await bootstrapFromAuthFile();
+      const retryHeaders: Record<string, string> = {};
+      if (wsSecret) retryHeaders['Authorization'] = `Bearer ${wsSecret}`;
+      res = await fetch(`${httpBase}/ws-info`, {
+        headers: retryHeaders,
+        signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
+        cache: 'no-store',
+      });
+    }
+    if (res.status === 401) return { reason: 'auth_failed' };
+    return { response: res };
+  } catch {
+    return { reason: 'connection_refused' };
+  }
+};
+
+/**
+ * Close any active WebSocket connection, cancel any pending reconnect timer,
+ * reset backoff, and initiate a fresh connection. Used by ws:setUrl,
+ * port-changed, and bg:forceReconnect handlers.
+ */
+const disconnectAndReconnect = (closeReason: string): void => {
+  backoffMs = INITIAL_BACKOFF_MS;
+  if (ws) {
+    try {
+      ws.close(1000, closeReason);
+    } catch {
+      // Already closed
+    }
+  } else if (reconnectTimeoutId !== null) {
+    // No active connection and backoff timer is pending — cancel it
+    // and connect immediately with the new URL.
+    clearTimeout(reconnectTimeoutId);
+    reconnectTimeoutId = null;
+    void connect();
+  } else {
+    // No active connection and no pending reconnect (backoff exhausted
+    // or no connection was ever established) — connect immediately.
+    void connect();
   }
 };
 
@@ -158,11 +223,11 @@ const sendPing = (): void => {
       }
       ws = null;
       clearPingInterval();
-      lastDisconnectReason = 'connection_refused';
+      lastDisconnectReason = 'timeout';
       sendToBackground({
         type: 'ws:state',
         connected: false,
-        disconnectReason: 'connection_refused',
+        disconnectReason: 'timeout',
       } satisfies WsStateMessage);
       scheduleReconnect();
     }
@@ -203,45 +268,20 @@ const scheduleReconnect = (): void => {
  * or could not be reached (connection_refused). Returns undefined on success.
  */
 const refreshWsUrl = async (): Promise<DisconnectReason | undefined> => {
-  try {
-    const httpBase = mcpServerUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
-    const headers: Record<string, string> = {};
-    if (wsSecret) {
-      headers['Authorization'] = `Bearer ${wsSecret}`;
-    }
-    let res = await fetch(`${httpBase}/ws-info`, {
-      headers,
-      signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
-      cache: 'no-store',
-    });
-    // 401 means the secret is stale (e.g., server rotated secrets during hot
-    // reload). Re-read auth.json for the latest secret and retry once.
-    if (res.status === 401) {
-      await bootstrapFromAuthFile();
-      const retryHeaders: Record<string, string> = {};
-      if (wsSecret) retryHeaders['Authorization'] = `Bearer ${wsSecret}`;
-      res = await fetch(`${httpBase}/ws-info`, {
-        headers: retryHeaders,
-        signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
-        cache: 'no-store',
-      });
-    }
-    if (res.status === 401) {
-      return 'auth_failed';
-    }
-    if (res.ok) {
-      const wsInfo = (await res.json()) as { wsUrl?: string };
-      if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '' && wsInfo.wsUrl !== mcpServerUrl) {
-        if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
-          mcpServerUrl = wsInfo.wsUrl;
-        }
+  const httpBase = wsToHttpBase(mcpServerUrl);
+  const result = await fetchWsInfo(httpBase);
+  if ('reason' in result) return result.reason;
+
+  const res = result.response;
+  if (res.ok) {
+    const wsInfo = (await res.json()) as { wsUrl?: string };
+    if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '' && wsInfo.wsUrl !== mcpServerUrl) {
+      if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
+        mcpServerUrl = wsInfo.wsUrl;
       }
     }
-    return undefined;
-  } catch {
-    // Server may be down — use existing URL as fallback
-    return 'connection_refused';
   }
+  return undefined;
 };
 
 // --- Connection ---
@@ -321,7 +361,7 @@ const connect = async (): Promise<void> => {
 
       sendToBackground({ type: 'ws:message', data: msg } satisfies WsDataMessage);
     } catch {
-      // Ignore malformed messages
+      console.warn('[opentabs:offscreen] Failed to parse WebSocket message as JSON');
     }
   };
 
@@ -411,44 +451,21 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
           return;
         }
 
-        const httpBase = rawUrl.replace(/^ws/, 'http').replace(/\/ws$/, '');
+        const httpBase = wsToHttpBase(rawUrl);
         let resolvedUrl = rawUrl;
-        try {
-          const setUrlHeaders: Record<string, string> = {};
-          if (wsSecret) {
-            setUrlHeaders['Authorization'] = `Bearer ${wsSecret}`;
-          }
-          let infoRes = await fetch(`${httpBase}/ws-info`, {
-            headers: setUrlHeaders,
-            signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
-            cache: 'no-store',
-          });
-          // 401 means the secret is stale — re-read auth.json and retry
-          if (infoRes.status === 401) {
-            await bootstrapFromAuthFile();
-            const retryHeaders: Record<string, string> = {};
-            if (wsSecret) retryHeaders['Authorization'] = `Bearer ${wsSecret}`;
-            infoRes = await fetch(`${httpBase}/ws-info`, {
-              headers: retryHeaders,
-              signal: AbortSignal.timeout(WS_INFO_TIMEOUT_MS),
-              cache: 'no-store',
-            });
-          }
-          if (infoRes.ok) {
-            const wsInfo = (await infoRes.json()) as { wsUrl?: string };
-            if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '') {
-              if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
-                resolvedUrl = wsInfo.wsUrl;
-              } else {
-                sendResponse({ ok: true });
-                return;
-              }
-            } else if (typeof wsInfo.wsUrl === 'string') {
-              console.warn('[opentabs:offscreen] /ws-info returned empty wsUrl, using fallback URL');
+        const result = await fetchWsInfo(httpBase);
+        if ('response' in result && result.response.ok) {
+          const wsInfo = (await result.response.json()) as { wsUrl?: string };
+          if (typeof wsInfo.wsUrl === 'string' && wsInfo.wsUrl !== '') {
+            if (isValidWsOrigin(wsInfo.wsUrl, httpBase)) {
+              resolvedUrl = wsInfo.wsUrl;
+            } else {
+              sendResponse({ ok: true });
+              return;
             }
+          } else if (typeof wsInfo.wsUrl === 'string') {
+            console.warn('[opentabs:offscreen] /ws-info returned empty wsUrl, using fallback URL');
           }
-        } catch {
-          // Server may not be running yet — use raw URL as fallback
         }
         if (!isValidWsOrigin(resolvedUrl, httpBase)) {
           sendResponse({ ok: true });
@@ -457,24 +474,7 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
         if (resolvedUrl !== mcpServerUrl) {
           console.log(`[opentabs:offscreen] MCP server URL changed to ${resolvedUrl}`);
           mcpServerUrl = resolvedUrl;
-          backoffMs = INITIAL_BACKOFF_MS;
-          if (ws) {
-            try {
-              ws.close(1000, 'URL changed');
-            } catch {
-              // Already closed
-            }
-          } else if (reconnectTimeoutId !== null) {
-            // No active connection and backoff timer is pending — cancel it
-            // and connect immediately with the new URL.
-            clearTimeout(reconnectTimeoutId);
-            reconnectTimeoutId = null;
-            void connect();
-          } else {
-            // No active connection and no pending reconnect (backoff exhausted
-            // or no connection was ever established) — connect immediately.
-            void connect();
-          }
+          disconnectAndReconnect('URL changed');
         }
         sendResponse({ ok: true });
       })();
@@ -491,19 +491,7 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
     }
 
     case 'bg:forceReconnect': {
-      if (ws) {
-        try {
-          ws.close(1000, 'Force reconnect');
-        } catch {
-          // Already closed
-        }
-      }
-      backoffMs = INITIAL_BACKOFF_MS;
-      if (reconnectTimeoutId !== null) {
-        clearTimeout(reconnectTimeoutId);
-        reconnectTimeoutId = null;
-      }
-      void connect();
+      disconnectAndReconnect('Force reconnect');
       sendResponse({ ok: true });
       break;
     }
@@ -513,20 +501,7 @@ chrome.runtime.onMessage.addListener((message: InternalMessage, sender, sendResp
       if (newUrl !== mcpServerUrl) {
         console.log(`[opentabs:offscreen] Port changed to ${message.port}, reconnecting`);
         mcpServerUrl = newUrl;
-        backoffMs = INITIAL_BACKOFF_MS;
-        if (ws) {
-          try {
-            ws.close(1000, 'Port changed');
-          } catch {
-            // Already closed
-          }
-        } else if (reconnectTimeoutId !== null) {
-          clearTimeout(reconnectTimeoutId);
-          reconnectTimeoutId = null;
-          void connect();
-        } else {
-          void connect();
-        }
+        disconnectAndReconnect('Port changed');
       }
       sendResponse({ ok: true });
       break;
