@@ -10,6 +10,7 @@ import {
   readAuthSecret,
   readConfig,
 } from '../config.js';
+import { notifyServer } from '../notify-server.js';
 import { resolvePort } from '../parse-port.js';
 import { atomicWrite, generateSecret, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
@@ -177,7 +178,7 @@ const handleListTools = async (): Promise<void> => {
   console.log(pc.dim('Usage: opentabs config set tool.<name> enabled|disabled'));
 };
 
-const handleSetTool = async (key: string, value: string): Promise<void> => {
+const handleSetTool = async (key: string, value: string, options: { port?: number }): Promise<void> => {
   const toolName = key.slice(TOOL_PREFIX.length);
   if (!toolName || !toolName.includes('_')) {
     console.error(pc.red(`Invalid tool name: ${toolName || '(empty)'}`));
@@ -205,9 +206,10 @@ const handleSetTool = async (key: string, value: string): Promise<void> => {
 
   const indicator = enabled ? pc.green('enabled') : pc.red('disabled');
   console.log(`${toolName}: ${indicator}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
-const handleSetBrowserTool = async (key: string, value: string): Promise<void> => {
+const handleSetBrowserTool = async (key: string, value: string, options: { port?: number }): Promise<void> => {
   const toolName = key.slice(BROWSER_TOOL_PREFIX.length);
   if (!toolName || (!toolName.startsWith('browser_') && !toolName.startsWith('extension_'))) {
     console.error(pc.red(`Invalid browser tool name: ${toolName || '(empty)'}`));
@@ -238,21 +240,23 @@ const handleSetBrowserTool = async (key: string, value: string): Promise<void> =
 
   const indicator = enabled ? pc.green('enabled') : pc.red('disabled');
   console.log(`${toolName}: ${indicator}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
-const handleSetPort = async (value: string): Promise<void> => {
-  const port = Number(value);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+const handleSetPort = async (value: string, options: { port?: number }): Promise<void> => {
+  const newPort = Number(value);
+  if (!Number.isInteger(newPort) || newPort < 1 || newPort > 65535) {
     console.error(pc.red(`Invalid port: ${value}`));
     console.error('Port must be an integer between 1 and 65535.');
     process.exit(1);
   }
 
   const { config, configPath } = await loadConfig();
-  config.port = port;
+  config.port = newPort;
 
   await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(`port: ${pc.cyan(String(port))}`);
+  console.log(`port: ${pc.cyan(String(newPort))}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
 /**
@@ -265,7 +269,7 @@ const resolveStoredPluginPath = (storedPath: string, configDir: string): string 
   return resolve(configDir, storedPath);
 };
 
-const handleSetLocalPluginsAdd = async (value: string): Promise<void> => {
+const handleSetLocalPluginsAdd = async (value: string, options: { port?: number }): Promise<void> => {
   const pluginPath = resolve(value);
   const { config, configPath } = await loadConfig();
 
@@ -284,9 +288,10 @@ const handleSetLocalPluginsAdd = async (value: string): Promise<void> => {
   plugins.push(pluginPath);
   await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
   console.log(`${pc.green('Added:')} ${pluginPath}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
-const handleSetLocalPluginsRemove = async (value: string): Promise<void> => {
+const handleSetLocalPluginsRemove = async (value: string, options: { port?: number }): Promise<void> => {
   const pluginPath = resolve(value);
   const { config, configPath } = await loadConfig();
 
@@ -308,9 +313,10 @@ const handleSetLocalPluginsRemove = async (value: string): Promise<void> => {
   plugins.splice(index, 1);
   await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
   console.log(`${pc.green('Removed:')} ${pluginPath}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
-const handleConfigSet = async (key: string, value?: string): Promise<void> => {
+const handleConfigSet = async (key: string, value: string | undefined, options: { port?: number }): Promise<void> => {
   if (key === TOOL_PREFIX) {
     return handleListTools();
   }
@@ -322,19 +328,19 @@ const handleConfigSet = async (key: string, value?: string): Promise<void> => {
   }
 
   if (key.startsWith(TOOL_PREFIX)) {
-    return handleSetTool(key, value);
+    return handleSetTool(key, value, options);
   }
   if (key.startsWith(BROWSER_TOOL_PREFIX)) {
-    return handleSetBrowserTool(key, value);
+    return handleSetBrowserTool(key, value, options);
   }
   if (key === PORT_KEY) {
-    return handleSetPort(value);
+    return handleSetPort(value, options);
   }
   if (key === LOCAL_PLUGINS_ADD) {
-    return handleSetLocalPluginsAdd(value);
+    return handleSetLocalPluginsAdd(value, options);
   }
   if (key === LOCAL_PLUGINS_REMOVE) {
-    return handleSetLocalPluginsRemove(value);
+    return handleSetLocalPluginsRemove(value, options);
   }
 
   console.error(pc.red(`Unknown config key: ${key}`));
@@ -446,7 +452,9 @@ Examples:
   $ opentabs config set localPlugins.add /path/to/plugin
   $ opentabs config set localPlugins.remove /path/to/plugin`,
     )
-    .action((key: string, value?: string) => handleConfigSet(key, value));
+    .action((key: string, value: string | undefined, _options: unknown, command: Command) =>
+      handleConfigSet(key, value, command.optsWithGlobals()),
+    );
 
   configCmd
     .command('path')

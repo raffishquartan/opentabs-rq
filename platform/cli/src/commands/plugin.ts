@@ -8,10 +8,10 @@ import {
   getConfigPath,
   getLocalPluginsFromConfig,
   isConnectionRefused,
-  readAuthSecret,
   readConfig,
   resolvePluginPath,
 } from '../config.js';
+import { notifyServer } from '../notify-server.js';
 import { parsePort, resolvePort } from '../parse-port.js';
 import { scaffoldPlugin, promptForMissingArgs, ScaffoldError } from '../scaffold.js';
 import {
@@ -47,44 +47,6 @@ interface NpmPackageInfo {
   'dist-tags'?: Record<string, string>;
   maintainers?: Array<{ name?: string; username?: string }>;
 }
-
-/**
- * Notify the running MCP server to rediscover plugins via POST /reload.
- * Non-fatal — prints a hint on failure but never throws.
- */
-const notifyServer = async (options: { port?: number }): Promise<void> => {
-  const port = resolvePort(options);
-  const secret = await readAuthSecret();
-
-  try {
-    const healthRes = await fetch(`http://localhost:${port}/health`, {
-      signal: AbortSignal.timeout(3_000),
-    });
-    if (!healthRes.ok) return;
-  } catch {
-    // Server not running — nothing to notify
-    return;
-  }
-
-  try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (secret) headers['Authorization'] = `Bearer ${secret}`;
-
-    const res = await fetch(`http://localhost:${port}/reload`, {
-      method: 'POST',
-      headers,
-      signal: AbortSignal.timeout(5_000),
-    });
-
-    if (res.ok) {
-      console.log(pc.dim('Server notified — plugins rediscovered.'));
-    } else {
-      console.log(pc.dim(`Could not notify server (HTTP ${res.status}). Restart the server to pick up changes.`));
-    }
-  } catch {
-    console.log(pc.dim('Could not notify server. Restart the server to pick up changes.'));
-  }
-};
 
 // --- npm auth ---
 
