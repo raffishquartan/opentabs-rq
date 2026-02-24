@@ -1,8 +1,8 @@
 import { Button } from './retro/Button.js';
+import { Menu } from './retro/Menu.js';
 import { Text } from './retro/Text.js';
 import { COUNTDOWN_POLL_INTERVAL_MS } from '../constants.js';
 import { cn } from '../lib/cn.js';
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ShieldAlert, ChevronDown } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { SpConfirmationRequestMessage } from '../../extension-messages.js';
@@ -56,39 +56,19 @@ const CountdownBar = ({ timeoutMs, receivedAt }: { timeoutMs: number; receivedAt
 
 /** Renders the "Allow Always" button with a scope dropdown */
 const AllowAlwaysButton = ({ domain, onSelect }: { domain: string | null; onSelect: (scope: Scope) => void }) => (
-  <DropdownMenu.Root>
-    <DropdownMenu.Trigger asChild>
+  <Menu>
+    <Menu.Trigger asChild>
       <Button size="sm" variant="outline" className="gap-1 text-xs">
         Allow Always
         <ChevronDown className="h-3 w-3" />
       </Button>
-    </DropdownMenu.Trigger>
-    <DropdownMenu.Portal>
-      <DropdownMenu.Content
-        side="top"
-        align="end"
-        sideOffset={4}
-        className="border-border bg-card z-50 w-56 rounded border-2 shadow-md">
-        <DropdownMenu.Item
-          className="hover:bg-accent data-[highlighted]:bg-accent cursor-pointer px-3 py-2 font-sans text-xs outline-none"
-          onSelect={() => onSelect('tool_domain')}>
-          For this tool on this domain
-        </DropdownMenu.Item>
-        <DropdownMenu.Item
-          className="hover:bg-accent data-[highlighted]:bg-accent cursor-pointer px-3 py-2 font-sans text-xs outline-none"
-          onSelect={() => onSelect('tool_all')}>
-          For this tool everywhere
-        </DropdownMenu.Item>
-        {domain && (
-          <DropdownMenu.Item
-            className="hover:bg-accent data-[highlighted]:bg-accent cursor-pointer px-3 py-2 font-sans text-xs outline-none"
-            onSelect={() => onSelect('domain_all')}>
-            For all tools on {domain}
-          </DropdownMenu.Item>
-        )}
-      </DropdownMenu.Content>
-    </DropdownMenu.Portal>
-  </DropdownMenu.Root>
+    </Menu.Trigger>
+    <Menu.Content side="top" align="end">
+      <Menu.Item onSelect={() => onSelect('tool_domain')}>For this tool on this domain</Menu.Item>
+      <Menu.Item onSelect={() => onSelect('tool_all')}>For this tool everywhere</Menu.Item>
+      {domain && <Menu.Item onSelect={() => onSelect('domain_all')}>For all tools on {domain}</Menu.Item>}
+    </Menu.Content>
+  </Menu>
 );
 
 const ConfirmationDialog = ({ confirmations, onRespond, onDenyAll }: ConfirmationDialogProps) => {
