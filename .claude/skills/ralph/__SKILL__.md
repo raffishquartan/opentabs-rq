@@ -158,7 +158,7 @@ Before writing any stories, **read the actual code** and verify that each planne
 For each candidate story, ask:
 
 - **Is this a real problem or a different opinion?** If the existing code follows a recognized, industry-standard pattern and is correct, do not create a story to rewrite it in a different-but-equivalent style. Two valid approaches to the same problem do not make one of them a bug.
-- **Can you articulate the concrete harm?** Every story must identify a specific, observable issue: a bug, a maintainability hazard, a performance problem, dead code, a violation of the project's own documented conventions, or duplicated logic. "I would have written it differently" is not a valid justification.
+- **Can you articulate the concrete harm?** Every story must identify a specific, observable issue: a bug, a maintainability hazard, a performance problem, dead code, a resource leak, a missing defensive guard, an architectural inconsistency with concrete consequences, a violation of the project's own documented conventions, or duplicated logic. "I would have written it differently" is not a valid justification. A valid justification names a concrete consequence — something that can happen at runtime or during maintenance: a resource that grows unboundedly, an unhandled error path that crashes, a missing cleanup that fires on stale state, a guard present in some code paths but absent in equivalent ones, data silently dropped or duplicated, a code path that is unreachable, etc.
 
 **Do not create stories that:**
 
@@ -174,8 +174,11 @@ For each candidate story, ask:
 - Eliminate real duplication (not just similar-looking code that handles different concerns)
 - Address violations of the project's own documented conventions (in CLAUDE.md, ESLint config, etc.)
 - Fix real maintainability hazards (e.g., a 500-line function, deeply nested logic, missing error handling)
+- Fix resource leaks or missing cleanup (uncleaned timers, event listeners, unbounded maps/caches)
+- Add missing defensive guards (e.g., API version checks, null checks that prevent crashes on edge cases)
+- Fix architectural inconsistencies with concrete consequences (e.g., shared state protected by locks in some code paths but not others, leading to potential race conditions or redundant work)
 
-**Discard any candidate story that fails this validation.** A PRD with 3 genuine stories is better than one with 10 stories where 7 are subjective rewrites.
+**Discard any candidate story that fails this validation.** Only exclude stories that are purely stylistic preferences — a different-but-equivalent way to write working code. If a story has a concrete consequence (leaked resource, potential crash, inconsistent behavior, data loss), it is a legitimate fix regardless of severity.
 
 ---
 
