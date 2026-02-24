@@ -498,7 +498,25 @@ const createServerWrapper = (): {
   const entryFile = path.join(wrapperDir, 'server.js');
 
   const realEntry = path.join(SERVER_DIST_DIR, 'index.js');
-  fs.writeFileSync(entryFile, `import ${JSON.stringify(realEntry)};\n`, 'utf-8');
+
+  // Inline orphan guard: polls whether the parent process is still alive
+  // and exits when it's gone. Uses kill(ppid, 0) because Bun caches
+  // process.ppid and doesn't reflect reparenting to PID 1.
+  // This is injected as raw JS because the wrapper is a generated .js file
+  // in /tmp — it cannot import the .ts orphan-guard module directly.
+  const orphanGuard = [
+    `const __ogPpid = process.ppid;`,
+    `const __ogTimer = setInterval(() => {`,
+    `  try { process.kill(__ogPpid, 0); } catch {`,
+    `    console.error("[orphan-guard] Parent (PID " + __ogPpid + ") is gone, exiting.");`,
+    `    clearInterval(__ogTimer);`,
+    `    process.exit(1);`,
+    `  }`,
+    `}, 5000);`,
+    `__ogTimer.unref();`,
+  ].join('\n');
+
+  fs.writeFileSync(entryFile, `${orphanGuard}\nimport ${JSON.stringify(realEntry)};\n`, 'utf-8');
 
   const rewriteWrapper = () => {
     fs.appendFileSync(entryFile, `\n// hot-reload-trigger-${Date.now()}\n`);

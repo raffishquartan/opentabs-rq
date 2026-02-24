@@ -35,6 +35,7 @@
  * Default port: 9517 (override with PORT env var, use PORT=0 for dynamic)
  */
 
+import './orphan-guard.js';
 import {
   jsonResponse,
   readBody,
