@@ -8,7 +8,7 @@
 
 import { pluginNameFromPackage } from './loader.js';
 import { log } from './logger.js';
-import { atomicWrite, platformExec } from '@opentabs-dev/shared';
+import { atomicWrite, getConfigDir, getConfigPath, platformExec } from '@opentabs-dev/shared';
 import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -346,14 +346,6 @@ const updatePlugin = async (
 // ---------------------------------------------------------------------------
 // Plugin removal
 // ---------------------------------------------------------------------------
-
-/**
- * Read the config directory, checking the environment variable on each call.
- * Duplicated from config.ts to avoid circular dependencies — plugin-management
- * only needs config reading for removeLocalPlugin, not the full config module.
- */
-const getConfigDir = (): string => Bun.env.OPENTABS_CONFIG_DIR || join(homedir(), '.opentabs');
-const getConfigPath = (): string => join(getConfigDir(), 'config.json');
 
 /**
  * Remove a local plugin from config.json's localPlugins array.
