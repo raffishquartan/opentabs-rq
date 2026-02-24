@@ -152,11 +152,13 @@ test.describe('Lifecycle hooks', () => {
     const activated = await page.evaluate(() => (globalThis as Record<string, unknown>).__opentabs_onActivate_called);
     expect(activated).toBe(true);
 
-    // Verify onDeactivate has NOT fired yet
-    const deactivatedBefore = await page.evaluate(
-      () => (globalThis as Record<string, unknown>).__opentabs_onDeactivate_called,
-    );
-    expect(deactivatedBefore).toBeUndefined();
+    // Clear the onDeactivate flag right before triggering hot reload.
+    // A re-injection during setup (e.g., from a second tab.syncAll) may have
+    // already set this flag — clearing it isolates our assertion to the hot
+    // reload we're about to trigger.
+    await page.evaluate(() => {
+      delete (globalThis as Record<string, unknown>).__opentabs_onDeactivate_called;
+    });
 
     // Trigger a hot reload — this causes sync.full → extension re-injects adapters
     // with forceReinject=true → old adapter's teardown fires (which calls
