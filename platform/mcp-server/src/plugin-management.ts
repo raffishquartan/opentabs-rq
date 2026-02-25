@@ -124,7 +124,7 @@ interface NpmSearchJsonEntry {
  */
 const searchNpmPlugins = (query?: string): PluginSearchResult[] => {
   const searchTerm = query ? `keywords:opentabs-plugin ${query}` : 'keywords:opentabs-plugin';
-  const result = spawnProcessSync('npm', ['search', searchTerm, '--json']);
+  const result = spawnProcessSync(platformExec('npm'), ['search', searchTerm, '--json']);
 
   if (result.exitCode !== 0) {
     const stderr = result.stderr.trim();
