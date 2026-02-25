@@ -1,37 +1,34 @@
-import { buildRegistry } from './registry.js';
-import { createState } from './state.js';
-import { fetchLatestVersion, isNewer, checkForUpdates } from './version-check.js';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { mock, beforeEach, describe, expect, test } from 'bun:test';
 import type { RegisteredPlugin } from './state.js';
+import type { SpawnResult } from '@opentabs-dev/shared';
 
-// ---- Bun.spawnSync mock helpers ----
+// ---- spawnProcessSync mock via mock.module ----
 
-/** Save and restore Bun.spawnSync around each test that replaces it */
-let originalSpawnSync: typeof Bun.spawnSync;
+// Capture the real module exports before mocking so they can be passed through
+const realShared = await import('@opentabs-dev/shared');
+const mockSpawnProcessSync = mock<(cmd: string, args: string[], opts?: object) => SpawnResult>();
+
+await mock.module('@opentabs-dev/shared', () => ({
+  ...realShared,
+  spawnProcessSync: mockSpawnProcessSync,
+}));
+
+// Import after mocking so modules pick up the mocked spawnProcessSync
+const { fetchLatestVersion, isNewer, checkForUpdates } = await import('./version-check.js');
+const { buildRegistry } = await import('./registry.js');
+const { createState } = await import('./state.js');
 
 beforeEach(() => {
-  originalSpawnSync = Bun.spawnSync;
+  mockSpawnProcessSync.mockReset();
 });
 
-afterEach(() => {
-  Bun.spawnSync = originalSpawnSync;
-});
-
-/**
- * Mock Bun.spawnSync to simulate `npm view <pkg> version` responses.
- * Returns the given version string on stdout with exit code 0,
- * or a non-zero exit code when version is undefined.
- */
+/** Simulate `npm view <pkg> version` returning a given version or failing. */
 const mockNpmView = (version: string | undefined): void => {
-  Bun.spawnSync = ((_cmd: string[], _opts?: object) => ({
+  mockSpawnProcessSync.mockReturnValue({
     exitCode: version !== undefined ? 0 : 1,
-    stdout: { toString: () => (version !== undefined ? `${version}\n` : '') },
-    stderr: { toString: () => (version !== undefined ? '' : 'npm ERR! code E404') },
-    success: version !== undefined,
-    signalCode: null,
-    pid: 0,
-    resourceUsage: () => undefined,
-  })) as unknown as typeof Bun.spawnSync;
+    stdout: version !== undefined ? `${version}\n` : '',
+    stderr: version !== undefined ? '' : 'npm ERR! code E404',
+  });
 };
 
 /** Create a minimal RegisteredPlugin for testing */
@@ -149,41 +146,17 @@ describe('isNewer', () => {
 
 describe('fetchLatestVersion', () => {
   test('passes package name to npm view', () => {
-    const seen: string[][] = [];
-    Bun.spawnSync = ((cmd: string[], _opts?: object) => {
-      seen.push(cmd);
-      return {
-        exitCode: 0,
-        stdout: { toString: () => '2.0.0\n' },
-        stderr: { toString: () => '' },
-        success: true,
-        signalCode: null,
-        pid: 0,
-        resourceUsage: () => undefined,
-      };
-    }) as unknown as typeof Bun.spawnSync;
+    mockSpawnProcessSync.mockReturnValue({ exitCode: 0, stdout: '2.0.0\n', stderr: '' });
 
     fetchLatestVersion('my-package');
-    expect(seen[0]).toEqual(['npm', 'view', 'my-package', 'version']);
+    expect(mockSpawnProcessSync).toHaveBeenCalledWith('npm', ['view', 'my-package', 'version']);
   });
 
   test('scoped package name is passed directly', () => {
-    const seen: string[][] = [];
-    Bun.spawnSync = ((cmd: string[], _opts?: object) => {
-      seen.push(cmd);
-      return {
-        exitCode: 0,
-        stdout: { toString: () => '1.2.3\n' },
-        stderr: { toString: () => '' },
-        success: true,
-        signalCode: null,
-        pid: 0,
-        resourceUsage: () => undefined,
-      };
-    }) as unknown as typeof Bun.spawnSync;
+    mockSpawnProcessSync.mockReturnValue({ exitCode: 0, stdout: '1.2.3\n', stderr: '' });
 
     fetchLatestVersion('@opentabs-dev/plugin-sdk');
-    expect(seen[0]).toEqual(['npm', 'view', '@opentabs-dev/plugin-sdk', 'version']);
+    expect(mockSpawnProcessSync).toHaveBeenCalledWith('npm', ['view', '@opentabs-dev/plugin-sdk', 'version']);
   });
 
   test('successful npm view returns version string', () => {
@@ -199,24 +172,16 @@ describe('fetchLatestVersion', () => {
   });
 
   test('empty stdout returns null', () => {
-    Bun.spawnSync = ((_cmd: string[], _opts?: object) => ({
-      exitCode: 0,
-      stdout: { toString: () => '' },
-      stderr: { toString: () => '' },
-      success: true,
-      signalCode: null,
-      pid: 0,
-      resourceUsage: () => undefined,
-    })) as unknown as typeof Bun.spawnSync;
+    mockSpawnProcessSync.mockReturnValue({ exitCode: 0, stdout: '', stderr: '' });
 
     const result = fetchLatestVersion('some-package');
     expect(result).toBeNull();
   });
 
-  test('spawnSync throwing returns null', () => {
-    Bun.spawnSync = (() => {
+  test('spawnProcessSync throwing returns null', () => {
+    mockSpawnProcessSync.mockImplementation(() => {
       throw new Error('spawn failed');
-    }) as unknown as typeof Bun.spawnSync;
+    });
 
     const result = fetchLatestVersion('some-package');
     expect(result).toBeNull();
@@ -225,26 +190,14 @@ describe('fetchLatestVersion', () => {
 
 describe('checkForUpdates', () => {
   test('local plugins (no npmPackageName) are skipped', () => {
-    const spawnCalls: string[][] = [];
-    Bun.spawnSync = ((cmd: string[], _opts?: object) => {
-      spawnCalls.push(cmd);
-      return {
-        exitCode: 0,
-        stdout: { toString: () => '2.0.0\n' },
-        stderr: { toString: () => '' },
-        success: true,
-        signalCode: null,
-        pid: 0,
-        resourceUsage: () => undefined,
-      };
-    }) as unknown as typeof Bun.spawnSync;
+    mockSpawnProcessSync.mockReturnValue({ exitCode: 0, stdout: '2.0.0\n', stderr: '' });
 
     const state = createState();
     state.registry = buildRegistry([makePlugin('local-plugin', { trustTier: 'local', npmPackageName: undefined })], []);
 
     checkForUpdates(state);
 
-    expect(spawnCalls).toHaveLength(0);
+    expect(mockSpawnProcessSync).not.toHaveBeenCalled();
     expect(state.outdatedPlugins).toHaveLength(0);
   });
 
@@ -301,29 +254,13 @@ describe('checkForUpdates', () => {
 
   test('mixed results: outdated + failed npm view', () => {
     let callCount = 0;
-    Bun.spawnSync = ((_cmd: string[], _opts?: object) => {
+    mockSpawnProcessSync.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        return {
-          exitCode: 0,
-          stdout: { toString: () => '2.0.0\n' },
-          stderr: { toString: () => '' },
-          success: true,
-          signalCode: null,
-          pid: 0,
-          resourceUsage: () => undefined,
-        };
+        return { exitCode: 0, stdout: '2.0.0\n', stderr: '' };
       }
-      return {
-        exitCode: 1,
-        stdout: { toString: () => '' },
-        stderr: { toString: () => 'npm ERR! code E404' },
-        success: false,
-        signalCode: null,
-        pid: 0,
-        resourceUsage: () => undefined,
-      };
-    }) as unknown as typeof Bun.spawnSync;
+      return { exitCode: 1, stdout: '', stderr: 'npm ERR! code E404' };
+    });
 
     const state = createState();
     state.registry = buildRegistry(
