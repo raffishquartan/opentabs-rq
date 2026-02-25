@@ -155,7 +155,11 @@ interface HealthResponse {
 
 const fetchToolNames = async (port: number): Promise<string[] | null> => {
   try {
+    const secret = await readAuthSecret();
+    const headers: Record<string, string> = {};
+    if (secret) headers['Authorization'] = `Bearer ${secret}`;
     const res = await fetch(`http://localhost:${port}/health`, {
+      headers,
       signal: AbortSignal.timeout(3_000),
     });
     if (!res.ok) return null;
