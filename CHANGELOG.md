@@ -1,3 +1,33 @@
+## v0.0.33
+
+### Features
+
+- add engines field to published package.json files
+
+### Bug Fixes
+
+- tree-shake node:\* imports in plugin adapter IIFE bundle
+- US-002 - Mock spawnProcessSync instead of Bun.spawnSync in version-check tests
+- US-007 - Fix --radius documentation and node:\* imports in extension bundle
+- US-011 - Handle single-quoted SVG attributes in icon color validation and conversion
+- US-010 - Use sendExtensionReload instead of duplicated protocol code in handleExtensionReload
+- US-009 - Apply --limit after --since filtering in audit server mode
+- US-006 - Return ok:false for rejected URLs in ws:setUrl handler
+- US-008 - Add auth header to fetchToolNames /health request
+- US-007 - Add auth header to handlePluginList /health request
+- US-005 - Clean up stale requestIdToRequest entries when ring buffer evicts oldest request
+- US-006 - Use platformExec('npm') in searchNpmPlugins for Windows compatibility
+- US-004 - Eliminate duplicate port constants between background and side panel
+- US-005 - Clear timeout timer in runNpmGlobal after Promise.race resolves
+- replace unguarded Bun.spawnSync with spawnProcessSync in doctor.ts
+- US-003 - Add missing sp:confirmationTimeout to offscreen no-op case list
+- US-004 - Replace Bun.spawnSync with spawnProcessSync in CLI doctor command
+- US-003 - Use bytesRead to trim null-byte padding in readFileSlice on Node.js
+- US-002 - Sanitize error messages in extractScriptResult at trust boundary
+- US-002 - Handle command-not-found in spawnProcessSync on Node.js
+- US-001 - Sanitize adapter error messages at dispatch-helpers trust boundary
+- US-001 - Make deleteFile idempotent on Bun by catching ENOENT
+
 ## v0.0.32
 
 ### Features
