@@ -141,6 +141,69 @@ fi
 
 echo $$ > "$PIDFILE"
 
+# --- Startup Orphan Cleanup ---
+# If the previous ralph daemon was killed with SIGKILL (kill -9), the trap
+# handler never runs and orphaned processes survive: Playwright workers,
+# Chromium instances, bun test servers, claude sessions. These consume
+# memory and CPU, and may hold file locks that prevent worktree removal.
+#
+# We clean them up here on startup by scanning for processes whose command
+# line references worktree paths. This is the ONLY reliable cleanup for
+# kill -9 — at-exit traps cannot handle it.
+
+cleanup_orphans_from_previous_run() {
+  local orphan_count=0
+
+  # Find all processes referencing ralph worktree paths
+  local wt_pids
+  wt_pids=$(pgrep -f "$WORKTREE_BASE" 2>/dev/null) || true
+
+  if [ -n "$wt_pids" ]; then
+    for p in $wt_pids; do
+      [ "$p" = "$$" ] && continue
+      kill_tree "$p" TERM 2>/dev/null || true
+      orphan_count=$((orphan_count + 1))
+    done
+
+    if [ "$orphan_count" -gt 0 ]; then
+      sleep 2
+      # Force-kill survivors
+      wt_pids=$(pgrep -f "$WORKTREE_BASE" 2>/dev/null) || true
+      for p in $wt_pids; do
+        [ "$p" = "$$" ] && continue
+        kill_tree "$p" KILL 2>/dev/null || true
+      done
+    fi
+  fi
+
+  # Kill orphaned Chromium and test server processes spawned by E2E tests.
+  # These reference temp dirs (/var/folders/.../opentabs-e2e-*), not the
+  # worktree path, so pgrep -f WORKTREE_BASE misses them. But they were
+  # spawned by Playwright processes that DID reference the worktree, and
+  # after kill -9 they get reparented to PID 1.
+  local e2e_pids
+  e2e_pids=$(pgrep -f "opentabs-e2e-" 2>/dev/null) || true
+  if [ -n "$e2e_pids" ]; then
+    for p in $e2e_pids; do
+      [ "$p" = "$$" ] && continue
+      kill -TERM "$p" 2>/dev/null || true
+      orphan_count=$((orphan_count + 1))
+    done
+    sleep 1
+    e2e_pids=$(pgrep -f "opentabs-e2e-" 2>/dev/null) || true
+    for p in $e2e_pids; do
+      [ "$p" = "$$" ] && continue
+      kill -KILL "$p" 2>/dev/null || true
+    done
+  fi
+
+  if [ "$orphan_count" -gt 0 ]; then
+    echo -e "$(ts) ${YELLOW}Cleaned up $orphan_count orphaned process(es) from previous run.${RESET}"
+  fi
+}
+
+cleanup_orphans_from_previous_run
+
 # Colors
 RED='\033[31m'
 GREEN='\033[32m'
@@ -261,6 +324,19 @@ cleanup() {
     [ -n "${WORKER_RESULT_FILES[$s]}" ] && rm -f "${WORKER_RESULT_FILES[$s]}.exit"
   done
 
+  # Final sweep: kill any orphaned Chromium/test-server processes that
+  # escaped the per-worker cleanup. These reference temp dirs
+  # (/var/folders/.../opentabs-e2e-*) rather than worktree paths, so
+  # kill_worktree_processes misses them when Playwright parents are already dead.
+  local e2e_orphans
+  e2e_orphans=$(pgrep -f "opentabs-e2e-" 2>/dev/null) || true
+  if [ -n "$e2e_orphans" ]; then
+    for p in $e2e_orphans; do
+      [ "$p" = "$$" ] && continue
+      kill -KILL "$p" 2>/dev/null || true
+    done
+  fi
+
   # Prune stale worktree references
   git worktree prune 2>/dev/null || true
 
@@ -318,6 +394,20 @@ kill_tree() {
 # subshell PID. This function finds them by matching the worktree path in
 # their command line arguments — a reliable identifier since each worktree
 # has a unique directory path.
+# Kill ALL processes associated with a worktree — both direct references
+# and their orphaned children (Chromium, test servers) that may reference
+# temp dirs instead of the worktree path.
+#
+# Two search strategies:
+#   1. pgrep -f "$wt" — catches Playwright, bun, claude, node processes
+#      whose command line includes the worktree directory path.
+#   2. For each matched process, kill_tree walks its entire child tree.
+#      This catches Chromium instances that use temp dirs
+#      (/var/folders/.../opentabs-e2e-*) in their command line.
+#
+# After kill -9 on ralph, strategy 2 fails because parents are already
+# dead (children reparented to PID 1). The startup orphan cleanup
+# handles that case separately via pgrep -f "opentabs-e2e-".
 kill_worktree_processes() {
   local wt="$1"
   [ -z "$wt" ] && return
@@ -326,18 +416,19 @@ kill_worktree_processes() {
   pids=$(pgrep -f "$wt" 2>/dev/null) || true
   [ -z "$pids" ] && return
 
+  # Phase 1: SIGTERM the full process tree of each worktree-referencing process.
   for p in $pids; do
-    # Skip our own process and the ralph daemon itself
     [ "$p" = "$$" ] && continue
-    kill -TERM "$p" 2>/dev/null || true
+    kill_tree "$p" TERM
   done
 
-  # Give processes a moment to exit, then force-kill any survivors
   sleep 1
+
+  # Phase 2: SIGKILL survivors.
   pids=$(pgrep -f "$wt" 2>/dev/null) || true
   for p in $pids; do
     [ "$p" = "$$" ] && continue
-    kill -KILL "$p" 2>/dev/null || true
+    kill_tree "$p" KILL
   done
 }
 
@@ -1094,11 +1185,15 @@ reap_workers() {
     # Phase 1: PGID kill — catches everything sharing the worker's process group.
     # Phase 2: Recursive tree kill — walks the parent-child tree for processes
     #   that escaped the PGID via setsid() (e.g., Chromium).
-    # Phase 3: Worktree path kill — catches processes that were re-parented to
-    #   PID 1 after the subshell exited. At that point pgrep -P can no longer
-    #   find them via parent-child walk, but their command line arguments still
-    #   contain the worktree directory path (e.g., Playwright workers, bun test
-    #   servers). This is the final safety net for ghost processes.
+    # Phase 3: Worktree path kill — catches processes referencing the worktree
+    #   directory in their command line (Playwright workers, bun test servers).
+    #   Uses kill_tree on each match to also get their children (Chromium).
+    #
+    # NOTE: We intentionally do NOT do a global "opentabs-e2e-" sweep here
+    # because other active workers may have their own E2E processes running.
+    # The global sweep only happens in two safe contexts:
+    #   1. cleanup() — all workers are being killed (shutdown)
+    #   2. cleanup_orphans_from_previous_run() — no workers running yet (startup)
     kill -- -"$pid" 2>/dev/null || true
     kill_tree "$pid"
     kill_worktree_processes "$worktree_dir"
