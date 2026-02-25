@@ -18,6 +18,7 @@ import {
   isBun,
   readFile,
   readJsonFile,
+  spawnProcessSync,
 } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { existsSync } from 'node:fs';
@@ -352,7 +353,7 @@ const checkBrowser = (): CheckResult => {
   if (platform === 'linux') {
     for (const cmd of LINUX_BROWSER_COMMANDS) {
       try {
-        const result = Bun.spawnSync(['which', cmd], { stdout: 'pipe', stderr: 'pipe' });
+        const result = spawnProcessSync('which', [cmd]);
         if (result.exitCode === 0) {
           return pass('Browser', cmd);
         }
