@@ -171,8 +171,8 @@ const fetchToolNames = async (port: number): Promise<string[] | null> => {
   }
 };
 
-const handleListTools = async (): Promise<void> => {
-  const port = resolvePort({});
+const handleListTools = async (options: { port?: number }): Promise<void> => {
+  const port = resolvePort(options);
   const tools = await fetchToolNames(port);
 
   if (!tools) {
@@ -238,11 +238,14 @@ const handleSetTool = async (key: string, value: string, options: { port?: numbe
 };
 
 const handleSetBrowserTool = async (key: string, value: string, options: { port?: number }): Promise<void> => {
-  const toolName = key.slice(BROWSER_TOOL_PREFIX.length);
-  if (!toolName || (!toolName.startsWith('browser_') && !toolName.startsWith('extension_'))) {
-    console.error(pc.red(`Invalid browser tool name: ${toolName || '(empty)'}`));
+  let toolName = key.slice(BROWSER_TOOL_PREFIX.length);
+  if (!toolName) {
+    console.error(pc.red('Invalid browser tool name: (empty)'));
     console.error('Browser tool names start with "browser_" or "extension_", e.g. browser_execute_script');
     process.exit(1);
+  }
+  if (!toolName.startsWith('browser_') && !toolName.startsWith('extension_')) {
+    toolName = `browser_${toolName}`;
   }
 
   if (value !== 'enabled' && value !== 'disabled') {
@@ -394,7 +397,7 @@ const suggestKey = (input: string): string | null => {
 
 const handleConfigSet = async (key: string, value: string | undefined, options: { port?: number }): Promise<void> => {
   if (key === TOOL_PREFIX) {
-    return handleListTools();
+    return handleListTools(options);
   }
 
   if (!value) {
@@ -546,7 +549,7 @@ Examples:
   $ opentabs config set tool.                              List available tools
   $ opentabs config set tool.slack_send_message disabled
   $ opentabs config set tool.slack_send_message enabled
-  $ opentabs config set browser-tool.browser_execute_script disabled
+  $ opentabs config set browser-tool.execute_script disabled
   $ opentabs config set browser-tool.browser_execute_script enabled
   $ opentabs config set port 9515
   $ opentabs config set localPlugins.add /path/to/plugin

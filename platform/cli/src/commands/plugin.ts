@@ -192,6 +192,12 @@ const handlePluginRemove = async (name: string, options: PluginRemoveOptions): P
     process.exit(1);
   }
 
+  const checkResult = spawnProcessSync(platformExec('npm'), ['list', '-g', pkg, '--depth=0']);
+  if (checkResult.exitCode !== 0) {
+    console.error(pc.red(`Plugin ${pkg} is not installed globally.`));
+    process.exit(1);
+  }
+
   console.log(`Removing ${pc.bold(pkg)}...`);
 
   const exitCode = await spawnInherit(platformExec('npm'), ['uninstall', '-g', pkg]);

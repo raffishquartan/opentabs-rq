@@ -27,7 +27,7 @@ interface FailedPluginEntry {
   error: string;
 }
 
-const pad = (label: string) => `  ${pc.cyan(label.padEnd(14))}`;
+const pad = (label: string) => `  ${pc.cyan(label.padEnd(16))}`;
 
 const formatUptime = (seconds: number): string => {
   if (seconds < 60) return `${seconds}s`;

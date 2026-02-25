@@ -636,8 +636,28 @@ declare global {
   var __openTabs: OpenTabsRuntime | undefined;
 }
 
-globalThis.__openTabs = globalThis.__openTabs || {} as OpenTabsRuntime;
-globalThis.__openTabs.adapters = globalThis.__openTabs.adapters || {};
+// On re-injection, the previous hash-setter may have frozen __openTabs and
+// its adapters property (non-writable, non-configurable). Rebuild if needed
+// so the adapter can be registered on a mutable container.
+if (!globalThis.__openTabs) {
+  globalThis.__openTabs = {} as OpenTabsRuntime;
+} else {
+  const desc = Object.getOwnPropertyDescriptor(globalThis.__openTabs, 'adapters');
+  if (desc && !desc.writable) {
+    const ot = globalThis.__openTabs;
+    const newAdaptersObj: Record<string, OpenTabsPlugin> = {};
+    if (ot.adapters) {
+      for (const key of Object.keys(ot.adapters)) {
+        const d = Object.getOwnPropertyDescriptor(ot.adapters, key);
+        if (d) Object.defineProperty(newAdaptersObj, key, d);
+      }
+    }
+    globalThis.__openTabs = Object.assign({}, ot, { adapters: newAdaptersObj });
+  }
+}
+if (!globalThis.__openTabs.adapters) {
+  globalThis.__openTabs.adapters = {} as Record<string, OpenTabsPlugin>;
+}
 const adapters = globalThis.__openTabs.adapters;
 
 // --- Log transport: batch entries and flush via postMessage to the relay ---

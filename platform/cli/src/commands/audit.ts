@@ -49,11 +49,11 @@ const DURATION_UNITS = new Map<string, number>([
   ['d', 86_400_000],
 ]);
 
-const parseDuration = (value: string): number => {
+const parseDuration = (value: string): number | null => {
   const match = /^(\d+)([smhd])$/.exec(value);
   const unit = match?.[2] ? DURATION_UNITS.get(match[2]) : undefined;
   if (!match?.[1] || unit === undefined) {
-    throw new InvalidArgumentError('Must be a number followed by s, m, h, or d (e.g., 30m, 1h, 2d).');
+    return null;
   }
   return Number(match[1]) * unit;
 };
@@ -123,6 +123,14 @@ const handleAuditFromFile = async (options: AuditOptions): Promise<void> => {
   let sinceMs: number | null = null;
   if (options.since) {
     sinceMs = parseDuration(options.since);
+    if (sinceMs === null) {
+      console.error(
+        pc.red(
+          `Invalid --since value: '${options.since}'. Must be a number followed by s, m, h, or d (e.g., 30m, 1h, 2d).`,
+        ),
+      );
+      process.exit(1);
+    }
   }
 
   if (!(await runtimeFileExists(auditPath))) {
@@ -202,6 +210,14 @@ const handleAudit = async (options: AuditOptions): Promise<void> => {
   let sinceMs: number | null = null;
   if (options.since) {
     sinceMs = parseDuration(options.since);
+    if (sinceMs === null) {
+      console.error(
+        pc.red(
+          `Invalid --since value: '${options.since}'. Must be a number followed by s, m, h, or d (e.g., 30m, 1h, 2d).`,
+        ),
+      );
+      process.exit(1);
+    }
   }
 
   const secret = await readAuthSecret();
