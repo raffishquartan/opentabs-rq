@@ -1,6 +1,13 @@
-import { getLocalPluginsFromConfig, isConnectionRefused, readConfig, resolvePluginPath } from './config.js';
+import {
+  ensureAuthSecret,
+  getLocalPluginsFromConfig,
+  isConnectionRefused,
+  readConfig,
+  resolvePluginPath,
+} from './config.js';
 import { afterAll, afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -164,6 +171,68 @@ describe('resolvePluginPath', () => {
 // ---------------------------------------------------------------------------
 // isConnectionRefused
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// ensureAuthSecret
+// ---------------------------------------------------------------------------
+
+describe('ensureAuthSecret', () => {
+  const extensionDir = join(TEST_BASE_DIR, 'extension');
+  const authPath = join(extensionDir, 'auth.json');
+
+  afterEach(async () => {
+    try {
+      await Bun.file(authPath).delete();
+    } catch {
+      // File may not exist
+    }
+  });
+
+  test('generates and writes a new secret when auth.json does not exist', async () => {
+    const secret = await ensureAuthSecret();
+    expect(typeof secret).toBe('string');
+    expect(secret.length).toBe(64);
+    // Verify auth.json was written
+    const content: unknown = JSON.parse(await Bun.file(authPath).text());
+    expect(content).toEqual({ secret });
+  });
+
+  test('returns the same secret on repeated calls', async () => {
+    const first = await ensureAuthSecret();
+    const second = await ensureAuthSecret();
+    expect(first).toBe(second);
+  });
+
+  test('returns existing secret without overwriting it', async () => {
+    const existingSecret = 'a'.repeat(64);
+    await mkdir(extensionDir, { recursive: true });
+    await writeFile(authPath, JSON.stringify({ secret: existingSecret }) + '\n', 'utf-8');
+
+    const result = await ensureAuthSecret();
+    expect(result).toBe(existingSecret);
+  });
+
+  test('regenerates secret when auth.json contains malformed JSON', async () => {
+    await mkdir(extensionDir, { recursive: true });
+    await writeFile(authPath, '{not valid json}', 'utf-8');
+
+    const secret = await ensureAuthSecret();
+    expect(typeof secret).toBe('string');
+    expect(secret.length).toBe(64);
+    // New secret was written over the malformed file
+    const content: unknown = JSON.parse(await Bun.file(authPath).text());
+    expect(content).toEqual({ secret });
+  });
+
+  test('regenerates secret when auth.json has no secret field', async () => {
+    await mkdir(extensionDir, { recursive: true });
+    await writeFile(authPath, JSON.stringify({ other: 'value' }) + '\n', 'utf-8');
+
+    const secret = await ensureAuthSecret();
+    expect(typeof secret).toBe('string');
+    expect(secret.length).toBe(64);
+  });
+});
 
 describe('isConnectionRefused', () => {
   test('returns true for TypeError with cause.code ECONNREFUSED', () => {

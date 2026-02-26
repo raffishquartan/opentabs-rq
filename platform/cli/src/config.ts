@@ -4,13 +4,14 @@
 
 import {
   atomicWrite,
+  generateSecret,
   getConfigDir,
   getConfigPath,
   getExtensionDir,
   getLogFilePath,
   toErrorMessage,
 } from '@opentabs-dev/shared';
-import { access, readFile } from 'node:fs/promises';
+import { access, mkdir, readFile } from 'node:fs/promises';
 import { dirname, join, resolve, isAbsolute } from 'node:path';
 
 export { getConfigDir, getConfigPath, getExtensionDir, getLogFilePath };
@@ -85,6 +86,37 @@ export const readAuthSecret = async (): Promise<string | null> => {
     // Malformed auth.json — treat as missing
   }
   return null;
+};
+
+/**
+ * Ensure the WebSocket authentication secret exists in auth.json.
+ * If auth.json already exists with a valid secret, returns it unchanged.
+ * If auth.json is missing or malformed, generates a new secret, writes it, and returns it.
+ */
+export const ensureAuthSecret = async (): Promise<string> => {
+  const extensionDir = getExtensionDir();
+  const authPath = join(extensionDir, 'auth.json');
+  if (
+    await access(authPath).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    try {
+      const parsed: unknown = JSON.parse(await readFile(authPath, 'utf-8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const secret = (parsed as Record<string, unknown>).secret;
+        if (typeof secret === 'string' && secret.length > 0) return secret;
+      }
+    } catch {
+      // Malformed auth.json — regenerate below
+    }
+  }
+
+  const secret = generateSecret();
+  await mkdir(extensionDir, { recursive: true });
+  await atomicWrite(authPath, JSON.stringify({ secret }) + '\n', 0o600);
+  return secret;
 };
 
 export const isConnectionRefused = (err: unknown): boolean => {

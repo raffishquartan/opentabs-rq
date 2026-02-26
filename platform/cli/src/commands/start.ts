@@ -11,7 +11,7 @@
  */
 
 import { installExtension } from './setup.js';
-import { getConfigDir, getLogFilePath, readAuthSecret } from '../config.js';
+import { ensureAuthSecret, getConfigDir, getLogFilePath } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
 import { isWindows, platformExec, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
@@ -232,7 +232,7 @@ const handleStart = async (options: StartOptions): Promise<void> => {
 
   const configDir = getConfigDir();
   const isFirstTime = await autoInitialize(configDir);
-  const secret = await readAuthSecret();
+  const secret = await ensureAuthSecret();
 
   const env: Record<string, string | undefined> = { ...process.env };
   env.PORT = String(port);
