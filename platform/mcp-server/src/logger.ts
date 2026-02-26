@@ -21,8 +21,6 @@
  * runtime changes to the environment variable.
  */
 
-import { getEnv } from '@opentabs-dev/shared';
-
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
 const LEVELS: Record<LogLevel, number> = {
@@ -60,7 +58,7 @@ const parseLevel = (raw: string | undefined): LogLevel => {
   return 'info';
 };
 
-const currentLevel = LEVELS[parseLevel(getEnv('OPENTABS_LOG_LEVEL'))];
+const currentLevel = LEVELS[parseLevel(process.env['OPENTABS_LOG_LEVEL'])];
 
 const log = {
   /** Verbose diagnostic output — suppressed by default */

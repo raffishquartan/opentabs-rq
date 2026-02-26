@@ -10,18 +10,9 @@
  */
 
 import { log } from './logger.js';
-import {
-  ok,
-  err,
-  getEnv,
-  isBun,
-  PLUGIN_PREFIX,
-  platformExec,
-  readJsonFile,
-  spawnProcessSync,
-  toErrorMessage,
-} from '@opentabs-dev/shared';
-import { readdir, realpath, stat } from 'node:fs/promises';
+import { ok, err, isBun, PLUGIN_PREFIX, platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { spawnSync } from 'node:child_process';
+import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -169,9 +160,9 @@ const getGlobalNodeModulesPaths = (): string[] => {
 
   // npm global node_modules
   try {
-    const result = spawnProcessSync(platformExec('npm'), ['root', '-g']);
-    if (result.exitCode === 0) {
-      const npmPath = result.stdout.trim();
+    const result = spawnSync(platformExec('npm'), ['root', '-g'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    if (!result.error && result.status === 0) {
+      const npmPath = result.stdout.toString().trim();
       if (npmPath.length > 0) paths.push(npmPath);
     }
   } catch (e) {
@@ -182,9 +173,9 @@ const getGlobalNodeModulesPaths = (): string[] => {
   // install plugins via npm, so bun's global directory is irrelevant)
   if (isBun) {
     try {
-      const result = spawnProcessSync(platformExec('bun'), ['pm', '-g', 'bin']);
-      if (result.exitCode === 0) {
-        const bunBinPath = result.stdout.trim();
+      const result = spawnSync(platformExec('bun'), ['pm', '-g', 'bin'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      if (!result.error && result.status === 0) {
+        const bunBinPath = result.stdout.toString().trim();
         if (bunBinPath.length > 0) {
           const bunNodeModules = join(dirname(bunBinPath), 'node_modules');
           if (!paths.includes(bunNodeModules)) paths.push(bunNodeModules);
@@ -205,7 +196,7 @@ const getGlobalNodeModulesPaths = (): string[] => {
  */
 const hasOpentabsField = async (dir: string): Promise<boolean> => {
   try {
-    const raw = (await readJsonFile(join(dir, 'package.json'))) as Record<string, unknown>;
+    const raw = JSON.parse(await readFile(join(dir, 'package.json'), 'utf-8')) as Record<string, unknown>;
     return typeof raw.opentabs === 'object' && raw.opentabs !== null && !Array.isArray(raw.opentabs);
   } catch (e) {
     log.debug(`Failed to read package.json at ${join(dir, 'package.json')}: ${toErrorMessage(e)}`);
@@ -282,7 +273,7 @@ const scanGlobalDir = async (globalDir: string): Promise<string[]> => {
  * plus any non-fatal errors encountered during scanning.
  */
 const discoverGlobalNpmPlugins = async (): Promise<{ dirs: string[]; errors: string[] }> => {
-  if (getEnv('OPENTABS_SKIP_NPM_DISCOVERY') === '1') {
+  if (process.env['OPENTABS_SKIP_NPM_DISCOVERY'] === '1') {
     log.info('Skipping npm auto-discovery (OPENTABS_SKIP_NPM_DISCOVERY=1)');
     return { dirs: [], errors: [] };
   }

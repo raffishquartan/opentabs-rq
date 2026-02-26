@@ -9,8 +9,6 @@
  * on the developer's machine from polluting test isolation.
  */
 
-import { getEnv } from '@opentabs-dev/shared';
-
-const skipNpmDiscovery = getEnv('OPENTABS_SKIP_NPM_DISCOVERY') === '1';
+const skipNpmDiscovery = process.env['OPENTABS_SKIP_NPM_DISCOVERY'] === '1';
 
 export const isSkipNpmDiscovery = (): boolean => skipNpmDiscovery;

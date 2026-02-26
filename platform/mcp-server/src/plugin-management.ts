@@ -15,14 +15,11 @@ import {
   OFFICIAL_SCOPE,
   normalizePluginName,
   isValidPluginPackageName,
-  readFile,
-  readJsonFile,
   resolvePluginPackageCandidates,
-  spawnProcess,
-  spawnProcessSync,
   platformExec,
 } from '@opentabs-dev/shared';
-import { mkdir } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { ServerState, RegisteredPlugin } from './state.js';
@@ -63,14 +60,32 @@ interface PluginInstallResult {
 
 const NPM_SUBPROCESS_TIMEOUT_MS = 60_000;
 
+/** Spawn a process asynchronously and return its exit code, stdout, and stderr. */
+const spawnAsync = (cmd: string, args: string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
+    child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+    child.on('error', reject);
+    child.on('close', code => {
+      resolve({
+        exitCode: code ?? 1,
+        stdout: Buffer.concat(stdoutChunks).toString(),
+        stderr: Buffer.concat(stderrChunks).toString(),
+      });
+    });
+  });
+
 /**
  * Run an npm command globally with the given package name.
- * Applies a 60s timeout via Promise.race against the spawnProcess result.
+ * Applies a 60s timeout via Promise.race against the spawnAsync result.
  *
  * @throws Error with code -32603 and data { stderr, stdout } on non-zero exit or timeout
  */
 const runNpmGlobal = async (command: string, packageName: string): Promise<{ stdout: string; stderr: string }> => {
-  const resultPromise = spawnProcess(platformExec('npm'), [command, '-g', packageName]);
+  const resultPromise = spawnAsync(platformExec('npm'), [command, '-g', packageName]);
 
   let rejectTimeout: (reason: Error) => void;
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -124,7 +139,12 @@ interface NpmSearchJsonEntry {
  */
 const searchNpmPlugins = (query?: string): PluginSearchResult[] => {
   const searchTerm = query ? `keywords:opentabs-plugin ${query}` : 'keywords:opentabs-plugin';
-  const result = spawnProcessSync(platformExec('npm'), ['search', searchTerm, '--json']);
+  const raw = spawnSync(platformExec('npm'), ['search', searchTerm, '--json'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const result = {
+    exitCode: raw.error ? 1 : (raw.status ?? 1),
+    stdout: raw.error ? '' : raw.stdout.toString(),
+    stderr: raw.error ? raw.error.message : raw.stderr.toString(),
+  };
 
   if (result.exitCode !== 0) {
     const stderr = result.stderr.trim();
@@ -327,7 +347,7 @@ const removeLocalPlugin = async (state: { configWriteMutex: Promise<void> }, plu
 
     let raw: string;
     try {
-      raw = await readFile(configPath);
+      raw = await readFile(configPath, 'utf-8');
     } catch {
       log.warn('Cannot remove local plugin — config file unreadable');
       return;
@@ -369,7 +389,7 @@ const removeLocalPlugin = async (state: { configWriteMutex: Promise<void> }, plu
 
       // Check if the package.json name matches
       try {
-        const pkg = (await readJsonFile(join(resolvedPath, 'package.json'))) as Record<string, unknown>;
+        const pkg = JSON.parse(await readFile(join(resolvedPath, 'package.json'), 'utf-8')) as Record<string, unknown>;
         const pkgName = typeof pkg.name === 'string' ? pkg.name : '';
         const derivedPkgName = pluginNameFromPackage(pkgName);
         if (derivedPkgName === pluginName || pkgName === pluginName) {

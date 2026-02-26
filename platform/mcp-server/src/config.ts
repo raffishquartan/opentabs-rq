@@ -11,16 +11,8 @@
  */
 
 import { log } from './logger.js';
-import {
-  atomicWrite,
-  fileExists,
-  generateSecret,
-  getConfigDir,
-  getConfigPath,
-  getExtensionDir,
-  readFile,
-} from '@opentabs-dev/shared';
-import { mkdir } from 'node:fs/promises';
+import { atomicWrite, generateSecret, getConfigDir, getConfigPath, getExtensionDir } from '@opentabs-dev/shared';
+import { access, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 /**
@@ -86,7 +78,7 @@ const readConfigWithRetry = async (
   let delay = initialDelayMs;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const raw = await readFile(configPath);
+      const raw = await readFile(configPath, 'utf-8');
       const parsed: unknown = JSON.parse(raw);
 
       if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -274,7 +266,12 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
 
   await mkdir(configDir, { recursive: true, mode: 0o700 });
 
-  if (!(await fileExists(configPath))) {
+  if (
+    !(await access(configPath).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     const config: OpentabsConfig = {
       localPlugins: [],
       tools: {},
@@ -386,9 +383,14 @@ const writeAuthFile = async (secret: string): Promise<void> => {
 const loadSecret = async (): Promise<string> => {
   const extensionDir = getExtensionDir();
   const authPath = join(extensionDir, 'auth.json');
-  if (await fileExists(authPath)) {
+  if (
+    await access(authPath).then(
+      () => true,
+      () => false,
+    )
+  ) {
     try {
-      const parsed: unknown = JSON.parse(await readFile(authPath));
+      const parsed: unknown = JSON.parse(await readFile(authPath, 'utf-8'));
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         const secret = (parsed as Record<string, unknown>).secret;
         if (typeof secret === 'string' && secret.length > 0) {

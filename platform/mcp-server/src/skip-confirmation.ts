@@ -11,10 +11,8 @@
  * time and combined with this flag in state.skipConfirmation.
  */
 
-import { getArgv, getEnv } from '@opentabs-dev/shared';
-
 const cliSkipConfirmation =
-  getArgv().includes('--dangerously-skip-confirmation') || getEnv('OPENTABS_SKIP_CONFIRMATION') === '1';
+  process.argv.includes('--dangerously-skip-confirmation') || process.env['OPENTABS_SKIP_CONFIRMATION'] === '1';
 
 /** Whether the CLI flag or env var requests confirmation bypass */
 export const isCliSkipConfirmation = (): boolean => cliSkipConfirmation;

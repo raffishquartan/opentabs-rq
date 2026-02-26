@@ -10,9 +10,8 @@
  * Production mode: static plugin discovery at startup, restart to reload.
  */
 
-import { getArgv, getEnv } from '@opentabs-dev/shared';
-
-const devMode = getArgv().includes('--dev') || getEnv('OPENTABS_DEV') === '1' || getEnv('OPENTABS_DEV') === 'true';
+const devMode =
+  process.argv.includes('--dev') || process.env['OPENTABS_DEV'] === '1' || process.env['OPENTABS_DEV'] === 'true';
 
 /** Whether the server is running in dev mode (file watchers, hot reload, config watching) */
 export const isDev = (): boolean => devMode;

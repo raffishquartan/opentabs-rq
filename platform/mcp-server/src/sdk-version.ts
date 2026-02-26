@@ -7,7 +7,7 @@
  * major.minor <= the server's SDK major.minor.
  */
 
-import { readJsonFile } from '@opentabs-dev/shared';
+import { readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,7 +15,7 @@ let sdkVersion = '0.0.0';
 
 try {
   const sdkPkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'plugin-sdk', 'package.json');
-  const pkgJson: unknown = await readJsonFile(sdkPkgPath);
+  const pkgJson: unknown = JSON.parse(await readFile(sdkPkgPath, 'utf-8'));
   if (pkgJson !== null && typeof pkgJson === 'object' && 'version' in pkgJson && typeof pkgJson.version === 'string') {
     sdkVersion = pkgJson.version;
   }

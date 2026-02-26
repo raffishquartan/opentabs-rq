@@ -14,8 +14,9 @@
 import { getAdaptersDir, getExtensionDir, getExtensionVersionFile } from './config.js';
 import { log } from './logger.js';
 import { version } from './version.js';
-import { EXTENSION_COPY_EXCLUDE_PATTERN, fileExists, readFile, writeFile } from '@opentabs-dev/shared';
+import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
 import { cpSync, mkdirSync } from 'node:fs';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,8 +48,13 @@ const ensureExtensionInstalled = async (): Promise<ExtensionInstallResult> => {
   // Read installed version (missing file → empty string → mismatch)
   let installedVersion = '';
   try {
-    if (await fileExists(versionFile)) {
-      installedVersion = (await readFile(versionFile)).trim();
+    if (
+      await access(versionFile).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      installedVersion = (await readFile(versionFile, 'utf-8')).trim();
     }
   } catch {
     // File unreadable — treat as missing
@@ -63,7 +69,12 @@ const ensureExtensionInstalled = async (): Promise<ExtensionInstallResult> => {
   const extensionSrc = getExtensionSourceDir();
 
   // Verify the source exists before attempting the copy
-  if (!(await fileExists(join(extensionSrc, 'manifest.json')))) {
+  if (
+    !(await access(join(extensionSrc, 'manifest.json')).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     log.warn(`Browser extension source not found at ${extensionSrc}, skipping auto-install`);
     return { versionChanged: false };
   }
@@ -85,7 +96,7 @@ const ensureExtensionInstalled = async (): Promise<ExtensionInstallResult> => {
     });
 
     mkdirSync(adaptersDir, { recursive: true });
-    await writeFile(versionFile, version);
+    await writeFile(versionFile, version, 'utf-8');
 
     log.info(`Managed extension installed to ${extensionDir}`);
     return { versionChanged: true };

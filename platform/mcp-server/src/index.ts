@@ -55,7 +55,7 @@ import { createNodeServer } from './server-node.js';
 import { installShutdownHandlers } from './shutdown.js';
 import { createState } from './state.js';
 import { version } from './version.js';
-import { DEFAULT_PORT, getEnv, isBun } from '@opentabs-dev/shared';
+import { DEFAULT_PORT, isBun } from '@opentabs-dev/shared';
 import type { HotHandlers } from './http-routes.js';
 import type { McpServerInstance } from './mcp-setup.js';
 import type { ReloadResult } from './reload.js';
@@ -183,7 +183,7 @@ const handlers: HotHandlers = createHandlers({
 
 /** Parse and validate the PORT from environment or default. Port 0 is valid (OS assigns ephemeral port). */
 const resolvePort = (): number => {
-  const raw = getEnv('PORT');
+  const raw = process.env['PORT'];
   if (raw === undefined) return DEFAULT_PORT;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed < 0 || parsed > 65535 || parsed !== Math.floor(parsed)) {

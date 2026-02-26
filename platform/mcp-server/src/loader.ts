@@ -19,14 +19,12 @@ import {
   PLUGIN_PREFIX,
   TOOLS_FILENAME,
   err,
-  fileExists,
   ok,
   parsePluginPackageJson,
-  readFile,
-  readJsonFile,
   validatePluginName,
   validateUrlPattern,
 } from '@opentabs-dev/shared';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { PluginSource } from './state.js';
 import type {
@@ -395,7 +393,7 @@ const loadPlugin = async (
   const pkgJsonPath = join(dir, 'package.json');
   let pkgJsonRaw: unknown;
   try {
-    pkgJsonRaw = await readJsonFile(pkgJsonPath);
+    pkgJsonRaw = JSON.parse(await readFile(pkgJsonPath, 'utf-8')) as unknown;
   } catch {
     return err(`Failed to read package.json at ${dir}: file missing or invalid JSON`);
   }
@@ -423,12 +421,17 @@ const loadPlugin = async (
 
   // Read adapter IIFE
   const iifePath = join(dir, 'dist', ADAPTER_FILENAME);
-  if (!(await fileExists(iifePath))) {
+  if (
+    !(await access(iifePath).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     return err(`Adapter IIFE not found at ${iifePath}`);
   }
   let iife: string;
   try {
-    iife = await readFile(iifePath);
+    iife = await readFile(iifePath, 'utf-8');
   } catch {
     return err(`Failed to read adapter IIFE at ${iifePath}`);
   }
@@ -448,7 +451,7 @@ const loadPlugin = async (
   const toolsJsonPath = join(dir, 'dist', TOOLS_FILENAME);
   let manifestRaw: unknown;
   try {
-    manifestRaw = await readJsonFile(toolsJsonPath);
+    manifestRaw = JSON.parse(await readFile(toolsJsonPath, 'utf-8')) as unknown;
   } catch {
     return err(`Failed to read dist/${TOOLS_FILENAME} at ${dir}: file missing or invalid JSON`);
   }
@@ -506,8 +509,13 @@ const loadPlugin = async (
   const sourceMapPath = join(dir, 'dist', ADAPTER_SOURCE_MAP_FILENAME);
   let iifeSourceMap: string | undefined;
   try {
-    if (await fileExists(sourceMapPath)) {
-      iifeSourceMap = await readFile(sourceMapPath);
+    if (
+      await access(sourceMapPath).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      iifeSourceMap = await readFile(sourceMapPath, 'utf-8');
     }
   } catch {
     // Source map not available — not an error
