@@ -41,7 +41,7 @@ describe('create-opentabs-plugin CLI', () => {
 
   afterEach(() => {
     rmSync(tmpDir, { recursive: true, force: true });
-  });
+  }, 30_000);
 
   describe('successful scaffolding', () => {
     test('scaffolds a valid plugin project with all expected files', () => {
