@@ -226,14 +226,16 @@ opentabs doctor [options]
 Performs the following checks:
 
 1. **Runtime** — verifies Node.js 20+ is installed
-2. **Config file** — checks `~/.opentabs/config.json` exists
-3. **MCP server health** — fetches the `/health` endpoint (3s timeout)
-4. **Extension connection** — checks if the Chrome extension is connected via WebSocket
-5. **Extension installed** — verifies `~/.opentabs/extension/manifest.json` exists
-6. **Extension version** — compares installed extension version to CLI version
-7. **MCP client config** — checks Claude Code and Cursor MCP configuration files for correct server entries
-8. **Local plugins** — for each local plugin, checks that `dist/tools.json` and `dist/adapter.iife.js` exist
-9. **npm plugin health** — verifies npm-discovered plugins reported by the server are loading correctly
+2. **Browser** — checks that a Chromium-based browser is installed (Chrome, Chromium, Edge, or Brave)
+3. **Config file** — checks `~/.opentabs/config.json` exists
+4. **Auth secret** — verifies `~/.opentabs/extension/auth.json` contains a valid secret
+5. **MCP server health** — fetches the `/health` endpoint (3s timeout)
+6. **Extension connection** — checks if the Chrome extension is connected via WebSocket
+7. **Extension installed** — verifies `~/.opentabs/extension/manifest.json` exists
+8. **Extension version** — compares installed extension version to CLI version
+9. **MCP client config** — checks Claude Code and Cursor MCP configuration files for correct server entries
+10. **Local plugins** — for each local plugin, checks that `dist/tools.json` and `dist/adapter.iife.js` exist
+11. **npm plugins** — verifies npm-discovered plugins reported by the server are loading correctly
 
 Results are shown as a checklist with pass (✓), warning (!), and error (✗) indicators. Exits with code 1 if any fatal check fails.
 
@@ -523,12 +525,17 @@ opentabs config show [options]
       <Table.Cell className="font-medium">`--json`</Table.Cell>
       <Table.Cell>Output config as JSON (secret is redacted).</Table.Cell>
     </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`--show-secret`</Table.Cell>
+      <Table.Cell>Display the full authentication secret instead of masking it.</Table.Cell>
+    </Table.Row>
   </Table.Body>
 </Table>
 
 ```bash
 opentabs config show
 opentabs config show --json
+opentabs config show --show-secret
 ```
 
 ### opentabs config set
@@ -636,7 +643,7 @@ Since the server secret is stored in the config file, resetting config means you
 
 ### opentabs config rotate-secret
 
-Generate a new 256-bit random secret and write it to both `config.json` and `auth.json`.
+Generate a new 256-bit random secret and write it to `auth.json`.
 
 ```bash
 opentabs config rotate-secret
@@ -649,4 +656,26 @@ If the MCP server is running, it is notified using the old secret so the transit
 opentabs config rotate-secret
 
 # Then reload the Chrome extension from chrome://extensions/
+```
+
+---
+
+## opentabs update
+
+Update the OpenTabs CLI to the latest version.
+
+```bash
+opentabs update
+```
+
+Checks the currently installed version against the latest published version on npm. If an update is available, runs `npm install -g @opentabs-dev/cli@<version>` to perform the upgrade.
+
+If the MCP server is running when you update, it needs to be restarted to use the new version. Use the `--port` global option if the server is on a non-default port.
+
+```bash
+# Update to the latest version
+opentabs update
+
+# Then restart the MCP server if it was running
+opentabs start
 ```
