@@ -121,6 +121,7 @@ const fetchWsInfo = async (httpBase: string): Promise<{ response: Response } | {
  */
 const disconnectAndReconnect = (closeReason: string): void => {
   backoffMs = INITIAL_BACKOFF_MS;
+  lastDisconnectReason = undefined;
   if (ws) {
     try {
       ws.close(1000, closeReason);
