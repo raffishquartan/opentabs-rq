@@ -40,7 +40,7 @@
 ### Tech Stack
 
 - **Language**: TypeScript (strict, ES Modules)
-- **Runtime**: Node.js 20+ (production); Bun (development, testing)
+- **Runtime**: Node.js 20+ (production); Bun + npm (development, testing, publishing)
 - **Build**: `tsc --build` (composite project references)
 - **Testing**: Playwright (E2E)
 - **UI**: React 19, Tailwind CSS 4 (side panel only)
@@ -280,20 +280,15 @@ For full repository verification including docs and plugins, use `bun run check:
 
 ### Runtime Compatibility
 
-Published packages (CLI, browser-extension, MCP server, plugin-tools, create-plugin) run on **Node.js 20+**. Platform contributors use **Bun** for development, testing, and monorepo management. Code is organized into three tiers:
+Published packages (CLI, browser-extension, MCP server, plugin-tools, create-plugin) run on **Node.js 20+**. Platform contributors use **Bun** for development, testing, and monorepo management, and **npm** for registry authentication and publishing.
 
-**Production code** (`platform/*/src/`): Uses the runtime compatibility layer from `@opentabs-dev/shared` (`runtime.ts`). Functions like `readFile`, `writeFile`, `fileExists`, `spawnProcess`, `getEnv`, and `sha256` automatically use Bun APIs when available, falling back to Node.js equivalents. New production code must use these abstractions — never call `Bun.file()`, `Bun.env`, `Bun.spawn`, etc. directly.
+**Production code** (`platform/*/src/`): Uses Node.js APIs directly (`node:fs/promises`, `node:child_process`, `node:crypto`, `process.env`, `process.argv`). Bun runs all Node.js APIs natively, so no compatibility layer is needed.
+
+**`isBun`** (exported from `@opentabs-dev/shared`) is used in exactly two places: `platform/mcp-server/src/index.ts` (to call `Bun.serve()` for hot reload in dev mode) and `platform/mcp-server/src/resolver.ts` (to scan Bun's global `node_modules` path). All other production code uses Node.js APIs directly.
 
 **Build scripts** (`build-*.ts`, `scripts/`): Use esbuild for bundling. Invoked via `bun run` in the contributor workflow. These are contributor-only and do not need to run on Node.js.
 
 **Tests** (`*.test.ts`): Use `bun:test`. Contributor-only — normal users and plugin developers do not run platform tests.
-
-**Node.js APIs used directly** (no runtime layer needed):
-
-- `node:path` (`join`, `resolve`, `relative`, `dirname`) — no Bun path API
-- `node:os` (`homedir`, `tmpdir`) — no Bun equivalents
-- `node:fs` directory operations (`mkdir`, `mkdirSync`, `readdir`, `stat` for directories, `existsSync` for directories) — no Bun equivalents
-- `node:fs` `watch` / `FSWatcher`, `mkdtempSync`, `cpSync`, `rmSync` — no Bun equivalents
 
 **E2E tests** (`e2e/`) run under Playwright's Node.js test runner, so Node.js APIs are correct there.
 
