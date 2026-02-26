@@ -2,6 +2,12 @@
 // DOM utilities for plugin authors
 // ---------------------------------------------------------------------------
 
+/**
+ * Returns true if the selector may match via attribute changes (class or attribute selectors),
+ * requiring `attributes: true` in MutationObserver options to detect such changes.
+ */
+const needsAttributeObservation = (selector: string): boolean => selector.includes('[') || selector.includes('.');
+
 export interface WaitForSelectorOptions {
   /** Timeout in milliseconds (default: 10000) */
   timeout?: number;
@@ -53,7 +59,11 @@ export const waitForSelector = <T extends Element = Element>(
       }
     });
 
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: needsAttributeObservation(selector),
+    });
   });
 };
 
@@ -88,7 +98,11 @@ export const waitForSelectorRemoval = (selector: string, opts?: WaitForSelectorO
       }
     });
 
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: needsAttributeObservation(selector),
+    });
   });
 };
 
