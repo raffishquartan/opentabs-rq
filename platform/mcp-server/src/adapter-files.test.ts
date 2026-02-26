@@ -168,6 +168,23 @@ describe('writeAdapterFile', () => {
     expect(content).toContain('sourceMappingURL=adapter.iife.js.map');
   });
 
+  test('does not delete adapter files for plugins whose names share a prefix', async () => {
+    // Writing plugin 'foo' must not delete files for plugin 'foo-bar'
+    const adaptersDir = getAdaptersDir();
+    const fooBarIife = '(function(){console.log("foo-bar")})();';
+    const fooBarPath = await writeAdapterFile('foo-bar', fooBarIife);
+    const fooBarFile = fooBarPath.replace('adapters/', '');
+
+    // Now write a new version of plugin 'foo' — should not touch 'foo-bar' files
+    const fooIife1 = '(function(){console.log("foo-v1")})();';
+    const fooIife2 = '(function(){console.log("foo-v2")})();';
+    await writeAdapterFile('foo', fooIife1);
+    await writeAdapterFile('foo', fooIife2); // triggers cleanup of 'foo' old files
+
+    const entries = await readdir(adaptersDir);
+    expect(entries).toContain(fooBarFile);
+  });
+
   test('cleans up old hashed versions when content changes', async () => {
     const iife1 = '(function(){console.log("v1")})();';
     const iife2 = '(function(){console.log("v2")})();';

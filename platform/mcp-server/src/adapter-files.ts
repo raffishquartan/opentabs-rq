@@ -25,6 +25,9 @@ const ensureAdaptersDir = async (state: ServerState): Promise<void> => {
 /** Prefix for dynamically generated exec script files */
 const EXEC_FILE_PREFIX = '__exec-';
 
+/** Escape special regex characters in a string for use in a RegExp */
+const escapeRegex = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** Timeout for batch adapter file writes in sendSyncFull (10 seconds) */
 const ADAPTER_WRITE_TIMEOUT_MS = 10_000;
 
@@ -63,9 +66,11 @@ const writeAdapterFile = async (pluginName: string, iife: string, sourceMap?: st
   } catch {
     entries = [];
   }
-  const oldFiles = entries.filter(
-    f => f.startsWith(`${pluginName}-`) && f !== `${baseName}.js` && f !== `${baseName}.js.map` && !f.endsWith('.tmp'),
-  );
+  // Match only files for this exact plugin: {pluginName}-{8hexchars}.js or .js.map
+  // Using a regex prevents prefix collisions (e.g., plugin 'foo' must not delete
+  // files for plugin 'foo-bar').
+  const pluginFileRegex = new RegExp(`^${escapeRegex(pluginName)}-[0-9a-f]{8}\\.js(\\.map)?$`);
+  const oldFiles = entries.filter(f => pluginFileRegex.test(f) && f !== `${baseName}.js` && f !== `${baseName}.js.map`);
   await Promise.allSettled(oldFiles.map(f => unlink(join(adaptersDir, f)).catch(() => {})));
 
   let content = iife;

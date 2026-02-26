@@ -3,10 +3,11 @@
  *
  * Installs SIGTERM and SIGINT handlers that perform orderly cleanup:
  *   1. Reject all pending dispatches immediately (fast error for MCP clients)
- *   2. Stop periodic session sweep timer
- *   3. Stop file watchers (release OS handles)
- *   4. Close extension WebSocket cleanly (so offscreen document reconnects)
- *   5. Exit the process
+ *   2. Reject all pending confirmations (mirrors WebSocket disconnect behavior)
+ *   3. Stop periodic session sweep timer
+ *   4. Stop file watchers (release OS handles)
+ *   5. Close extension WebSocket cleanly (so offscreen document reconnects)
+ *   6. Exit the process
  *
  * The handler is installed once on first load. Under bun --hot, the signal
  * handlers are not re-registered (they survive across module re-evaluations
@@ -15,6 +16,7 @@
  * A globalThis flag prevents double-registration if index.ts is re-evaluated.
  */
 
+import { rejectAllPendingConfirmations } from './extension-handlers.js';
 import { stopFileWatching } from './file-watcher.js';
 import { log } from './logger.js';
 import type { ServerState } from './state.js';
@@ -47,16 +49,19 @@ const installShutdownHandlers = (getState: () => ServerState): void => {
       }
     }
 
-    // 2. Stop periodic session sweep timer
+    // 2. Reject all pending confirmations (mirrors WebSocket disconnect behavior)
+    rejectAllPendingConfirmations(state);
+
+    // 3. Stop periodic session sweep timer
     if (state.sweepTimerId !== null) {
       clearInterval(state.sweepTimerId);
       state.sweepTimerId = null;
     }
 
-    // 3. Stop file watchers (release OS handles)
+    // 4. Stop file watchers (release OS handles)
     stopFileWatching(state);
 
-    // 4. Close extension WebSocket cleanly
+    // 5. Close extension WebSocket cleanly
     if (state.extensionWs) {
       try {
         state.extensionWs.close(1001, 'Server shutting down');

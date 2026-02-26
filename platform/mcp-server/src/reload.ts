@@ -19,6 +19,7 @@ import { ensureExtensionInstalled } from './extension-install.js';
 import { sendSyncFull, sendPluginUpdate, sendExtensionReload, cleanupStaleExecFiles } from './extension-protocol.js';
 import { startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
 import { sweepStaleSessions } from './http-routes.js';
+import { pruneStaleBuffers } from './log-buffer.js';
 import { log } from './logger.js';
 import {
   registerMcpHandlers,
@@ -91,6 +92,9 @@ const pruneStaleState = (state: ServerState): void => {
   if (prunedToolConfigCount > 0) {
     log.info(`Pruned ${prunedToolConfigCount} stale tool config entry/entries`);
   }
+
+  // Prune stale log buffers for removed plugins
+  pruneStaleBuffers(new Set(state.registry.plugins.keys()));
 
   // Keep only outdatedPlugins entries for still-present plugins
   const npmPkgNames = new Set(
@@ -171,6 +175,13 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
   stopFileWatching(state);
   sweepStaleSessions(state, transports, sessionServers);
 
+  // Capture the config.json mtime that was current when the watcher last fired.
+  // stopFileWatching() cancels any pending debounce timers, so a config.json write
+  // that arrives during the async reload work below (while discoverPlugins runs) will
+  // not trigger a follow-up reload via the file watcher. After startConfigWatching()
+  // records the current mtime, we compare against this value to detect missed writes.
+  const prevConfigMtime = state.fileWatching.configLastSeenMtime;
+
   let secretChanged = false;
   try {
     const config = await loadConfig();
@@ -214,6 +225,22 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     const failedPaths = state.registry.failures.map(f => f.path);
     startFileWatching(state, callbacks, failedPaths);
     startConfigWatching(state, callbacks);
+
+    // Detect config.json writes that occurred during the async reload above.
+    // stopFileWatching() cancelled any pending debounce timers, so those writes
+    // never triggered a follow-up reload. startConfigWatching() records the current
+    // file mtime, so the mtime poll also cannot detect them (it only sees future changes).
+    // Compare the mtime startConfigWatching() just recorded with the pre-reload mtime:
+    // if it advanced, config.json was written during the reload and state.toolConfig
+    // reflects stale data — trigger a follow-up reload to apply the latest config.
+    if (
+      prevConfigMtime !== null &&
+      state.fileWatching.configLastSeenMtime !== null &&
+      state.fileWatching.configLastSeenMtime > prevConfigMtime
+    ) {
+      log.info('Config changed during reload — triggering follow-up reload to apply latest changes');
+      callbacks.onConfigChanged();
+    }
   }
 
   if (state.extensionWs) {

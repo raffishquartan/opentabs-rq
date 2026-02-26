@@ -227,7 +227,11 @@ const handleWsUpgradeEvent = (
  */
 const createNodeServer = (options: NodeServerOptions): Promise<NodeServer> =>
   new Promise((resolveServer, rejectServer) => {
-    const wss = new WebSocketServer({ noServer: true });
+    const wss = new WebSocketServer({
+      noServer: true,
+      /** Matches MAX_MESSAGE_SIZE in extension-protocol.ts (10MB) */
+      maxPayload: 10 * 1024 * 1024,
+    });
 
     // The ws library emits 'headers' with the raw header lines just before
     // sending the 101 response. We use this to inject custom headers
