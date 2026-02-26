@@ -23,6 +23,10 @@ export const initSidePanelToggle = (): void => {
     chrome.sidePanel.onClosed.addListener(({ windowId }) => {
       openWindows.delete(windowId);
     });
+
+    chrome.windows.onRemoved.addListener(windowId => {
+      openWindows.delete(windowId);
+    });
   }
 
   chrome.action.onClicked.addListener(({ windowId }) => {
