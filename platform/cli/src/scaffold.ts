@@ -7,9 +7,9 @@
  */
 
 import { validatePluginName, validateUrlPattern } from '@opentabs-dev/plugin-sdk';
-import { readJsonFile, writeFile as runtimeWriteFile } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { existsSync, mkdirSync } from 'node:fs';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, join, dirname } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 
@@ -61,7 +61,7 @@ const resolveOpenTabsVersion = async (): Promise<string> => {
   try {
     const entryUrl = import.meta.resolve('@opentabs-dev/plugin-sdk');
     const entryDir = dirname(new URL(entryUrl).pathname);
-    const pkg: unknown = await readJsonFile(join(entryDir, '..', 'package.json'));
+    const pkg: unknown = JSON.parse(await readFile(join(entryDir, '..', 'package.json'), 'utf-8'));
     if (pkg !== null && typeof pkg === 'object' && 'version' in pkg && typeof pkg.version === 'string') {
       return `^${pkg.version}`;
     }
@@ -479,28 +479,28 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
   mkdirSync(projectDir, { recursive: true });
   mkdirSync(join(projectDir, 'src', 'tools'), { recursive: true });
 
-  await runtimeWriteFile(join(projectDir, 'package.json'), await generatePackageJson(args, urlPattern));
+  await writeFile(join(projectDir, 'package.json'), await generatePackageJson(args, urlPattern), 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('package.json')}`);
 
-  await runtimeWriteFile(join(projectDir, 'tsconfig.json'), TSCONFIG_CONTENT);
+  await writeFile(join(projectDir, 'tsconfig.json'), TSCONFIG_CONTENT, 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('tsconfig.json')}`);
 
-  await runtimeWriteFile(join(projectDir, 'eslint.config.ts'), ESLINT_CONFIG_CONTENT);
+  await writeFile(join(projectDir, 'eslint.config.ts'), ESLINT_CONFIG_CONTENT, 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('eslint.config.ts')}`);
 
-  await runtimeWriteFile(join(projectDir, '.prettierrc'), PRETTIERRC_CONTENT);
+  await writeFile(join(projectDir, '.prettierrc'), PRETTIERRC_CONTENT, 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('.prettierrc')}`);
 
-  await runtimeWriteFile(join(projectDir, '.gitignore'), GITIGNORE_CONTENT);
+  await writeFile(join(projectDir, '.gitignore'), GITIGNORE_CONTENT, 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('.gitignore')}`);
 
-  await runtimeWriteFile(join(projectDir, 'src', 'index.ts'), generatePluginIndex(args, urlPattern));
+  await writeFile(join(projectDir, 'src', 'index.ts'), generatePluginIndex(args, urlPattern), 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('src/index.ts')}`);
 
-  await runtimeWriteFile(join(projectDir, 'src', 'tools', 'example.ts'), generateExampleTool(args));
+  await writeFile(join(projectDir, 'src', 'tools', 'example.ts'), generateExampleTool(args), 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('src/tools/example.ts')}`);
 
-  await runtimeWriteFile(join(projectDir, 'README.md'), generateReadme(args, urlPattern));
+  await writeFile(join(projectDir, 'README.md'), generateReadme(args, urlPattern), 'utf-8');
   console.log(`  ${pc.dim('Created:')} ${pc.bold('README.md')}`);
 
   console.log('');

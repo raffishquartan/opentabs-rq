@@ -11,17 +11,11 @@ import {
   resolvePluginPath,
 } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
-import {
-  ADAPTER_FILENAME,
-  TOOLS_FILENAME,
-  fileExists as runtimeFileExists,
-  isBun,
-  readFile,
-  readJsonFile,
-  spawnProcessSync,
-} from '@opentabs-dev/shared';
+import { ADAPTER_FILENAME, TOOLS_FILENAME, isBun } from '@opentabs-dev/shared';
 import pc from 'picocolors';
+import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -142,7 +136,12 @@ const checkExtensionInstalled = async (): Promise<{ result: CheckResult; version
   }
 
   const versionPath = join(extensionDir, '.opentabs-version');
-  const versionFile = (await runtimeFileExists(versionPath)) ? await readFile(versionPath) : null;
+  const versionFile = (await access(versionPath).then(
+    () => true,
+    () => false,
+  ))
+    ? await readFile(versionPath, 'utf-8')
+    : null;
   return {
     result: pass('Extension installed', extensionDir),
     versionFile: versionFile?.trim() ?? null,
@@ -153,7 +152,9 @@ const checkExtensionVersion = async (installedVersion: string | null): Promise<C
   const cliDir = dirname(fileURLToPath(import.meta.url));
   let cliVersion = 'unknown';
   try {
-    const pkgJson = JSON.parse(await readFile(join(cliDir, '..', '..', 'package.json'))) as { version: string };
+    const pkgJson = JSON.parse(await readFile(join(cliDir, '..', '..', 'package.json'), 'utf-8')) as {
+      version: string;
+    };
     cliVersion = pkgJson.version;
   } catch {
     return warn(
@@ -242,7 +243,7 @@ const checkMcpClientConfig = async (
   for (const client of clients) {
     if (!existsSync(client.path)) continue;
     try {
-      const content = await readFile(client.path);
+      const content = await readFile(client.path, 'utf-8');
       const parsed: unknown = JSON.parse(content);
       if (
         parsed !== null &&
@@ -310,7 +311,7 @@ const checkPlugins = async (config: Record<string, unknown> | null): Promise<Che
 
     let pluginName = pluginPath;
     try {
-      const pkgData: unknown = await readJsonFile(join(resolvedPath, 'package.json'));
+      const pkgData: unknown = JSON.parse(await readFile(join(resolvedPath, 'package.json'), 'utf-8'));
       if (pkgData !== null && typeof pkgData === 'object' && 'name' in pkgData) {
         const d = pkgData as { name: string };
         pluginName = d.name;
@@ -353,8 +354,8 @@ const checkBrowser = (): CheckResult => {
   if (platform === 'linux') {
     for (const cmd of LINUX_BROWSER_COMMANDS) {
       try {
-        const result = spawnProcessSync('which', [cmd]);
-        if (result.exitCode === 0) {
+        const result = spawnSync('which', [cmd], { stdio: 'ignore' });
+        if (result.status === 0) {
           return pass('Browser', cmd);
         }
       } catch {

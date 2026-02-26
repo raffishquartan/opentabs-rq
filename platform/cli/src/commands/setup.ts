@@ -5,13 +5,9 @@
  * auto-initialization on first run.
  */
 
-import {
-  EXTENSION_COPY_EXCLUDE_PATTERN,
-  fileExists as runtimeFileExists,
-  readFile,
-  writeFile as runtimeWriteFile,
-} from '@opentabs-dev/shared';
+import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
 import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { join, dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -26,7 +22,7 @@ const resolveExtensionDir = (): string => {
 
 const getCliVersion = async (): Promise<string> => {
   const cliPkgPath = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'package.json');
-  const pkgJson = JSON.parse(await readFile(cliPkgPath)) as { version: string };
+  const pkgJson = JSON.parse(await readFile(cliPkgPath, 'utf-8')) as { version: string };
   return pkgJson.version;
 };
 
@@ -51,7 +47,12 @@ const installExtension = async (configDir: string): Promise<InstallExtensionResu
   const extensionSrc = resolveExtensionDir();
 
   // Verify the extension source exists
-  if (!(await runtimeFileExists(join(extensionSrc, 'manifest.json')))) {
+  if (
+    !(await access(join(extensionSrc, 'manifest.json')).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     throw new Error(
       `Browser extension not found at ${extensionSrc}. Try reinstalling: npm install -g @opentabs-dev/cli`,
     );
@@ -64,8 +65,13 @@ const installExtension = async (configDir: string): Promise<InstallExtensionResu
 
   // Check if already up-to-date
   if (!firstTime) {
-    if (await runtimeFileExists(versionMarkerPath)) {
-      const installedVersion = (await readFile(versionMarkerPath)).trim();
+    if (
+      await access(versionMarkerPath).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      const installedVersion = (await readFile(versionMarkerPath, 'utf-8')).trim();
       if (installedVersion === version) {
         return { installed: false, firstTime: false, extensionDest, version };
       }
@@ -86,7 +92,7 @@ const installExtension = async (configDir: string): Promise<InstallExtensionResu
   mkdirSync(join(extensionDest, 'adapters'), { recursive: true });
 
   // Write version marker
-  await runtimeWriteFile(versionMarkerPath, version);
+  await writeFile(versionMarkerPath, version, 'utf-8');
 
   // Verify installation
   if (!existsSync(join(extensionDest, 'manifest.json'))) {

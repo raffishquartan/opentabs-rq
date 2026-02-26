@@ -13,19 +13,54 @@
 import { installExtension } from './setup.js';
 import { getConfigDir, getLogFilePath, readAuthSecret } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
-import {
-  fileExists as runtimeFileExists,
-  isWindows,
-  platformExec,
-  spawnStreaming,
-  toErrorMessage,
-} from '@opentabs-dev/shared';
+import { isWindows, platformExec, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
+import { spawn } from 'node:child_process';
 import { mkdirSync, createWriteStream } from 'node:fs';
+import { access } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
+import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { Command } from 'commander';
 import type { WriteStream } from 'node:fs';
+
+interface StreamingProcess {
+  stdout: ReadableStream<Uint8Array>;
+  stderr: ReadableStream<Uint8Array>;
+  kill: (signal?: string) => void;
+  exited: Promise<number>;
+}
+
+const spawnStreaming = (
+  cmd: string,
+  args: string[],
+  opts?: { cwd?: string; env?: Record<string, string | undefined>; stdin?: 'inherit' | 'pipe' | 'ignore' },
+): StreamingProcess => {
+  const child = spawn(cmd, args, {
+    cwd: opts?.cwd,
+    env: opts?.env as NodeJS.ProcessEnv,
+    stdio: [opts?.stdin ?? 'inherit', 'pipe', 'pipe'],
+  });
+  const toReadableStream = (readable: Readable | null): ReadableStream<Uint8Array> => {
+    if (!readable)
+      return new ReadableStream({
+        start(c) {
+          c.close();
+        },
+      });
+    return Readable.toWeb(readable) as unknown as ReadableStream<Uint8Array>;
+  };
+  const exited = new Promise<number>((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', code => resolve(code ?? 1));
+  });
+  return {
+    stdout: toReadableStream(child.stdout),
+    stderr: toReadableStream(child.stderr),
+    kill: (signal?: string) => child.kill(signal === 'SIGTERM' ? 'SIGTERM' : 'SIGINT'),
+    exited,
+  };
+};
 
 interface StartOptions {
   port?: number;
@@ -168,7 +203,12 @@ const printMcpClientConfigs = (mcpUrl: string, secret: string | null): void => {
 const handleStart = async (options: StartOptions): Promise<void> => {
   const serverEntry = resolveServerEntry();
 
-  if (!(await runtimeFileExists(serverEntry))) {
+  if (
+    !(await access(serverEntry).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     console.error(pc.red(`Error: MCP server entry not found at ${serverEntry}`));
     if (serverEntry.includes('node_modules')) {
       console.error('Try reinstalling: npm install -g @opentabs-dev/cli');

@@ -20,17 +20,57 @@ import {
   OFFICIAL_SCOPE,
   PLUGIN_PREFIX,
   normalizePluginName,
-  readFile,
   resolvePluginPackageCandidates,
   platformExec,
-  spawnInherit,
-  spawnProcess,
-  spawnProcessSync,
   toErrorMessage,
 } from '@opentabs-dev/shared';
 import pc from 'picocolors';
+import { spawn, spawnSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Command } from 'commander';
+
+interface SpawnResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+}
+
+const spawnProcessSync = (cmd: string, args: string[]): SpawnResult => {
+  const result = spawnSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  if (result.error) {
+    return { exitCode: 1, stdout: '', stderr: result.error.message };
+  }
+  return {
+    exitCode: result.status ?? 1,
+    stdout: result.stdout.toString(),
+    stderr: result.stderr.toString(),
+  };
+};
+
+const spawnProcessAsync = (cmd: string, args: string[]): Promise<SpawnResult> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
+    child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+    child.on('error', reject);
+    child.on('close', code => {
+      resolve({
+        exitCode: code ?? 1,
+        stdout: Buffer.concat(stdoutChunks).toString(),
+        stderr: Buffer.concat(stderrChunks).toString(),
+      });
+    });
+  });
+
+const spawnInherit = (cmd: string, args: string[]): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { stdio: 'inherit' });
+    child.on('error', reject);
+    child.on('close', code => resolve(code ?? 1));
+  });
 
 // --- npm search result types ---
 
@@ -76,11 +116,11 @@ const resolvePackageName = (name: string): string | null => {
  */
 const warnIfNotPlugin = async (pkg: string): Promise<void> => {
   try {
-    const rootResult = await spawnProcess('npm', ['root', '-g']);
+    const rootResult = await spawnProcessAsync('npm', ['root', '-g']);
     const globalRoot = rootResult.stdout.trim();
 
     const pkgJsonPath = join(globalRoot, pkg, 'package.json');
-    const pkgJsonText = await readFile(pkgJsonPath);
+    const pkgJsonText = await readFile(pkgJsonPath, 'utf-8');
     const pkgJson = JSON.parse(pkgJsonText) as Record<string, unknown>;
 
     const hasOpentabsField = typeof pkgJson.opentabs === 'object' && pkgJson.opentabs !== null;
@@ -149,7 +189,7 @@ const removeFromLocalPlugins = async (pkg: string): Promise<void> => {
     const resolved = resolvePluginPath(entry, configPath);
     const pkgJsonPath = join(resolved, 'package.json');
     try {
-      const pkgJson: unknown = JSON.parse(await readFile(pkgJsonPath));
+      const pkgJson: unknown = JSON.parse(await readFile(pkgJsonPath, 'utf-8'));
       if (typeof pkgJson === 'object' && pkgJson !== null && (pkgJson as Record<string, unknown>).name === pkg) {
         continue;
       }
@@ -399,7 +439,7 @@ const readLocalPluginInfo = async (
   pluginDir: string,
 ): Promise<{ name: string; displayName: string; version: string | null; toolCount: number } | null> => {
   try {
-    const pkgJsonText = await readFile(join(pluginDir, 'package.json'));
+    const pkgJsonText = await readFile(join(pluginDir, 'package.json'), 'utf-8');
     const pkgJson = JSON.parse(pkgJsonText) as Record<string, unknown>;
     const name = typeof pkgJson.name === 'string' ? pkgJson.name : null;
     if (!name) return null;
@@ -413,7 +453,7 @@ const readLocalPluginInfo = async (
 
     let toolCount = 0;
     try {
-      const toolsJsonText = await readFile(join(pluginDir, 'dist', TOOLS_FILENAME));
+      const toolsJsonText = await readFile(join(pluginDir, 'dist', TOOLS_FILENAME), 'utf-8');
       const toolsJson = JSON.parse(toolsJsonText) as Record<string, unknown>;
       const tools = Array.isArray(toolsJson.tools) ? toolsJson.tools : [];
       toolCount = tools.length;
@@ -433,7 +473,7 @@ const readLocalPluginInfo = async (
 const scanNpmPlugins = async (): Promise<ListPluginEntry[]> => {
   const entries: ListPluginEntry[] = [];
   try {
-    const result = await spawnProcess(platformExec('npm'), ['list', '-g', '--json', '--depth=0']);
+    const result = await spawnProcessAsync(platformExec('npm'), ['list', '-g', '--json', '--depth=0']);
     const stdout = result.stdout;
 
     const data = JSON.parse(stdout) as Record<string, unknown>;

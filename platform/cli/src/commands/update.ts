@@ -8,8 +8,10 @@
  */
 
 import { resolvePort } from '../parse-port.js';
-import { readFile, spawnProcessSync, toErrorMessage } from '@opentabs-dev/shared';
+import { toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
+import { spawnSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Command } from 'commander';
@@ -23,18 +25,19 @@ interface UpdateOptions {
 /** Read the currently installed CLI version from package.json. */
 const getInstalledVersion = async (): Promise<string> => {
   const cliDir = dirname(fileURLToPath(import.meta.url));
-  const pkgJson = JSON.parse(await readFile(join(cliDir, '..', '..', 'package.json'))) as { version: string };
+  const pkgJson = JSON.parse(await readFile(join(cliDir, '..', '..', 'package.json'), 'utf-8')) as { version: string };
   return pkgJson.version;
 };
 
 /** Query the latest published version via `npm view`. */
 const getLatestVersion = (): string => {
-  const result = spawnProcessSync('npm', ['view', CLI_PACKAGE_NAME, 'version']);
-  if (result.exitCode !== 0) {
-    const stderr = result.stderr.trim();
-    throw new Error(`npm view failed: ${stderr || `exit code ${result.exitCode}`}`);
+  const result = spawnSync('npm', ['view', CLI_PACKAGE_NAME, 'version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const exitCode = result.status ?? 1;
+  if (exitCode !== 0) {
+    const stderr = result.stderr.toString().trim();
+    throw new Error(`npm view failed: ${stderr || `exit code ${exitCode}`}`);
   }
-  return result.stdout.trim();
+  return result.stdout.toString().trim();
 };
 
 /** Check if the MCP server is running on the given port. */
@@ -52,8 +55,8 @@ const isServerRunning = async (port: number): Promise<boolean> => {
 /** Run `npm install -g` to update the CLI package. */
 const performUpdate = (version: string): boolean => {
   const target = `${CLI_PACKAGE_NAME}@${version}`;
-  const result = spawnProcessSync('npm', ['install', '-g', target], { stdin: 'inherit' });
-  return result.exitCode === 0;
+  const result = spawnSync('npm', ['install', '-g', target], { stdio: 'inherit' });
+  return (result.status ?? 1) === 0;
 };
 
 /** Detect if the CLI is running from a source checkout (monorepo) rather than a global npm install. */

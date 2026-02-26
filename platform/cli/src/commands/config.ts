@@ -12,16 +12,10 @@ import {
 } from '../config.js';
 import { notifyServer } from '../notify-server.js';
 import { resolvePort } from '../parse-port.js';
-import {
-  atomicWrite,
-  deleteFile as runtimeDeleteFile,
-  fileExists as runtimeFileExists,
-  generateSecret,
-  toErrorMessage,
-} from '@opentabs-dev/shared';
+import { atomicWrite, generateSecret, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
+import { access, mkdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import type { Command } from 'commander';
@@ -441,7 +435,12 @@ interface ConfigResetOptions {
 const handleConfigReset = async (options: ConfigResetOptions): Promise<void> => {
   const configPath = getConfigPath();
 
-  if (!(await runtimeFileExists(configPath))) {
+  if (
+    !(await access(configPath).then(
+      () => true,
+      () => false,
+    ))
+  ) {
     console.log(`No config file found at ${configPath}`);
     return;
   }
@@ -455,7 +454,7 @@ const handleConfigReset = async (options: ConfigResetOptions): Promise<void> => 
     process.exit(1);
   }
 
-  await runtimeDeleteFile(configPath);
+  await unlink(configPath).catch(() => {});
   console.log(`${pc.green('Config file deleted:')} ${configPath}`);
   console.log(pc.dim('Run opentabs start to regenerate.'));
 };
