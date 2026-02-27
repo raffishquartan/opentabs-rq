@@ -8,8 +8,6 @@ const config: KnipConfig = {
         // Peer dependencies required by ESLint plugins at runtime
         '@typescript-eslint/parser',
         'eslint-plugin-react-hooks',
-        // Used by workspace test files (plugin-tools, mcp-server) but knip doesn't trace cross-workspace test imports
-        'zod',
       ],
     },
     'platform/shared': {
