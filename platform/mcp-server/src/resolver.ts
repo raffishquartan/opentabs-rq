@@ -10,7 +10,7 @@
  */
 
 import { log } from './logger.js';
-import { ok, err, isBun, PLUGIN_PREFIX, platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { ok, err, PLUGIN_PREFIX, platformExec, toErrorMessage } from '@opentabs-dev/shared';
 import { spawnSync } from 'node:child_process';
 import { readFile, readdir, realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
@@ -87,7 +87,7 @@ const require = createRequire(import.meta.url);
 /**
  * Resolve an npm package specifier to the directory containing its package.json.
  * Uses require.resolve to locate the package's package.json, then returns
- * the containing directory. Works in both Node.js and Bun.
+ * the containing directory.
  */
 const resolveNpmPackage = (specifier: string): Result<string, string> => {
   try {
@@ -148,8 +148,8 @@ const setCachedGlobalPaths = (paths: string[] | null): void => {
 };
 
 /**
- * Get global node_modules directories from npm (and bun when running under Bun).
- * Results are cached on globalThis so the shell commands run at most once
+ * Get global node_modules directories from npm.
+ * Results are cached on globalThis so the shell command runs at most once
  * per process lifetime.
  */
 const getGlobalNodeModulesPaths = (): string[] => {
@@ -167,23 +167,6 @@ const getGlobalNodeModulesPaths = (): string[] => {
     }
   } catch (e) {
     log.debug(`npm root -g failed: ${toErrorMessage(e)}`);
-  }
-
-  // bun global node_modules (only when running under Bun — normal Node.js users
-  // install plugins via npm, so bun's global directory is irrelevant)
-  if (isBun) {
-    try {
-      const result = spawnSync(platformExec('bun'), ['pm', '-g', 'bin'], { stdio: ['ignore', 'pipe', 'pipe'] });
-      if (!result.error && result.status === 0) {
-        const bunBinPath = result.stdout.toString().trim();
-        if (bunBinPath.length > 0) {
-          const bunNodeModules = join(dirname(bunBinPath), 'node_modules');
-          if (!paths.includes(bunNodeModules)) paths.push(bunNodeModules);
-        }
-      }
-    } catch (e) {
-      log.debug(`bun pm -g bin failed: ${toErrorMessage(e)}`);
-    }
   }
 
   setCachedGlobalPaths(paths);
@@ -265,9 +248,9 @@ const scanGlobalDir = async (globalDir: string): Promise<string[]> => {
 /**
  * Discover globally installed npm plugin packages.
  *
- * Scans global node_modules directories (npm, and bun when available) for packages
- * matching the opentabs-plugin-* naming convention. Each match is validated
- * by checking for a package.json with an `opentabs` field.
+ * Scans the global npm node_modules directory for packages matching the
+ * opentabs-plugin-* naming convention. Each match is validated by checking
+ * for a package.json with an `opentabs` field.
  *
  * Returns an array of absolute directory paths for discovered plugins,
  * plus any non-fatal errors encountered during scanning.

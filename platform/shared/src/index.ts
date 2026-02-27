@@ -13,13 +13,6 @@
 export { atomicWrite, isWindows, platformExec, safeChmod } from './cross-platform.js';
 
 // ---------------------------------------------------------------------------
-// Runtime detection
-// ---------------------------------------------------------------------------
-
-/** True when running under the Bun runtime. */
-export const isBun = typeof Bun !== 'undefined';
-
-// ---------------------------------------------------------------------------
 // Error utilities
 // ---------------------------------------------------------------------------
 

@@ -33,10 +33,10 @@ const createRingBuffer = (): RingBuffer => ({
   size: 0,
 });
 
-/** globalThis key for persisting log buffers across bun --hot reloads */
+/** globalThis key for persisting log buffers across hot reloads */
 const BUFFERS_KEY = '__opentabs_log_buffers__' as const;
 
-/** Per-plugin ring buffers — stored on globalThis so they survive bun --hot module re-evaluation */
+/** Per-plugin ring buffers — stored on globalThis so they survive hot reload module re-evaluation */
 const getBuffers = (): Map<string, RingBuffer> => {
   const g = globalThis as Record<string, unknown>;
   let map = g[BUFFERS_KEY] as Map<string, RingBuffer> | undefined;

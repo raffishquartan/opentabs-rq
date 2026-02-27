@@ -15,7 +15,7 @@
  * Hot reload safety:
  *   Watcher handles and debounce timers are stored on ServerState (not module-level
  *   variables) so that stopFileWatching() — called from the NEW module after
- *   bun --hot re-evaluates — can always reach and close the PREVIOUS iteration's
+ *   hot reload re-evaluates — can always reach and close the PREVIOUS iteration's
  *   FSWatcher instances. Module-level variables reset to empty on each reload,
  *   which would orphan the old handles.
  */

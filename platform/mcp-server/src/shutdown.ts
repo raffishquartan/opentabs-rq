@@ -9,8 +9,8 @@
  *   5. Close extension WebSocket cleanly (so offscreen document reconnects)
  *   6. Exit the process
  *
- * The handler is installed once on first load. Under bun --hot, the signal
- * handlers are not re-registered (they survive across module re-evaluations
+ * The handler is installed once on first load. Signal handlers are not
+ * re-registered on hot reload (they survive across module re-evaluations
  * because they reference state via the getter closure, not a stale capture).
  *
  * A globalThis flag prevents double-registration if index.ts is re-evaluated.

@@ -4,7 +4,7 @@
  *
  * Fields that must survive hot reload (file watcher handles, timers) are stored
  * here rather than at module scope, because module-level variables reset to
- * fresh empty instances on each bun --hot re-evaluation.
+ * fresh empty instances on each hot reload re-evaluation.
  */
 
 import { appendAuditEntryToDisk } from './audit-disk.js';

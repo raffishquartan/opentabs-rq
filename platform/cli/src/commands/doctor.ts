@@ -11,7 +11,7 @@ import {
   resolvePluginPath,
 } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
-import { ADAPTER_FILENAME, TOOLS_FILENAME, isBun } from '@opentabs-dev/shared';
+import { ADAPTER_FILENAME, TOOLS_FILENAME } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -49,12 +49,7 @@ const fail = (label: string, detail: string, hint: string): CheckResult => ({
   fatal: true,
 });
 
-const checkRuntime = (): CheckResult => {
-  if (isBun) {
-    return pass('Runtime', `Bun v${Bun.version}`);
-  }
-  return pass('Runtime', `Node.js ${process.version}`);
-};
+const checkRuntime = (): CheckResult => pass('Runtime', `Node.js ${process.version}`);
 
 const checkConfigFile = async (): Promise<{ result: CheckResult; config: Record<string, unknown> | null }> => {
   const configPath = getConfigPath();

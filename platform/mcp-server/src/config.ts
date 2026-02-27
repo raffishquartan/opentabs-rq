@@ -297,7 +297,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
 /**
  * Save config to ~/.opentabs/config.json.
  * Serialized via state.configWriteMutex to prevent concurrent read-modify-write
- * races. The mutex lives on ServerState so it survives bun --hot re-evaluations
+ * races. The mutex lives on ServerState so it survives hot reload re-evaluations
  * (module-level variables reset on hot reload, but state persists on globalThis).
  */
 const saveConfig = async (state: { configWriteMutex: Promise<void> }, config: OpentabsConfig): Promise<void> => {

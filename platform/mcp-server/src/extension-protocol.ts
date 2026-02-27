@@ -455,7 +455,7 @@ const handleExtensionMessage = (
  * Error class for tool dispatch errors with JSON-RPC error codes.
  *
  * Not exported — consumers must use isDispatchError() for type narrowing.
- * Under bun --hot, each module re-evaluation creates a new class identity,
+ * On hot reload, each module re-evaluation creates a new class identity,
  * so `instanceof DispatchError` fails across reload boundaries. The duck-typed
  * isDispatchError() guard is co-located here to make the correct approach
  * obvious and the incorrect approach (importing the class) impossible.
@@ -474,7 +474,7 @@ class DispatchError extends Error {
 /**
  * Check if an error is a DispatchError by duck-typing rather than instanceof.
  *
- * Under bun --hot, each module re-evaluation creates a new DispatchError class.
+ * On hot reload, each module re-evaluation creates a new DispatchError class.
  * If a tool dispatch timeout fires after hot reload, the error is an instance of
  * the OLD module's DispatchError class. Using `instanceof` against the NEW
  * module's DispatchError would fail, causing the error to fall through to the

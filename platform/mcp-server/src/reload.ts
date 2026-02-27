@@ -6,7 +6,7 @@
  * restart, extension re-sync, client notification, and version check.
  *
  * Called on every module evaluation (both first load and hot reload). This
- * separation keeps index.ts as a thin frozen shell (Bun.serve() delegate,
+ * separation keeps index.ts as a thin frozen shell (HTTP server delegate,
  * HotState management, handler definitions) that rarely needs to change,
  * while all reload logic lives here and is freely editable.
  */
@@ -44,8 +44,8 @@ interface ReloadResult {
 
 /**
  * globalThis key for the concurrent reload guard promise.
- * Stored on globalThis so it survives across bun --hot re-evaluations.
- * If a reload is in progress when bun --hot triggers, the new module
+ * Stored on globalThis so it survives across hot reload re-evaluations.
+ * If a reload is in progress when a dev mode reload triggers, the new module
  * evaluation waits for the previous reload to finish before starting.
  */
 const RELOAD_GUARD_KEY = '__opentabs_reload_guard__' as const;
@@ -287,8 +287,7 @@ const restartSweepTimer = (
  * before the reload attempt.
  *
  * A globalThis-based guard prevents concurrent reloads: if a previous reload
- * is still running (e.g., bun --hot fires twice in quick succession), this
- * call waits for it to finish before proceeding.
+ * is still running, this call waits for it to finish before proceeding.
  */
 const performReload = async (
   state: ServerState,
@@ -345,7 +344,7 @@ const performReload = async (
       log.warn('Exec file cleanup failed:', err);
     }
 
-    // Update browser tools from the fresh module import (bun --hot re-evaluates
+    // Update browser tools from the fresh module import (hot reload re-evaluates
     // the import chain so browserTools contains the latest definitions)
     state.browserTools = browserTools;
 
@@ -395,10 +394,10 @@ const performReload = async (
 };
 
 /**
- * Reload config and rediscover plugins at runtime without bun --hot.
- * Called from the POST /reload HTTP endpoint. Performs the same config/plugin
- * rediscovery as performReload but without the bun --hot-specific module
- * re-evaluation aspects (browser tools refresh, session handler re-registration).
+ * Reload config and rediscover plugins at runtime via the POST /reload endpoint.
+ * Performs the same config/plugin rediscovery as performReload but without the
+ * hot reload module re-evaluation aspects (browser tools refresh, session
+ * handler re-registration).
  *
  * Returns the number of plugins discovered and the duration in milliseconds.
  */

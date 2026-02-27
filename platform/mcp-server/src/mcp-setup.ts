@@ -15,7 +15,7 @@
  * Hot reload:
  *   `registerMcpHandlers` is separated from `createMcpServer` so that existing
  *   MCP sessions can have their tools/list and tools/call handler logic refreshed
- *   on hot reload. After bun --hot re-evaluates this module, calling
+ *   on hot reload. After each hot reload re-evaluates this module, calling
  *   `registerMcpHandlers(server, state)` on each existing session replaces the
  *   old handler closures with new ones that reference the fresh module imports
  *   (dispatchToExtension, sendInvocationStart, etc.).
@@ -83,7 +83,7 @@ interface McpServerInstance {
 /**
  * Dynamically import the MCP SDK Server constructor.
  *
- * Each call performs a fresh dynamic import(). Under bun --hot, module-level
+ * Each call performs a fresh dynamic import(). On hot reload, module-level
  * caches reset on every re-evaluation, so caching here would be misleading —
  * it would appear to persist but actually reset to null on each reload. The
  * dynamic import is fast (resolved from the module cache by the runtime) and

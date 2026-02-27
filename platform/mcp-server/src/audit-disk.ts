@@ -18,7 +18,7 @@ import type { AuditEntry } from './state.js';
 /** Maximum audit.log size before rotation (10 MB) */
 const MAX_AUDIT_FILE_SIZE = 10 * 1024 * 1024;
 
-/** globalThis key for persisting the initialized flag across bun --hot reloads */
+/** globalThis key for persisting the initialized flag across hot reloads */
 const INITIALIZED_KEY = '__opentabs_audit_initialized__' as const;
 
 /**
@@ -66,7 +66,7 @@ const appendAuditEntryToDisk = async (entry: AuditEntry): Promise<void> => {
     // Append the entry
     await appendFile(auditPath, line, { mode: 0o600 });
 
-    // Set permissions on first write this session (survives bun --hot reloads)
+    // Set permissions on first write this session (survives hot reloads)
     const g = globalThis as Record<string, unknown>;
     if (!g[INITIALIZED_KEY]) {
       await safeChmod(auditPath, 0o600);

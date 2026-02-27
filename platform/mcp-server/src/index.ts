@@ -9,29 +9,19 @@
  * 5. POST /reload — trigger config/plugin rediscovery
  * 6. POST /extension/reload — trigger extension reload
  *
- * Dual-runtime support:
- *   Under Bun (dev mode with bun --hot), uses Bun.serve() with a delegate
- *   shell that hot-reloads handler logic without recreating the server.
- *   Under Node.js (production mode), uses node:http + ws via server-node.ts.
+ * Uses node:http + ws via server-node.ts. In dev mode, a proxy process wraps
+ * this server and restarts the worker process on code changes while holding
+ * client connections open.
  *
- * Hot reload (bun --hot, dev mode only):
- *   Bun 1.x re-evaluates this module on file change but preserves globalThis.
- *   The Bun.serve() instance is created ONCE on first load with pure delegate
- *   handlers — fetch, websocket.open, websocket.message, websocket.close all
- *   read the latest handler functions from getHotState() at call time. This
- *   means ALL handler logic is hot-reloadable: extension protocol, MCP tool
- *   handlers, browser tools, plugin discovery, config — everything except the
- *   server shell itself.
- *
- *   On hot reload, performReload() in reload.ts handles the full sequence:
- *     1. Config is re-loaded from disk
- *     2. Plugins are re-discovered into a new Map, then swapped atomically
- *     3. Browser tools are refreshed from the new module import
- *     4. MCP handler logic is re-registered on ALL existing sessions
- *     5. File watchers are restarted with fresh callbacks
- *     6. Extension gets a sync.full with the latest plugin state
- *     7. All MCP clients receive tools/list_changed notification
- *     8. Stale tabMapping and outdatedPlugins entries are pruned
+ * On hot reload, performReload() in reload.ts handles the full sequence:
+ *   1. Config is re-loaded from disk
+ *   2. Plugins are re-discovered into a new Map, then swapped atomically
+ *   3. Browser tools are refreshed from the new module import
+ *   4. MCP handler logic is re-registered on ALL existing sessions
+ *   5. File watchers are restarted with fresh callbacks
+ *   6. Extension gets a sync.full with the latest plugin state
+ *   7. All MCP clients receive tools/list_changed notification
+ *   8. Stale tabMapping and outdatedPlugins entries are pruned
  *
  * ┌──────────────────────────────────────────────────────────────────────┐
  * │ FROZEN CORE — changes here require a full process restart.          │
@@ -55,7 +45,7 @@ import { createNodeServer } from './server-node.js';
 import { installShutdownHandlers } from './shutdown.js';
 import { createState } from './state.js';
 import { version } from './version.js';
-import { DEFAULT_PORT, isBun } from '@opentabs-dev/shared';
+import { DEFAULT_PORT } from '@opentabs-dev/shared';
 import type { HotHandlers } from './http-routes.js';
 import type { McpServerInstance } from './mcp-setup.js';
 import type { ReloadResult } from './reload.js';
@@ -67,13 +57,11 @@ import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprot
 // FROZEN CORE — Server delegate shell and globalThis state management
 //
 // Changes to this section only take effect after a full process restart.
-// Hot reload (bun --hot) re-evaluates the module but the server instance,
-// HotState shape, and delegate wiring are created once on first load and
-// never recreated.
+// The server instance, HotState shape, and delegate wiring are created once
+// on first load and never recreated.
 // =========================================================================
 
-/** Server instance — Bun.serve() under Bun, NodeServer under Node.js */
-type ServerInstance = NodeServer | ReturnType<typeof Bun.serve>;
+type ServerInstance = NodeServer;
 
 /**
  * Persistent state stored on globalThis across hot reloads.
@@ -175,9 +163,6 @@ const handlers: HotHandlers = createHandlers({
 // handlers read the latest handler functions from getHotState() at call time.
 // This makes ALL handler logic hot-reloadable without recreating the server.
 //
-// Under Bun: uses Bun.serve() with delegate handlers for hot reload.
-// Under Node.js: uses node:http + ws via createNodeServer().
-//
 // Editing createHttpServer or the PORT logic requires a full process restart.
 // =========================================================================
 
@@ -205,35 +190,9 @@ const handleListenError = (error: unknown): never => {
   throw error;
 };
 
-/** Create the Bun.serve() delegate shell with hot-reloadable handlers (Bun only) */
-const createBunServer = (): ReturnType<typeof Bun.serve> =>
-  Bun.serve({
-    hostname: '127.0.0.1',
-    port: PORT,
-    async fetch(req, server) {
-      const hs = getHotState();
-      if (!hs) return new Response('Server initializing', { status: 503 });
-      return hs.handlers.fetch(req, server);
-    },
-    websocket: {
-      /** Matches MAX_MESSAGE_SIZE in extension-protocol.ts (10MB) */
-      maxPayloadLength: 10 * 1024 * 1024,
-      open(ws) {
-        getHotState()?.handlers.wsOpen(ws);
-      },
-      message(ws, message) {
-        getHotState()?.handlers.wsMessage(ws, message);
-      },
-      close(ws) {
-        getHotState()?.handlers.wsClose(ws);
-      },
-    },
-  });
-
-/** Create the HTTP + WebSocket server for the current runtime */
+/** Create the HTTP + WebSocket server */
 const createHttpServer = async (): Promise<ServerInstance> => {
   try {
-    if (isBun) return createBunServer();
     return await createNodeServer({
       hostname: '127.0.0.1',
       port: PORT,

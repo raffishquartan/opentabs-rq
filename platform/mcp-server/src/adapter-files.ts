@@ -14,7 +14,7 @@ import type { ServerState } from './state.js';
 /**
  * Ensure the adapters directory exists, creating it if necessary.
  * Caches the result on ServerState so mkdir is called at most once per
- * server lifetime. The flag survives bun --hot reloads (via globalThis state).
+ * server lifetime. The flag survives hot reloads (via globalThis state).
  */
 const ensureAdaptersDir = async (state: ServerState): Promise<void> => {
   if (state.adaptersDirReady) return;
