@@ -69,9 +69,10 @@ opentabs start [options]
 
 On first run, `opentabs start` auto-initializes the `~/.opentabs/` directory:
 
-1. Creates `~/.opentabs/config.json` with a generated secret
-2. Installs the Chrome extension files to `~/.opentabs/extension/`
-3. Prints first-time setup instructions (load the extension, configure your MCP client)
+1. Creates `~/.opentabs/config.json` (plugin and tool settings)
+2. Generates authentication secret in `~/.opentabs/extension/auth.json`
+3. Installs the Chrome extension files to `~/.opentabs/extension/`
+4. Prints first-time setup instructions (load the extension, configure your MCP client)
 
 On subsequent runs, the extension is updated if the CLI version has changed.
 
@@ -642,7 +643,7 @@ opentabs config path
 
 ### opentabs config reset
 
-Delete the config file. The server regenerates a fresh config (with a new secret) on the next `opentabs start`.
+Delete the config file. The server regenerates a fresh config on the next `opentabs start`.
 
 ```bash
 opentabs config reset --confirm
@@ -665,7 +666,7 @@ opentabs config reset --confirm
   </Table.Body>
 </Table>
 
-Since the server secret is stored in the config file, resetting config means your MCP client configuration will need to be updated with the new secret after the next `opentabs start`.
+The config file stores local plugin paths, tool overrides, and permissions. The authentication secret in `~/.opentabs/extension/auth.json` is not affected.
 
 ### opentabs config rotate-secret
 
@@ -692,13 +693,11 @@ opentabs config rotate-secret
   </Table.Body>
 </Table>
 
-If the MCP server is running, it is notified using the old secret so the transition is seamless on the server side. The Chrome extension must be reloaded to pick up the new secret from `auth.json`.
+If the MCP server is running, it is notified via `POST /reload` using the old secret. The server then notifies the Chrome extension via WebSocket, and the extension auto-reconnects with the new secret — no manual reload required. MCP clients need to update their configuration with the new secret value.
 
 ```bash
 # Rotate the secret
 opentabs config rotate-secret --confirm
-
-# Then reload the Chrome extension from chrome://extensions/
 ```
 
 ---
