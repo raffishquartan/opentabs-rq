@@ -9,6 +9,7 @@ Discovers plugins, registers their tools, resources, and prompts as MCP capabili
 ```
 platform/mcp-server/src/
 ├── index.ts              # Entry point (HTTP + WebSocket server, hot reload)
+├── dev-proxy.ts          # Dev proxy: holds connections, restarts worker on dist/ changes
 ├── dev-mode.ts           # Dev mode detection (--dev flag / OPENTABS_DEV env var)
 ├── config.ts             # ~/.opentabs/config.json management + auth.json secret handling
 ├── discovery.ts          # Discovery orchestrator (resolve → load → register)
@@ -47,13 +48,13 @@ The plugin SDK exports a `log` namespace (`log.debug`, `log.info`, `log.warn`, `
 
 ## Dev vs Production Mode
 
-The MCP server operates in two modes, controlled by the `--dev` CLI flag or `OPENTABS_DEV=1` environment variable. **Production mode** (default) runs on Node.js (`node dist/index.js`), performs static plugin discovery at startup with no file watchers and no config watching, and uses `node:http` + `ws` for the HTTP+WebSocket server. **Dev mode** runs under Bun with `bun --hot`, enables file watchers for local plugin `dist/` directories, config file watching, and uses `Bun.serve()` for the server. The `POST /reload` endpoint is available in both modes (behind bearer auth and rate limiting), allowing `opentabs-plugin build` to trigger rediscovery in either mode. The mode is determined once at startup in `dev-mode.ts` and accessible via `isDev()`.
+The MCP server operates in two modes, controlled by the `--dev` CLI flag or `OPENTABS_DEV=1` environment variable. **Production mode** (default) runs `node dist/index.js`, performs static plugin discovery at startup with no file watchers and no config watching, and uses `node:http` + `ws` for the HTTP+WebSocket server. **Dev mode** runs via the dev proxy (`node dist/dev-proxy.js`), enables file watchers for local plugin `dist/` directories, config file watching. The `POST /reload` endpoint is available in both modes (behind bearer auth and rate limiting), allowing `opentabs-plugin build` to trigger rediscovery in either mode. The mode is determined once at startup in `dev-mode.ts` and accessible via `isDev()`.
 
 ### Hot Reload (Dev Mode Only)
 
-In dev mode, the MCP server runs under `bun --hot`. On file changes, Bun re-evaluates the module while preserving `globalThis`. The server uses a `globalThis`-based cleanup pattern to tear down the previous instance (close WebSocket, stop file watchers, free the port) and reinitialize cleanly. Hot reload is a platform contributor feature — production users run the server via `opentabs start` (Node.js). In both modes, the `POST /reload` endpoint triggers plugin rediscovery without restarting the process.
+In dev mode, the MCP server runs behind a thin proxy (`src/dev-proxy.ts`). The proxy holds all HTTP and WebSocket connections while watching `dist/` for `.js` file changes. On change (debounced 300ms), the proxy kills the current worker process and forks a new one. The new worker starts on an ephemeral port (PORT=0), signals its actual port to the proxy via IPC (`process.send({ type: 'ready', port })`), and the proxy resumes forwarding traffic. Incoming HTTP requests are buffered during restart (up to 5 seconds, then 503). The `globalThis`-based state pattern in `index.ts` is preserved for consistency but is effectively unused since each worker gets a clean process.
 
-**Known issue**: `bun --hot` file watchers can go stale on long-running processes (22+ hours). If `bun run build` does not trigger a hot reload (verify via the `/health` endpoint's `reloadCount`), restart the MCP server process manually. Note: `tsc` uses `writeFileSync` (in-place, preserves inodes), so this is not a kqueue inode invalidation issue — it is a bug in Bun's file watcher that surfaces on long-running processes (see oven-sh/bun#14568, oven-sh/bun#15200).
+Hot reload is a platform contributor feature — production users run the server via `opentabs start` (Node.js with no proxy). In both modes, the `POST /reload` endpoint triggers plugin rediscovery without restarting the process.
 
 ## Authentication and Secrets
 

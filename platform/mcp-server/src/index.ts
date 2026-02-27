@@ -227,6 +227,12 @@ if (!isHotReload) {
   log.info(`MCP server v${version} listening on http://localhost:${actualPort}${modeLabel}`);
 }
 
+// When running under the dev proxy (forked with OPENTABS_PROXY=1), report
+// the actual listening port so the proxy knows where to forward requests.
+if (process.env['OPENTABS_PROXY'] === '1' && process.send) {
+  process.send({ type: 'ready', port: actualPort });
+}
+
 // Install graceful shutdown handlers (once per process, survives hot reloads).
 // Uses a getter so the handler always operates on the latest state reference.
 installShutdownHandlers(() => state);

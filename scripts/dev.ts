@@ -7,8 +7,9 @@
  * 2. Waits for tsc's initial compilation to finish (detects the
  *    "Watching for file changes" line in tsc output).
  * 3. Runs the extension build pipeline (bundle + side panel + install).
- * 4. Starts the MCP server via `bun --hot platform/mcp-server/dist/index.js`.
- *    (Will be replaced by the Node.js proxy dev server in US-005.)
+ * 4. Starts the MCP server via the dev proxy (platform/mcp-server/dist/dev-proxy.js).
+ *    The proxy holds client connections and restarts the MCP server worker on
+ *    dist/ file changes, replacing bun --hot.
  * 5. On each subsequent tsc recompilation (detected via the "Watching for
  *    file changes" sentinel in tsc output), re-runs the extension pipeline
  *    (debounced) and sends a reload signal to the Chrome extension.
@@ -286,9 +287,9 @@ console.log(`${devPrefix} tsc initial compilation complete.`);
 // 3. Run the extension build pipeline once after initial tsc build
 await buildExtension();
 
-// 4. Start MCP server with bun --hot (will be replaced by proxy dev server in US-005)
-console.log(`${devPrefix} Starting MCP server (bun --hot)...`);
-const mcpSpawn = spawnProcess(['bun', '--hot', 'platform/mcp-server/dist/index.js', '--dev'], {
+// 4. Start the dev proxy (holds client connections, restarts MCP server worker on dist/ changes)
+console.log(`${devPrefix} Starting MCP server (dev proxy)...`);
+const mcpSpawn = spawnProcess(['node', 'platform/mcp-server/dist/dev-proxy.js'], {
   cwd: ROOT,
   stdio: ['ignore', 'pipe', 'pipe'],
 });
