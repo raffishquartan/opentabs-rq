@@ -264,8 +264,9 @@ You are an autonomous coding agent running in a git worktree. The safety net ver
       return 1
     fi
 
+    local passed=$(( total - remaining ))
     echo ""
-    echo "── Iteration $i/$max_iterations — $remaining stories remaining ──"
+    echo "── Iteration $i/$max_iterations — story ($passed/$total) — $remaining remaining ──"
 
     ITER_RESULT_FILE=$(mktemp)
     STDERR_FILE=$(mktemp)
