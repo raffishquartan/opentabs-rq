@@ -31,10 +31,26 @@ WORKTREE_DIR="${WORKER_WORKTREE_DIR:-/workspace}"
 # Format: "(passed/total)" e.g., "(1/4)". Empty before first iteration.
 STORY_PROGRESS=""
 
+# Colors for log output
+C_TAG=$'\033[36m'       # cyan — worker tag (W0, W1, ...)
+C_SLUG=$'\033[1;34m'    # bold blue — PRD slug (docs-fill-sdk-gaps)
+C_PROG=$'\033[33m'      # yellow — story progress (2/4)
+C_DIM=$'\033[2m'        # dim — brackets and separators
+C_RESET=$'\033[0m'
+
 # Prefixed echo — prepends the worker tag + story progress to every line.
-# Called by stream_filter and directly for status messages.
+# Format: [W0:docs-fill-sdk-gaps(2/4)] message
 wlog() {
-  echo "[${TAG}${STORY_PROGRESS}] $*"
+  local slot="${TAG%%:*}"
+  local slug="${TAG#*:}"
+  # STORY_PROGRESS is "(passed/total)" or empty
+  local prog=""
+  if [ -n "$STORY_PROGRESS" ]; then
+    local nums="${STORY_PROGRESS#(}"
+    nums="${nums%)}"
+    prog="${C_DIM}(${C_RESET}${C_PROG}${nums}${C_RESET}${C_DIM})${C_RESET}"
+  fi
+  echo "${C_DIM}[${C_RESET}${C_TAG}${slot}${C_RESET}${C_DIM}:${C_RESET}${C_SLUG}${slug}${C_RESET}${prog}${C_DIM}]${C_RESET} $*"
 }
 
 # --- Stream filter ---
@@ -72,7 +88,7 @@ stream_filter() {
         if [ -n "$tool_uses" ]; then
           while IFS=$'\t' read -r tool_name tool_detail; do
             [ -z "$tool_name" ] && continue
-            wlog "$(printf '▸ %-8s %s' "$tool_name" "$tool_detail")"
+            wlog "$(printf '\033[32m▸\033[0m \033[1m%-8s\033[0m \033[2m%s\033[0m' "$tool_name" "$tool_detail")"
           done <<< "$tool_uses"
         fi
 
@@ -82,7 +98,10 @@ stream_filter() {
         ' 2>/dev/null)
 
         if [ -n "$text_content" ] && [ "$text_content" != "null" ]; then
-          wlog "$(printf '✦ %.120s' "$text_content")"
+          # Prefix each line separately — text_content can be multi-line
+          echo "$text_content" | head -5 | while IFS= read -r tline; do
+            wlog "$(printf '\033[35m✦\033[0m %.120s' "$tline")"
+          done
           if echo "$text_content" | grep -q "<promise>COMPLETE</promise>" 2>/dev/null; then
             echo "$text_content" >> "$result_file"
           fi
@@ -98,7 +117,7 @@ stream_filter() {
 
         echo "$result_text" >> "$result_file"
 
-        wlog "$(printf '⏱  %ss  │  %s turns  │  $%s' "$duration_s" "$num_turns" "$cost")"
+        wlog "$(printf '\033[33m⏱  %ss  │  %s turns  │  $%s\033[0m' "$duration_s" "$num_turns" "$cost")"
         ;;
     esac
   done
