@@ -97,11 +97,15 @@ const teeStream = async (
   logFile: WriteStream,
 ): Promise<void> => {
   const reader = readable.getReader();
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    terminal.write(value);
-    logFile.write(value);
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      terminal.write(value);
+      logFile.write(value);
+    }
+  } finally {
+    reader.releaseLock();
   }
 };
 
@@ -240,6 +244,9 @@ const handleStart = async (options: StartOptions): Promise<void> => {
 
   const logFilePath = getLogFilePath();
   const logStream = createWriteStream(logFilePath, { flags: 'a' });
+  logStream.on('error', (err: Error) => {
+    console.warn(pc.yellow(`Warning: Failed to write to log file: ${toErrorMessage(err)}`));
+  });
 
   console.log(`Starting OpenTabs MCP server on port ${pc.bold(String(port))}...`);
   console.log('');
