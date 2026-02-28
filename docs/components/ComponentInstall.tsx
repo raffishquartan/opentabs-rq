@@ -55,7 +55,7 @@ export const CliCommand = ({
           yarn
         </Tab>
       </TabList>
-      <TabPanels className="text-accent-foreground text-sm">
+      <TabPanels className="text-secondary-foreground text-sm">
         <TabPanel>
           <CopyableCommand command={npmCommand} />
         </TabPanel>
