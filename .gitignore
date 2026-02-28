@@ -3,7 +3,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 platform/browser-extension/icons/
-bun.lockb
 test-results/
 playwright-report/
 .env
