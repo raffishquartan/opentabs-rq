@@ -70,15 +70,27 @@ interface ConsoleEntry {
   timestamp: number;
 }
 
+interface WsFrame {
+  url: string;
+  direction: 'sent' | 'received';
+  data: string;
+  opcode: number;
+  timestamp: number;
+}
+
 interface CaptureState {
   requests: CapturedRequest[];
   consoleLogs: ConsoleEntry[];
+  wsFrames: WsFrame[];
   maxRequests: number;
   maxConsoleLogs: number;
+  maxWsFrames: number;
   urlFilter?: string;
   pendingRequests: Map<string, Partial<CapturedRequest>>;
   /** Maps requestId → CapturedRequest reference for attaching response bodies after loadingFinished */
   requestIdToRequest: Map<string, CapturedRequest>;
+  /** Maps requestId → WebSocket URL from Network.webSocketCreated events */
+  wsFramesByRequestId: Map<string, string>;
 }
 
 interface HeaderEntry {
@@ -282,10 +294,16 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
     // Capture the creation event as a synthetic request so that the
     // analyze-site API detection module can classify it as websocket.
     const url = paramsRecord?.url as string | undefined;
+    const requestId = paramsRecord?.requestId as string | undefined;
     if (!url) return;
 
     // Apply URL filter
     if (state.urlFilter && !url.includes(state.urlFilter)) return;
+
+    // Store requestId → url mapping for frame capture
+    if (requestId) {
+      state.wsFramesByRequestId.set(requestId, url);
+    }
 
     const completed: CapturedRequest = {
       url,
@@ -300,6 +318,26 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
       evictOldestRequest(state);
     }
     state.requests.push(completed);
+  } else if (method === 'Network.webSocketFrameSent' || method === 'Network.webSocketFrameReceived') {
+    const requestId = paramsRecord?.requestId as string | undefined;
+    const response = paramsRecord?.response as Record<string, unknown> | undefined;
+    if (!requestId || !response) return;
+
+    const url = state.wsFramesByRequestId.get(requestId);
+    if (!url) return;
+
+    const opcode = typeof response.opcode === 'number' ? response.opcode : 1;
+    const payloadData = typeof response.payloadData === 'string' ? response.payloadData : '';
+    const direction: 'sent' | 'received' = method === 'Network.webSocketFrameSent' ? 'sent' : 'received';
+
+    // Binary frames (opcode 2) store a truncated base64 preview;
+    // text frames (opcode 1) store the payload directly.
+    const data = truncateBody(payloadData);
+
+    if (state.wsFrames.length >= state.maxWsFrames) {
+      state.wsFrames.shift();
+    }
+    state.wsFrames.push({ url, direction, data, opcode, timestamp: Date.now() });
   } else if (method === 'Runtime.consoleAPICalled') {
     const type = paramsRecord?.type as string | undefined;
     const args = paramsRecord?.args as Array<{ type?: string; value?: unknown; description?: string }> | undefined;
@@ -358,6 +396,7 @@ export const startCapture = async (
   maxRequests: number = 100,
   urlFilter?: string,
   maxConsoleLogs: number = 500,
+  maxWsFrames: number = 200,
 ): Promise<void> => {
   if (captures.has(tabId)) {
     throw new Error(`Network capture already active for tab ${tabId}. Call stopCapture first.`);
@@ -383,11 +422,14 @@ export const startCapture = async (
   captures.set(tabId, {
     requests: [],
     consoleLogs: [],
+    wsFrames: [],
     maxRequests,
     maxConsoleLogs,
+    maxWsFrames,
     urlFilter,
     pendingRequests: new Map(),
     requestIdToRequest: new Map(),
+    wsFramesByRequestId: new Map(),
   });
 };
 
@@ -453,6 +495,22 @@ export const clearConsoleLogs = (tabId: number): void => {
   }
 };
 
+/**
+ * Get captured WebSocket frames for a tab.
+ * Optionally clears the buffer after reading.
+ */
+export const getWsFrames = (tabId: number, clear: boolean = false): WsFrame[] => {
+  const state = captures.get(tabId);
+  if (!state) return [];
+
+  const frames = [...state.wsFrames];
+  if (clear) {
+    state.wsFrames = [];
+    state.wsFramesByRequestId.clear();
+  }
+  return frames;
+};
+
 /** Return a summary of all active network captures for state inspection. */
 export const getActiveCapturesSummary = (): Array<{ tabId: number; requestCount: number; isCapturing: boolean }> =>
   Array.from(captures.entries()).map(([tabId, state]) => ({
@@ -462,3 +520,4 @@ export const getActiveCapturesSummary = (): Array<{ tabId: number; requestCount:
   }));
 
 export { scrubHeaders };
+export type { WsFrame };
