@@ -249,8 +249,8 @@ const handleStart = async (options: StartOptions): Promise<void> => {
   }
 
   const configDir = getConfigDir();
-  const isFirstTime = await autoInitialize(configDir);
   const secret = await ensureAuthSecret();
+  const isFirstTime = await autoInitialize(configDir);
 
   const env: Record<string, string | undefined> = { ...process.env };
   env.PORT = String(port);
