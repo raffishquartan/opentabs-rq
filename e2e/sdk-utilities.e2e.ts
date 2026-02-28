@@ -270,4 +270,27 @@ test.describe('SDK utilities — full stack', () => {
 
     await page.close();
   });
+
+  test('setSessionStorage: writes a value and reads it back', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    const page = await setupSdkTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    const output = await callToolExpectSuccess(mcpClient, mcpServer, 'e2e-test_sdk_set_session_storage', {
+      key: 'test-key',
+      value: 'test-value',
+    });
+
+    expect(output.ok).toBe(true);
+    expect(output.readBack).toBe('test-value');
+
+    // Verify the value is in sessionStorage from the page context
+    const stored = await page.evaluate(() => sessionStorage.getItem('test-key'));
+    expect(stored).toBe('test-value');
+
+    await page.close();
+  });
 });
