@@ -240,6 +240,30 @@ describe('validateInactiveIconColors', () => {
     const result = validateInactiveIconColors(svg);
     expect(result.valid).toBe(false);
   });
+
+  // -- 8-digit and 4-digit hex (#RRGGBBAA, #RGBA) --
+
+  test('fill="#FF0000FF" (#RRGGBBAA red with full opacity) fails', () => {
+    const svg = svgWrap('<rect fill="#FF0000FF"/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('fill="#80808080" (#RRGGBBAA gray with alpha) passes', () => {
+    const svg = svgWrap('<rect fill="#80808080"/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  test('fill="#f00f" (#RGBA red with full opacity) fails', () => {
+    const svg = svgWrap('<rect fill="#f00f"/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('fill="#888f" (#RGBA gray with alpha) passes', () => {
+    const svg = svgWrap('<rect fill="#888f"/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -537,5 +561,31 @@ describe('generateInactiveIcon', () => {
     expect(result).toContain('fill: #363636');
     expect(result).toContain('stroke: #121212');
     expect(result).toContain('stop-color: #d0d0d0');
+  });
+
+  // -- 8-digit and 4-digit hex (#RRGGBBAA, #RGBA) --
+
+  test('fill="#FF0000FF" (#RRGGBBAA red with full opacity) → luminance 54 → fill="#363636"', () => {
+    const svg = svgWrap('<rect fill="#FF0000FF"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#363636"');
+  });
+
+  test('fill="#00FF00FF" (#RRGGBBAA green with full opacity) → luminance 182 → fill="#b6b6b6"', () => {
+    const svg = svgWrap('<rect fill="#00FF00FF"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#b6b6b6"');
+  });
+
+  test('fill="#f00f" (#RGBA red with full opacity) → luminance 54 → fill="#363636"', () => {
+    const svg = svgWrap('<rect fill="#f00f"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#363636"');
+  });
+
+  test('fill="#ffff" (#RGBA white) → luminance 255 → fill="#ffffff"', () => {
+    const svg = svgWrap('<rect fill="#ffff"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#ffffff"');
   });
 });

@@ -125,10 +125,22 @@ const EVENT_HANDLER_RE =
 // Color parsing utilities
 // ---------------------------------------------------------------------------
 
-/** Parse a hex color (#RGB or #RRGGBB) to [R, G, B] */
+/** Parse a hex color (#RGB, #RGBA, #RRGGBB, or #RRGGBBAA) to [R, G, B] — alpha is ignored */
 const parseHex = (hex: string): [number, number, number] | null => {
   const trimmedHex = hex.trim();
   if (trimmedHex.length === 4) {
+    // #RGB
+    const c1 = trimmedHex[1] ?? '0';
+    const c2 = trimmedHex[2] ?? '0';
+    const c3 = trimmedHex[3] ?? '0';
+    const red = parseInt(c1 + c1, 16);
+    const green = parseInt(c2 + c2, 16);
+    const blue = parseInt(c3 + c3, 16);
+    if (Number.isNaN(red) || Number.isNaN(green) || Number.isNaN(blue)) return null;
+    return [red, green, blue];
+  }
+  if (trimmedHex.length === 5) {
+    // #RGBA — expand each RGB digit, ignore alpha
     const c1 = trimmedHex[1] ?? '0';
     const c2 = trimmedHex[2] ?? '0';
     const c3 = trimmedHex[3] ?? '0';
@@ -139,6 +151,15 @@ const parseHex = (hex: string): [number, number, number] | null => {
     return [red, green, blue];
   }
   if (trimmedHex.length === 7) {
+    // #RRGGBB
+    const red = parseInt(trimmedHex.slice(1, 3), 16);
+    const green = parseInt(trimmedHex.slice(3, 5), 16);
+    const blue = parseInt(trimmedHex.slice(5, 7), 16);
+    if (Number.isNaN(red) || Number.isNaN(green) || Number.isNaN(blue)) return null;
+    return [red, green, blue];
+  }
+  if (trimmedHex.length === 9) {
+    // #RRGGBBAA — parse RGB portion, ignore alpha
     const red = parseInt(trimmedHex.slice(1, 3), 16);
     const green = parseInt(trimmedHex.slice(3, 5), 16);
     const blue = parseInt(trimmedHex.slice(5, 7), 16);
