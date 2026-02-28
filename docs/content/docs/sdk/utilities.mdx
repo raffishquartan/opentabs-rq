@@ -436,12 +436,12 @@ Maps an HTTP error response to a `ToolError` with the appropriate category. Stat
 
 | Status | Category | `retryable` | Notes |
 | --- | --- | --- | --- |
-| 401, 403 | `auth` | — | |
-| 404 | `not_found` | — | |
-| 429 | `rate_limit` | — | Parses `Retry-After` header into `retryAfterMs` |
+| 401, 403 | `auth` | `false` | |
+| 404 | `not_found` | `false` | |
+| 429 | `rate_limit` | `true` | Parses `Retry-After` header into `retryAfterMs` |
 | 503 | `internal` | `true` | Parses `Retry-After` header into `retryAfterMs` |
 | 5xx (other) | `internal` | `true` | Server errors are retryable |
-| Other | `internal` | — | Not retryable |
+| Other | `internal` | `false` | Not retryable |
 
 ```typescript
 function httpStatusToToolError(response: Response, message: string): ToolError;
