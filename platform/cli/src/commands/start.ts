@@ -201,7 +201,14 @@ const printMcpClientConfigs = (mcpUrl: string, secret: string | null): void => {
   }
 
   console.log(pc.dim(`${pad}For other MCP clients, consult their documentation for adding a Streamable HTTP server`));
-  console.log(pc.dim(`${pad}pointing to ${mcpUrl} with Authorization: Bearer <secret>`));
+  if (secret) {
+    console.log(pc.dim(`${pad}pointing to ${mcpUrl} with Authorization: Bearer ${secret}`));
+  } else {
+    console.log(pc.dim(`${pad}pointing to ${mcpUrl} with an Authorization: Bearer header`));
+  }
+  console.log(
+    pc.dim(`${pad}Run ${pc.bold('opentabs config show --show-secret')} to see MCP client configuration at any time.`),
+  );
   console.log('');
 };
 
