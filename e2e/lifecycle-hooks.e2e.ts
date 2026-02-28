@@ -59,6 +59,66 @@ test.describe('Lifecycle hooks', () => {
     expect(urls).toEqual(expect.arrayContaining([expect.stringContaining('/navigated-path')]));
   });
 
+  test('onNavigate fires on hashchange', async ({ mcpServer, testServer, extensionContext, mcpClient }) => {
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // Clear any URLs recorded during setup
+    await page.evaluate(() => {
+      (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls = [];
+    });
+
+    // Trigger a hashchange
+    await page.evaluate(() => {
+      window.location.hash = '#test-section';
+    });
+
+    await waitFor(
+      async () => {
+        const urls = await page.evaluate(() => (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls);
+        return Array.isArray(urls) && urls.length > 0;
+      },
+      10_000,
+      200,
+      'onNavigate hook to record hashchange URL',
+    );
+
+    const urls = await page.evaluate(
+      () => (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls as string[],
+    );
+    expect(urls).toEqual(expect.arrayContaining([expect.stringContaining('#test-section')]));
+  });
+
+  test('onNavigate fires on replaceState URL change', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // Clear any URLs recorded during setup
+    await page.evaluate(() => {
+      (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls = [];
+    });
+
+    await page.evaluate(() => history.replaceState({}, '', '/replaced-path'));
+
+    await waitFor(
+      async () => {
+        const urls = await page.evaluate(() => (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls);
+        return Array.isArray(urls) && urls.length > 0;
+      },
+      10_000,
+      200,
+      'onNavigate hook to record replaceState URL',
+    );
+
+    const urls = await page.evaluate(
+      () => (globalThis as Record<string, unknown>).__opentabs_onNavigate_urls as string[],
+    );
+    expect(urls).toEqual(expect.arrayContaining([expect.stringContaining('/replaced-path')]));
+  });
+
   test('onToolInvocationStart and onToolInvocationEnd fire around tool calls', async ({
     mcpServer,
     testServer,

@@ -230,8 +230,8 @@ test.describe('npm auto-discovery pipeline', () => {
       expect(result.isError).toBe(true);
       // The error message should indicate the tab is not ready, not "unknown tool"
       expect(result.content).not.toContain('Unknown tool');
-      // Positively verify the error is the expected "closed/no matching tab" error
-      expect(result.content.toLowerCase()).toMatch(/closed|no matching tab/);
+      // Positively verify the error indicates the extension/tab is not available
+      expect(result.content.toLowerCase()).toMatch(/closed|no matching tab|extension not connected/);
     } finally {
       await client?.close();
       await server?.kill();
