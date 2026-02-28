@@ -60,6 +60,11 @@ opentabs start [options]
       <Table.Cell>Server port.</Table.Cell>
     </Table.Row>
     <Table.Row>
+      <Table.Cell className="font-medium">`--background`</Table.Cell>
+      <Table.Cell>—</Table.Cell>
+      <Table.Cell>Start the server in the background. Writes a PID file to `~/.opentabs/server.pid` and exits immediately. Use `opentabs stop` to stop the server.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
       <Table.Cell className="font-medium">`--show-config`</Table.Cell>
       <Table.Cell>—</Table.Cell>
       <Table.Cell>Print full MCP client configuration even on subsequent runs. By default, MCP client config is only shown on first run.</Table.Cell>
@@ -84,6 +89,44 @@ opentabs start
 
 # Custom port
 opentabs start --port 3000
+
+# Start in the background (use opentabs stop to stop)
+opentabs start --background
+```
+
+---
+
+## opentabs stop
+
+Stop the background MCP server.
+
+```bash
+opentabs stop [options]
+```
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Option</Table.Head>
+      <Table.Head>Default</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`--port <number>`</Table.Cell>
+      <Table.Cell>`9515`</Table.Cell>
+      <Table.Cell>Server port, used as fallback if no PID file is found.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+Reads the PID from `~/.opentabs/server.pid` (written by `opentabs start --background`), sends SIGTERM to the process, and waits up to 5 seconds for it to exit. The PID file is cleaned up after the server stops. If no PID file exists, falls back to a health-check probe on the configured port; if the server is running but was not started with `--background`, it cannot be stopped this way — use Ctrl+C in the terminal where it is running.
+
+```bash
+opentabs stop
+
+opentabs stop --port 3000
 ```
 
 ---
