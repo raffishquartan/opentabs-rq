@@ -32,39 +32,11 @@ import type { ServerState, FileWatcherEntry, RegisteredPlugin } from './state.js
 import type { ManifestTool } from '@opentabs-dev/shared';
 import type { FSWatcher } from 'node:fs';
 
-/**
- * Polling interval for mtime-based fallback detection (ms).
- *
- * This fallback exists because fs.watch() can silently fail to deliver events
- * in several scenarios:
- *
- * 1. **Linux inotify instance exhaustion** — On Linux, each fs.watch() call
- *    creates an inotify instance. The kernel enforces a per-user limit via
- *    /proc/sys/fs/inotify/max_user_instances (commonly 128). When many
- *    processes share the same user (e.g., 16 Playwright workers each spawning
- *    an MCP server + Chromium browser), the limit is exhausted and fs.watch()
- *    throws EMFILE. The try/catch in watchPlugin() silently swallows this,
- *    leaving the watcher unestablished. The mtime poll is the only mechanism
- *    that can detect changes in this state.
- *
- * 2. **macOS FSEvents staleness** — Long-running processes on macOS can stop
- *    receiving FSEvents notifications, requiring a process restart.
- *
- * The 30-second default interval is tuned for production (low overhead, changes
- * are infrequent). For E2E tests that wait 10-15 seconds for file watcher
- * events, this interval is too long — the mtime poll fires at most once in
- * that window. The OPENTABS_MTIME_POLL_MS environment variable allows tests
- * to set a shorter interval (e.g., 500ms) so the fallback catches missed
- * events promptly.
- */
-const MTIME_POLL_INTERVAL_MS = (() => {
-  const envVal = process.env['OPENTABS_MTIME_POLL_MS'];
-  if (envVal) {
-    const parsed = Number(envVal);
-    if (Number.isFinite(parsed) && parsed >= 100) return parsed;
-  }
-  return 30_000;
-})();
+/** Polling interval for mtime-based fallback detection (ms) */
+const MTIME_POLL_INTERVAL_MS = 30_000;
+
+/** Fast polling interval when fs.watch() fails (e.g., EMFILE from inotify limits) */
+const MTIME_FAST_POLL_INTERVAL_MS = 200;
 
 /** Number of polling detections within the window that triggers a stale-watcher warning */
 const STALE_WATCHER_THRESHOLD = 3;
@@ -572,8 +544,17 @@ const startConfigWatching = (state: ServerState, callbacks: FileWatcherCallbacks
 
     log.info(`Config watcher: Watching ${configDir} for config.json changes`);
   } catch (err) {
-    log.warn(`Config watcher: Could not establish fs.watch on ${configDir} — falling back to mtime polling:`, err);
-    log.info(`Config watcher: Watching ${configDir} for config.json changes (mtime polling only)`);
+    log.warn(`Config watcher: Could not watch config dir at ${configDir}:`, err);
+    log.info(`Config watcher: Watching ${configDir} via mtime polling fallback`);
+
+    // fs.watch() failed (e.g., EMFILE from inotify limits). If mtime polling is
+    // running at the default slow interval, restart it at the fast interval so
+    // config.json changes are still detected promptly.
+    if (fw.mtimePollTimerId !== null) {
+      clearInterval(fw.mtimePollTimerId);
+      fw.mtimePollTimerId = null;
+      startMtimePolling(state, callbacks, MTIME_FAST_POLL_INTERVAL_MS);
+    }
   }
 };
 
@@ -588,7 +569,7 @@ const startConfigWatching = (state: ServerState, callbacks: FileWatcherCallbacks
  * fileWatcherGeneration, duplicate invocations from both fs.watch() and
  * polling are safely deduplicated.
  */
-const startMtimePolling = (state: ServerState, callbacks: FileWatcherCallbacks): void => {
+const startMtimePolling = (state: ServerState, callbacks: FileWatcherCallbacks, intervalMs?: number): void => {
   const fw = state.fileWatching;
 
   // Clean up any existing poll timer (defensive — stopFileWatching should clear this)
@@ -598,6 +579,7 @@ const startMtimePolling = (state: ServerState, callbacks: FileWatcherCallbacks):
   }
 
   const gen = fw.generation;
+  const pollInterval = intervalMs ?? MTIME_POLL_INTERVAL_MS;
 
   fw.mtimePollTimerId = setInterval(() => {
     // Bail out if a new generation started (hot reload happened)
@@ -666,9 +648,9 @@ const startMtimePolling = (state: ServerState, callbacks: FileWatcherCallbacks):
       state.fileWatching.configLastSeenMtime = configMtime;
       callbacks.onConfigChanged();
     }
-  }, MTIME_POLL_INTERVAL_MS);
+  }, pollInterval);
 
-  log.info(`Mtime polling started (interval=${MTIME_POLL_INTERVAL_MS}ms)`);
+  log.info(`Mtime polling started (interval=${pollInterval}ms)`);
 };
 
 /**
@@ -744,8 +726,13 @@ const startFileWatching = (
     log.info(`File watcher: Watching ${loadedCount} loaded + ${pendingCount} pending plugin path(s)`);
   }
 
+  // If any fs.watch() call failed (e.g., EMFILE from inotify instance limits), use
+  // fast mtime polling so file changes are still detected promptly.
+  const anyWatcherFailed = state.fileWatching.entries.some(e => e.watchers.length === 0);
+  const pollInterval = anyWatcherFailed ? MTIME_FAST_POLL_INTERVAL_MS : undefined;
+
   // Start mtime polling as a fallback for stale fs.watch() watchers
-  startMtimePolling(state, callbacks);
+  startMtimePolling(state, callbacks, pollInterval);
 };
 
 /**

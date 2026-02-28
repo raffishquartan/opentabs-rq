@@ -7,29 +7,61 @@
  */
 
 import { log } from './logger.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
-import { spawnSync } from 'node:child_process';
+import { platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { spawn } from 'node:child_process';
 import type { ServerState, OutdatedPlugin } from './state.js';
 
 /** Result of checking a single plugin for updates */
 type CheckResult = { kind: 'outdated'; entry: OutdatedPlugin } | { kind: 'up-to-date' } | { kind: 'unreachable' };
 
+/** Timeout for a single `npm view` query (10 seconds). */
+const NPM_VIEW_TIMEOUT_MS = 10_000;
+
 /**
  * Query the latest published version of a package via `npm view`.
  * Delegates auth to npm itself, which reads ~/.npmrc for tokens —
  * this handles private/scoped packages without manual token management.
+ * Uses async `spawn` to avoid blocking the event loop.
  *
  * @param packageName - npm package name (e.g., 'opentabs-plugin-slack' or '@scope/opentabs-plugin-foo')
  * @returns The latest version string, or null on failure
  */
-export const fetchLatestVersion = (packageName: string): string | null => {
+export const fetchLatestVersion = async (packageName: string): Promise<string | null> => {
   try {
-    const raw = spawnSync('npm', ['view', packageName, 'version'], { stdio: ['ignore', 'pipe', 'pipe'] });
-    if (raw.error || raw.status !== 0) {
-      log.debug(`npm view failed for ${packageName}: ${raw.stderr.toString().trim()}`);
+    const child = spawn(platformExec('npm'), ['view', packageName, 'version'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
+    child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
+    child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+
+    const result = await new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        child.kill();
+        reject(new Error(`npm view timed out for ${packageName}`));
+      }, NPM_VIEW_TIMEOUT_MS);
+
+      child.on('error', err => {
+        clearTimeout(timer);
+        reject(err);
+      });
+      child.on('close', code => {
+        clearTimeout(timer);
+        resolve({
+          exitCode: code ?? 1,
+          stdout: Buffer.concat(stdoutChunks).toString(),
+          stderr: Buffer.concat(stderrChunks).toString(),
+        });
+      });
+    });
+
+    if (result.exitCode !== 0) {
+      log.debug(`npm view failed for ${packageName}: ${result.stderr.trim()}`);
       return null;
     }
-    const version = raw.stdout.toString().trim();
+    const version = result.stdout.trim();
     return version || null;
   } catch (e: unknown) {
     log.debug(`Failed to fetch latest version for ${packageName}: ${toErrorMessage(e)}`);
@@ -71,12 +103,13 @@ export const isNewer = (current: string, latest: string): boolean => {
 
 /**
  * Check all npm-installed plugins for newer versions on the registry.
- * Runs `npm view` for each plugin sequentially, logs outdated entries,
- * and stores results in `state.outdatedPlugins`. Skips local plugins.
+ * Runs `npm view` queries concurrently via Promise.allSettled, logs
+ * outdated entries, and stores results in `state.outdatedPlugins`.
+ * Skips local plugins.
  *
  * @param state - Server state containing the plugin registry and outdatedPlugins target
  */
-export const checkForUpdates = (state: ServerState): void => {
+export const checkForUpdates = async (state: ServerState): Promise<void> => {
   const npmPlugins = Array.from(state.registry.plugins.values()).filter(
     p => p.trustTier !== 'local' && p.npmPackageName,
   );
@@ -85,26 +118,30 @@ export const checkForUpdates = (state: ServerState): void => {
 
   log.info(`Checking ${npmPlugins.length} npm plugin(s) for updates...`);
 
-  const results: CheckResult[] = npmPlugins.map(plugin => {
-    const pkgName = plugin.npmPackageName;
-    if (!pkgName) return { kind: 'unreachable' };
+  const settled = await Promise.allSettled(
+    npmPlugins.map(async (plugin): Promise<CheckResult> => {
+      const pkgName = plugin.npmPackageName;
+      if (!pkgName) return { kind: 'unreachable' };
 
-    const latest = fetchLatestVersion(pkgName);
-    if (!latest) return { kind: 'unreachable' };
+      const latest = await fetchLatestVersion(pkgName);
+      if (!latest) return { kind: 'unreachable' };
 
-    if (isNewer(plugin.version, latest)) {
-      return {
-        kind: 'outdated',
-        entry: {
-          name: pkgName,
-          currentVersion: plugin.version,
-          latestVersion: latest,
-          updateCommand: `npm update -g ${pkgName}`,
-        },
-      };
-    }
-    return { kind: 'up-to-date' };
-  });
+      if (isNewer(plugin.version, latest)) {
+        return {
+          kind: 'outdated',
+          entry: {
+            name: pkgName,
+            currentVersion: plugin.version,
+            latestVersion: latest,
+            updateCommand: `npm update -g ${pkgName}`,
+          },
+        };
+      }
+      return { kind: 'up-to-date' };
+    }),
+  );
+
+  const results: CheckResult[] = settled.map(s => (s.status === 'fulfilled' ? s.value : { kind: 'unreachable' }));
 
   const outdated: OutdatedPlugin[] = [];
   let unreachableCount = 0;

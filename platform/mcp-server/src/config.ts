@@ -304,17 +304,14 @@ const saveConfig = async (state: { configWriteMutex: Promise<void> }, config: Op
   const configDir = getConfigDir();
   const configPath = getConfigPath();
   const prev = state.configWriteMutex;
-  state.configWriteMutex = (async () => {
+  const writePromise = (async () => {
     await prev;
     await mkdir(configDir, { recursive: true, mode: 0o700 });
     await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
-  })().catch((err: unknown) => {
-    // Reset mutex so subsequent writes don't hang on a rejected promise
-    state.configWriteMutex = Promise.resolve();
-    log.warn(`Failed to save config to ${configPath}:`, err);
-    throw err;
-  });
-  await state.configWriteMutex;
+  })();
+  // The mutex chain always fulfills so subsequent writes proceed even after a failure.
+  state.configWriteMutex = writePromise.catch(() => {});
+  await writePromise;
 };
 
 /**
@@ -334,7 +331,7 @@ const saveToolConfig = async (
   const configDir = getConfigDir();
   const configPath = getConfigPath();
   const prev = state.configWriteMutex;
-  state.configWriteMutex = (async () => {
+  const writePromise = (async () => {
     await prev;
     await mkdir(configDir, { recursive: true, mode: 0o700 });
 
@@ -354,12 +351,10 @@ const saveToolConfig = async (
       skipConfirmation: current.skipConfirmation,
     };
     await atomicWriteConfig(configPath, JSON.stringify(updated, null, 2) + '\n');
-  })().catch((err: unknown) => {
-    state.configWriteMutex = Promise.resolve();
-    log.warn(`Failed to save tool config to ${configPath}:`, err);
-    throw err;
-  });
-  await state.configWriteMutex;
+  })();
+  // The mutex chain always fulfills so subsequent writes proceed even after a failure.
+  state.configWriteMutex = writePromise.catch(() => {});
+  await writePromise;
 };
 
 /**

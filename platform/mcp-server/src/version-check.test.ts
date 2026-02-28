@@ -1,59 +1,67 @@
 import { vi, beforeEach, describe, expect, test } from 'vitest';
+import { EventEmitter, PassThrough } from 'node:stream';
 import type { RegisteredPlugin } from './state.js';
 import type * as ChildProcess from 'node:child_process';
 
-// ---- spawnSync mock via vi.mock ----
+// ---- spawn mock via vi.mock ----
 
-/** Minimal shape of a spawnSync result used by version-check.ts */
-interface SpawnSyncResult {
-  error?: Error;
-  status: number | null;
-  stdout: Buffer;
-  stderr: Buffer;
-  pid?: number;
-  output?: unknown[];
-  signal?: string | null;
+/**
+ * Minimal mock child process. Uses PassThrough streams so data listeners
+ * are attached before any data is pushed.
+ */
+class MockChildProcess extends EventEmitter {
+  stdout = new PassThrough();
+  stderr = new PassThrough();
+
+  kill(): boolean {
+    return true;
+  }
 }
 
-type SpawnSyncFn = (cmd: string, args: string[], opts: object) => SpawnSyncResult;
+type SpawnFn = (cmd: string, args: string[], opts: object) => MockChildProcess;
 
-const { mockSpawnSync } = vi.hoisted(() => ({
-  mockSpawnSync: vi.fn<SpawnSyncFn>(),
+const { mockSpawn } = vi.hoisted(() => ({
+  mockSpawn: vi.fn<SpawnFn>(),
 }));
 
 vi.mock('node:child_process', async importOriginal => ({
   ...(await importOriginal<typeof ChildProcess>()),
-  spawnSync: mockSpawnSync,
+  spawn: mockSpawn,
 }));
 
-// Import after mocking so modules pick up the mocked spawnSync
+// Import after mocking so modules pick up the mocked spawn
 const { fetchLatestVersion, isNewer, checkForUpdates } = await import('./version-check.js');
 const { buildRegistry } = await import('./registry.js');
 const { createState } = await import('./state.js');
 
 beforeEach(() => {
-  mockSpawnSync.mockReset();
+  mockSpawn.mockReset();
 });
 
-/** Create a spawnSync-compatible result. */
-const makeSpawnResult = (overrides: Partial<SpawnSyncResult> = {}): SpawnSyncResult => ({
-  pid: 0,
-  output: [],
-  stdout: Buffer.from(''),
-  stderr: Buffer.from(''),
-  status: 0,
-  signal: null,
-  ...overrides,
-});
+/**
+ * Create a mock child process that pushes stdout/stderr data and emits
+ * 'close' asynchronously, giving callers time to attach event listeners.
+ */
+const createMockChild = (exitCode: number, stdout: string, stderr: string): MockChildProcess => {
+  const child = new MockChildProcess();
+  process.nextTick(() => {
+    if (stdout) child.stdout.write(stdout);
+    child.stdout.end();
+    if (stderr) child.stderr.write(stderr);
+    child.stderr.end();
+    child.emit('close', exitCode);
+  });
+  return child;
+};
 
 /** Simulate `npm view <pkg> version` returning a given version or failing. */
 const mockNpmView = (version: string | undefined): void => {
-  mockSpawnSync.mockReturnValue(
-    makeSpawnResult({
-      status: version !== undefined ? 0 : 1,
-      stdout: Buffer.from(version !== undefined ? `${version}\n` : ''),
-      stderr: Buffer.from(version !== undefined ? '' : 'npm ERR! code E404'),
-    }),
+  mockSpawn.mockImplementation(() =>
+    createMockChild(
+      version !== undefined ? 0 : 1,
+      version !== undefined ? `${version}\n` : '',
+      version !== undefined ? '' : 'npm ERR! code E404',
+    ),
   );
 };
 
@@ -171,67 +179,69 @@ describe('isNewer', () => {
 });
 
 describe('fetchLatestVersion', () => {
-  test('passes package name to npm view', () => {
-    mockSpawnSync.mockReturnValue(makeSpawnResult({ stdout: Buffer.from('2.0.0\n') }));
+  test('passes package name to npm view', async () => {
+    mockSpawn.mockImplementation(() => createMockChild(0, '2.0.0\n', ''));
 
-    fetchLatestVersion('my-package');
-    expect(mockSpawnSync).toHaveBeenCalledWith('npm', ['view', 'my-package', 'version'], {
+    await fetchLatestVersion('my-package');
+    expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', 'my-package', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   });
 
-  test('scoped package name is passed directly', () => {
-    mockSpawnSync.mockReturnValue(makeSpawnResult({ stdout: Buffer.from('1.2.3\n') }));
+  test('scoped package name is passed directly', async () => {
+    mockSpawn.mockImplementation(() => createMockChild(0, '1.2.3\n', ''));
 
-    fetchLatestVersion('@opentabs-dev/plugin-sdk');
-    expect(mockSpawnSync).toHaveBeenCalledWith('npm', ['view', '@opentabs-dev/plugin-sdk', 'version'], {
+    await fetchLatestVersion('@opentabs-dev/plugin-sdk');
+    expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', '@opentabs-dev/plugin-sdk', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   });
 
-  test('successful npm view returns version string', () => {
+  test('successful npm view returns version string', async () => {
     mockNpmView('3.1.4');
-    const result = fetchLatestVersion('some-package');
+    const result = await fetchLatestVersion('some-package');
     expect(result).toBe('3.1.4');
   });
 
-  test('non-zero exit code returns null', () => {
+  test('non-zero exit code returns null', async () => {
     mockNpmView(undefined);
-    const result = fetchLatestVersion('missing-package');
+    const result = await fetchLatestVersion('missing-package');
     expect(result).toBeNull();
   });
 
-  test('empty stdout returns null', () => {
-    mockSpawnSync.mockReturnValue(makeSpawnResult({ stdout: Buffer.from('') }));
+  test('empty stdout returns null', async () => {
+    mockSpawn.mockImplementation(() => createMockChild(0, '', ''));
 
-    const result = fetchLatestVersion('some-package');
+    const result = await fetchLatestVersion('some-package');
     expect(result).toBeNull();
   });
 
-  test('spawnSync throwing returns null', () => {
-    mockSpawnSync.mockImplementation(() => {
-      throw new Error('spawn failed');
+  test('spawn error returns null', async () => {
+    mockSpawn.mockImplementation(() => {
+      const child = new MockChildProcess();
+      process.nextTick(() => child.emit('error', new Error('spawn failed')));
+      return child;
     });
 
-    const result = fetchLatestVersion('some-package');
+    const result = await fetchLatestVersion('some-package');
     expect(result).toBeNull();
   });
 });
 
 describe('checkForUpdates', () => {
-  test('local plugins (no npmPackageName) are skipped', () => {
-    mockSpawnSync.mockReturnValue(makeSpawnResult({ stdout: Buffer.from('2.0.0\n') }));
+  test('local plugins (no npmPackageName) are skipped', async () => {
+    mockSpawn.mockImplementation(() => createMockChild(0, '2.0.0\n', ''));
 
     const state = createState();
     state.registry = buildRegistry([makePlugin('local-plugin', { trustTier: 'local', npmPackageName: undefined })], []);
 
-    checkForUpdates(state);
+    await checkForUpdates(state);
 
-    expect(mockSpawnSync).not.toHaveBeenCalled();
+    expect(mockSpawn).not.toHaveBeenCalled();
     expect(state.outdatedPlugins).toHaveLength(0);
   });
 
-  test('outdated npm plugin is added to state.outdatedPlugins', () => {
+  test('outdated npm plugin is added to state.outdatedPlugins', async () => {
     mockNpmView('2.0.0');
 
     const state = createState();
@@ -240,7 +250,7 @@ describe('checkForUpdates', () => {
       [],
     );
 
-    checkForUpdates(state);
+    await checkForUpdates(state);
 
     expect(state.outdatedPlugins).toHaveLength(1);
     expect(state.outdatedPlugins[0]?.name).toBe('opentabs-plugin-my');
@@ -248,7 +258,7 @@ describe('checkForUpdates', () => {
     expect(state.outdatedPlugins[0]?.latestVersion).toBe('2.0.0');
   });
 
-  test('up-to-date plugin is NOT added to state.outdatedPlugins', () => {
+  test('up-to-date plugin is NOT added to state.outdatedPlugins', async () => {
     mockNpmView('1.0.0');
 
     const state = createState();
@@ -257,12 +267,12 @@ describe('checkForUpdates', () => {
       [],
     );
 
-    checkForUpdates(state);
+    await checkForUpdates(state);
 
     expect(state.outdatedPlugins).toHaveLength(0);
   });
 
-  test('fetchLatestVersion returning null does not add to outdatedPlugins', () => {
+  test('fetchLatestVersion returning null does not add to outdatedPlugins', async () => {
     mockNpmView(undefined);
 
     const state = createState();
@@ -271,25 +281,25 @@ describe('checkForUpdates', () => {
       [],
     );
 
-    checkForUpdates(state);
+    await checkForUpdates(state);
 
     expect(state.outdatedPlugins).toHaveLength(0);
   });
 
-  test('empty plugins map results in empty outdatedPlugins', () => {
+  test('empty plugins map results in empty outdatedPlugins', async () => {
     const state = createState();
-    checkForUpdates(state);
+    await checkForUpdates(state);
     expect(state.outdatedPlugins).toHaveLength(0);
   });
 
-  test('mixed results: outdated + failed npm view', () => {
+  test('mixed results: outdated + failed npm view', async () => {
     let callCount = 0;
-    mockSpawnSync.mockImplementation(() => {
+    mockSpawn.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        return makeSpawnResult({ status: 0, stdout: Buffer.from('2.0.0\n') });
+        return createMockChild(0, '2.0.0\n', '');
       }
-      return makeSpawnResult({ status: 1, stdout: Buffer.from(''), stderr: Buffer.from('npm ERR! code E404') });
+      return createMockChild(1, '', 'npm ERR! code E404');
     });
 
     const state = createState();
@@ -301,7 +311,7 @@ describe('checkForUpdates', () => {
       [],
     );
 
-    checkForUpdates(state);
+    await checkForUpdates(state);
 
     // plugin-a gets version 2.0.0 (outdated), plugin-b npm view fails (skipped)
     expect(state.outdatedPlugins).toHaveLength(1);

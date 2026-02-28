@@ -1,8 +1,8 @@
-import { loadConfig, saveConfig, writeAuthFile } from './config.js';
+import { loadConfig, saveConfig, saveToolConfig, writeAuthFile } from './config.js';
 import { isToolEnabled } from './state.js';
 import { afterAll, beforeEach, describe, expect, test } from 'vitest';
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
-import { readFile, unlink, writeFile } from 'node:fs/promises';
+import { chmod, readFile, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { OpentabsConfig } from './config.js';
@@ -249,6 +249,98 @@ describe('tool config round-trip with isToolEnabled', () => {
     expect(isToolEnabled(stateWithConfig, 'unknown_tool')).toBe(true);
     // Disabled tool → isToolEnabled returns false
     expect(isToolEnabled(stateWithConfig, 'slack_send')).toBe(false);
+  });
+});
+
+describe('saveConfig error propagation', () => {
+  beforeEach(async () => {
+    process.env.OPENTABS_CONFIG_DIR = TEST_BASE_DIR;
+    await removeConfig();
+  });
+
+  test('saveConfig propagates write errors to the caller', async () => {
+    await loadConfig();
+    // Make the directory non-writable so atomicWrite cannot create temp files
+    await chmod(TEST_BASE_DIR, 0o555);
+
+    const state = { configWriteMutex: Promise.resolve() };
+    const config: OpentabsConfig = {
+      localPlugins: [],
+      tools: {},
+      browserToolPolicy: {},
+      permissions: {
+        trustedDomains: ['localhost', '127.0.0.1'],
+        sensitiveDomains: [],
+        toolPolicy: {},
+        domainToolPolicy: {},
+      },
+    };
+
+    await expect(saveConfig(state, config)).rejects.toThrow();
+
+    // Restore permissions for cleanup
+    await chmod(TEST_BASE_DIR, 0o700);
+  });
+
+  test('saveConfig mutex does not deadlock after a failed write', async () => {
+    await loadConfig();
+    await chmod(TEST_BASE_DIR, 0o555);
+
+    const state = { configWriteMutex: Promise.resolve() };
+    const config: OpentabsConfig = {
+      localPlugins: ['/test/path'],
+      tools: {},
+      browserToolPolicy: {},
+      permissions: {
+        trustedDomains: ['localhost', '127.0.0.1'],
+        sensitiveDomains: [],
+        toolPolicy: {},
+        domainToolPolicy: {},
+      },
+    };
+
+    // First write fails
+    await expect(saveConfig(state, config)).rejects.toThrow();
+
+    // Restore permissions
+    await chmod(TEST_BASE_DIR, 0o700);
+
+    // Subsequent write succeeds — the mutex is not deadlocked
+    await saveConfig(state, config);
+
+    const loaded = await loadConfig();
+    expect(loaded.localPlugins).toEqual(['/test/path']);
+  });
+
+  test('saveToolConfig propagates write errors to the caller', async () => {
+    await loadConfig();
+    await chmod(TEST_BASE_DIR, 0o555);
+
+    const state = { configWriteMutex: Promise.resolve() };
+
+    await expect(saveToolConfig(state, { some_tool: false })).rejects.toThrow();
+
+    // Restore permissions for cleanup
+    await chmod(TEST_BASE_DIR, 0o700);
+  });
+
+  test('saveToolConfig mutex does not deadlock after a failed write', async () => {
+    await loadConfig();
+    await chmod(TEST_BASE_DIR, 0o555);
+
+    const state = { configWriteMutex: Promise.resolve() };
+
+    // First write fails
+    await expect(saveToolConfig(state, { some_tool: false })).rejects.toThrow();
+
+    // Restore permissions
+    await chmod(TEST_BASE_DIR, 0o700);
+
+    // Subsequent write succeeds — the mutex is not deadlocked
+    await saveToolConfig(state, { recovered_tool: true });
+
+    const loaded = await loadConfig();
+    expect(loaded.tools).toEqual({ recovered_tool: true });
   });
 });
 

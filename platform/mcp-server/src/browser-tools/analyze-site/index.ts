@@ -794,12 +794,12 @@ const DEFAULT_WAIT_SECONDS = 5;
  * Orchestrate a comprehensive site analysis.
  *
  * Flow:
- * 1. Open tab (or reuse) and navigate to URL
- * 2. Enable network capture
- * 3. Wait for API calls (configurable wait time)
- * 4. Run detection scripts in page context (parallel where possible)
- * 5. Get captured network requests
- * 6. Disable network capture
+ * 1. Open tab to about:blank
+ * 2. Enable network capture (before any real page requests fire)
+ * 3. Navigate to target URL (CDP debugger is attached; captures all requests from load start)
+ * 4. Wait for API calls (configurable wait time)
+ * 5. Run detection scripts in page context (parallel where possible)
+ * 6. Get captured network requests
  * 7. Pass collected data through detection modules
  * 8. Generate tool suggestions
  * 9. Return structured result
@@ -809,8 +809,9 @@ const analyzeSite = async (
   url: string,
   waitSeconds: number = DEFAULT_WAIT_SECONDS,
 ): Promise<SiteAnalysis> => {
-  // Step 1: Open a new tab
-  const openResult = await dispatchToExtension(state, 'browser.openTab', { url });
+  // Step 1: Open a new tab to about:blank so network capture can be enabled
+  // before any target-URL requests fire
+  const openResult = await dispatchToExtension(state, 'browser.openTab', { url: 'about:blank' });
   if (
     typeof openResult !== 'object' ||
     openResult === null ||
@@ -823,16 +824,20 @@ const analyzeSite = async (
   const tabId = (openResult as { id: number }).id;
 
   try {
-    // Step 2: Enable network capture
+    // Step 2: Enable network capture before navigating to the target URL so
+    // early page-load requests (auth token exchanges, initial data fetches) are captured
     await dispatchToExtension(state, 'browser.enableNetworkCapture', {
       tabId,
       maxRequests: 200,
     });
 
-    // Step 3: Wait for page load and API calls
+    // Step 3: Navigate to the target URL — network capture is already active
+    await dispatchToExtension(state, 'browser.navigateTab', { tabId, url });
+
+    // Step 4: Wait for page load and API calls
     await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
 
-    // Step 4: Run detection scripts in the page context sequentially.
+    // Step 5: Run detection scripts in the page context sequentially.
     // Sequential execution avoids the extension's per-method rate limit
     // (max 10 browser.executeScript calls per second) and is reliable
     // since each script completes quickly (~5-50ms in page context).
@@ -939,7 +944,7 @@ const analyzeSite = async (
       // Partial analysis: page title detection skipped
     }
 
-    // Step 5: Get captured network requests
+    // Step 6: Get captured network requests
     const networkResult = (await dispatchToExtension(state, 'browser.getNetworkRequests', {
       tabId,
       clear: true,
@@ -948,16 +953,13 @@ const analyzeSite = async (
       ? networkResult
       : ((networkResult as { requests?: NetworkRequest[] }).requests ?? []);
 
-    // Step 6: Disable network capture
-    await dispatchToExtension(state, 'browser.disableNetworkCapture', { tabId });
-
-    // Step 7: Get cookies via extension API (includes HttpOnly cookies)
+    // Get cookies via extension API (includes HttpOnly cookies)
     const cookieResult = (await dispatchToExtension(state, 'browser.getCookies', { url })) as {
       cookies?: CookieEntry[];
     } | null;
     const cookies: CookieEntry[] = cookieResult?.cookies ?? [];
 
-    // Step 8: Run detection modules
+    // Step 7: Run detection modules
     const auth = detectAuth({
       cookies,
       localStorageEntries: storageEntries.localEntries,
@@ -988,7 +990,7 @@ const analyzeSite = async (
 
     const storage = detectStorage(storageKeys);
 
-    // Step 9: Generate suggestions
+    // Step 8: Generate suggestions
     const suggestions = generateSuggestions(apis, domAnalysis, auth, frameworkAnalysis);
 
     return {
@@ -1003,7 +1005,12 @@ const analyzeSite = async (
       suggestions,
     };
   } finally {
-    // Clean up: close the tab
+    // Clean up: disable network capture then close the tab
+    try {
+      await dispatchToExtension(state, 'browser.disableNetworkCapture', { tabId });
+    } catch {
+      // Best-effort cleanup — ignore errors
+    }
     try {
       await dispatchToExtension(state, 'browser.closeTab', { tabId });
     } catch {

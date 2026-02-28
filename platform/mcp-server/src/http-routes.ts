@@ -61,7 +61,7 @@ const createMcpCallbacks = (
   },
   onToolConfigPersist: () => {
     saveToolConfig(state, { ...state.toolConfig }).catch(() => {
-      // Error already logged by saveToolConfig
+      // Best-effort persistence — errors are non-fatal for in-memory state
     });
   },
   onPluginLog: entry => {

@@ -18,7 +18,7 @@ import {
   resolvePluginPackageCandidates,
   platformExec,
 } from '@opentabs-dev/shared';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -148,14 +148,26 @@ interface NpmSearchJsonEntry {
  * @throws Error with `code` property for structured JSON-RPC error handling:
  *   - code -32603: npm search failed
  */
-const searchNpmPlugins = (query?: string): PluginSearchResult[] => {
+const searchNpmPlugins = async (query?: string): Promise<PluginSearchResult[]> => {
   const searchTerm = query ? `keywords:opentabs-plugin ${query}` : 'keywords:opentabs-plugin';
-  const raw = spawnSync(platformExec('npm'), ['search', searchTerm, '--json'], { stdio: ['ignore', 'pipe', 'pipe'] });
-  const result = {
-    exitCode: raw.error ? 1 : (raw.status ?? 1),
-    stdout: raw.error ? '' : raw.stdout.toString(),
-    stderr: raw.error ? raw.error.message : raw.stderr.toString(),
-  };
+  const { promise: resultPromise, kill } = spawnAsync(platformExec('npm'), ['search', searchTerm, '--json']);
+
+  let rejectTimeout: (reason: Error) => void;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    rejectTimeout = reject;
+  });
+  const timerId = setTimeout(
+    () => rejectTimeout(new Error(`npm search timed out after ${NPM_SUBPROCESS_TIMEOUT_MS}ms`)),
+    NPM_SUBPROCESS_TIMEOUT_MS,
+  );
+
+  let result: Awaited<typeof resultPromise>;
+  try {
+    result = await Promise.race([resultPromise, timeoutPromise]);
+  } finally {
+    clearTimeout(timerId);
+    kill();
+  }
 
   if (result.exitCode !== 0) {
     const stderr = result.stderr.trim();
@@ -498,7 +510,7 @@ interface CheckUpdatesResult {
  */
 const checkPluginUpdates = async (state: ServerState): Promise<CheckUpdatesResult> => {
   const { checkForUpdates } = await import('./version-check.js');
-  checkForUpdates(state);
+  await checkForUpdates(state);
   return { outdatedPlugins: state.outdatedPlugins };
 };
 

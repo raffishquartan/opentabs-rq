@@ -374,9 +374,9 @@ const performReload = async (
       }
     }
 
-    // Version check: synchronous via `npm view`, best-effort on every reload
+    // Version check: async via `npm view`, best-effort on every reload
     try {
-      checkForUpdates(state);
+      await checkForUpdates(state);
     } catch {
       // Update check is best-effort — failures are not actionable
     }

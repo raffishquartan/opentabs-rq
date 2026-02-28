@@ -217,15 +217,7 @@ const cleanupStaleExecFiles = async (): Promise<void> => {
   if (staleExecFiles.length === 0) return;
 
   const results = await Promise.allSettled(staleExecFiles.map(f => unlink(join(adaptersDir, f))));
-  let deleted = 0;
-  for (const [i, result] of results.entries()) {
-    if (result.status === 'rejected') {
-      const fileName = staleExecFiles[i] ?? 'unknown';
-      log.warn(`Failed to delete stale exec file ${fileName}:`, result.reason);
-    } else {
-      deleted++;
-    }
-  }
+  const deleted = results.filter(r => r.status === 'fulfilled').length;
   log.info(`Cleaned up ${deleted} stale exec file(s)`);
 };
 

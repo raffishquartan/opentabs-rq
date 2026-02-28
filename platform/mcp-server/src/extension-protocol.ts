@@ -402,7 +402,7 @@ const handleExtensionMessage = (
   }
 
   if (method === 'plugin.search' && id !== undefined) {
-    handlePluginSearch(state, params, id);
+    void handlePluginSearch(state, params, id);
     return;
   }
 
