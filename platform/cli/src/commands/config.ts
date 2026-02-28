@@ -398,7 +398,7 @@ const resolveStoredPluginPath = (storedPath: string, configDir: string): string 
   return resolve(configDir, storedPath);
 };
 
-const handleSetLocalPluginsAdd = async (value: string, options: { port?: number }): Promise<void> => {
+const handleSetLocalPluginsAdd = async (value: string, options: { port?: number; force?: boolean }): Promise<void> => {
   const expandedValue = value.startsWith('~/') ? join(homedir(), value.slice(2)) : value;
   const pluginPath = resolve(expandedValue);
   const { config, configPath } = await loadConfig();
@@ -415,14 +415,22 @@ const handleSetLocalPluginsAdd = async (value: string, options: { port?: number 
     return;
   }
 
-  plugins.push(pluginPath);
-  await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
-  console.log(`${pc.green('Added:')} ${pluginPath}`);
-
   if (!existsSync(pluginPath)) {
+    if (!options.force) {
+      console.error(pc.red(`Error: Path does not exist: ${pluginPath}`));
+      process.exit(1);
+    }
+    plugins.push(pluginPath);
+    await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
+    console.log(`${pc.green('Added:')} ${pluginPath}`);
     console.log(pc.yellow(`Warning: Path does not exist: ${pluginPath}`));
-  } else if (!existsSync(join(pluginPath, 'package.json'))) {
-    console.log(pc.yellow(`Warning: No package.json found at ${pluginPath}. Plugin may not load.`));
+  } else {
+    plugins.push(pluginPath);
+    await atomicWriteConfig(configPath, JSON.stringify(config, null, 2) + '\n');
+    console.log(`${pc.green('Added:')} ${pluginPath}`);
+    if (!existsSync(join(pluginPath, 'package.json'))) {
+      console.log(pc.yellow(`Warning: No package.json found at ${pluginPath}. Plugin may not load.`));
+    }
   }
 
   await notifyServer({ port: options.port, warnIfNotRunning: true });
@@ -494,7 +502,11 @@ const suggestKey = (input: string): string | null => {
   return best;
 };
 
-const handleConfigSet = async (key: string, value: string | undefined, options: { port?: number }): Promise<void> => {
+const handleConfigSet = async (
+  key: string,
+  value: string | undefined,
+  options: { port?: number; force?: boolean },
+): Promise<void> => {
   if (key === TOOL_PREFIX) {
     return handleListTools(options);
   }
@@ -648,6 +660,7 @@ const registerConfigCommand = (program: Command): void => {
   configCmd
     .command('set <key> [value]')
     .description('Set a config value')
+    .option('-f, --force', 'Force localPlugins.add even if the path does not exist yet')
     .addHelpText(
       'after',
       `
@@ -659,6 +672,7 @@ Examples:
   $ opentabs config set browser-tool.browser_execute_script enabled
   $ opentabs config set port 9515
   $ opentabs config set localPlugins.add /path/to/plugin
+  $ opentabs config set localPlugins.add /future/path --force
   $ opentabs config set localPlugins.remove /path/to/plugin`,
     )
     .action((key: string, value: string | undefined, _options: unknown, command: Command) =>
@@ -730,4 +744,5 @@ export {
   suggestKey,
   KNOWN_KEYS,
   applyPolicyEntry,
+  handleSetLocalPluginsAdd,
 };

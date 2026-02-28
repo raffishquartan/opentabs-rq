@@ -1,7 +1,21 @@
-import { applyPolicyEntry, levenshtein, maskSecret, resolveStoredPluginPath, suggestKey } from './config.js';
-import { describe, expect, test } from 'vitest';
-import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import {
+  applyPolicyEntry,
+  handleSetLocalPluginsAdd,
+  levenshtein,
+  maskSecret,
+  resolveStoredPluginPath,
+  suggestKey,
+} from './config.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import type { MockInstance } from 'vitest';
+
+vi.mock('../notify-server.js', () => ({
+  notifyServer: vi.fn().mockResolvedValue(undefined),
+}));
 
 // ---------------------------------------------------------------------------
 // levenshtein
@@ -186,5 +200,89 @@ describe('applyPolicyEntry', () => {
     applyPolicyEntry(map, 'tool_a', true);
     expect(Object.hasOwn(map, 'tool_a')).toBe(false);
     expect(map['tool_b']).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleSetLocalPluginsAdd
+// ---------------------------------------------------------------------------
+
+describe('handleSetLocalPluginsAdd', () => {
+  let testDir: string;
+  let exitSpy: MockInstance;
+  const savedConfigDir = process.env['OPENTABS_CONFIG_DIR'];
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'opentabs-addplugin-test-'));
+    process.env['OPENTABS_CONFIG_DIR'] = testDir;
+    writeFileSync(join(testDir, 'config.json'), JSON.stringify({ localPlugins: [] }) + '\n', 'utf-8');
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number | string | null) => {
+      throw new Error(`process.exit(${_code ?? ''})`);
+    });
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+    if (savedConfigDir !== undefined) {
+      process.env['OPENTABS_CONFIG_DIR'] = savedConfigDir;
+    } else {
+      delete process.env['OPENTABS_CONFIG_DIR'];
+    }
+    vi.restoreAllMocks();
+  });
+
+  test('exits with code 1 and does not write config when path does not exist (no --force)', async () => {
+    const nonexistent = join(testDir, 'nonexistent-plugin');
+
+    await expect(handleSetLocalPluginsAdd(nonexistent, {})).rejects.toThrow('process.exit(1)');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as {
+      localPlugins: string[];
+    };
+    expect(config.localPlugins).toEqual([]);
+  });
+
+  test('adds path and warns when path does not exist with --force', async () => {
+    const nonexistent = join(testDir, 'future-plugin');
+    const warnSpy = vi.spyOn(console, 'log');
+
+    await handleSetLocalPluginsAdd(nonexistent, { force: true });
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as {
+      localPlugins: string[];
+    };
+    expect(config.localPlugins).toContain(nonexistent);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: Path does not exist:'));
+  });
+
+  test('adds path with warning when directory exists but has no package.json', async () => {
+    const pluginDir = join(testDir, 'no-pkg-plugin');
+    mkdirSync(pluginDir);
+    const warnSpy = vi.spyOn(console, 'log');
+
+    await handleSetLocalPluginsAdd(pluginDir, {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as {
+      localPlugins: string[];
+    };
+    expect(config.localPlugins).toContain(pluginDir);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No package.json found'));
+  });
+
+  test('adds path without warning when directory and package.json both exist', async () => {
+    const pluginDir = join(testDir, 'valid-plugin');
+    mkdirSync(pluginDir);
+    writeFileSync(join(pluginDir, 'package.json'), JSON.stringify({ name: 'opentabs-plugin-test' }), 'utf-8');
+    const warnSpy = vi.spyOn(console, 'log');
+
+    await handleSetLocalPluginsAdd(pluginDir, {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as {
+      localPlugins: string[];
+    };
+    expect(config.localPlugins).toContain(pluginDir);
+    const warnCalls = warnSpy.mock.calls.filter(args => String(args[0]).includes('Warning'));
+    expect(warnCalls).toHaveLength(0);
   });
 });
