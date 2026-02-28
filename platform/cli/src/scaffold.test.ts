@@ -1,9 +1,15 @@
 import { scaffoldPlugin, ScaffoldError, toPascalCase, toTitleCase } from './scaffold.js';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type * as FsPromises from 'node:fs/promises';
+
+vi.mock('node:fs/promises', async importOriginal => {
+  const actual = await importOriginal<typeof FsPromises>();
+  return { ...actual, writeFile: vi.fn(actual.writeFile) };
+});
 
 describe('toTitleCase', () => {
   test('converts hyphenated name to space-separated title case', () => {
@@ -50,6 +56,7 @@ describe('scaffoldPlugin', () => {
   });
 
   afterEach(() => {
+    vi.clearAllMocks();
     process.chdir(originalCwd);
     if (originalConfigDir !== undefined) {
       process.env.OPENTABS_CONFIG_DIR = originalConfigDir;
@@ -108,5 +115,20 @@ describe('scaffoldPlugin', () => {
     }
     expect(caught).toBeInstanceOf(ScaffoldError);
     expect(caught?.message).toContain('already exists');
+  });
+
+  test('cleans up partial directory if a file write fails, allowing retry', async () => {
+    const fsp = await import('node:fs/promises');
+    vi.mocked(fsp.writeFile).mockRejectedValueOnce(new Error('Disk full'));
+
+    const projectDir = join(tmpDir, 'cleanup-test');
+
+    await expect(scaffoldPlugin({ name: 'cleanup-test', domain: 'example.com' })).rejects.toThrow('Disk full');
+
+    expect(existsSync(projectDir)).toBe(false);
+
+    // Retry with same name succeeds now that the partial dir was cleaned up
+    await expect(scaffoldPlugin({ name: 'cleanup-test', domain: 'example.com' })).resolves.toBeDefined();
+    expect(existsSync(join(projectDir, 'package.json'))).toBe(true);
   });
 });

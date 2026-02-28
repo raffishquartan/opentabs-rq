@@ -146,4 +146,8 @@ describe('resolveStoredPluginPath', () => {
     const result = resolveStoredPluginPath('./my-plugin', configDir);
     expect(result).toBe(resolve(configDir, './my-plugin'));
   });
+
+  test.runIf(process.platform === 'win32')('Windows drive-letter paths are returned as-is', () => {
+    expect(resolveStoredPluginPath('C:\\plugins\\foo', configDir)).toBe('C:\\plugins\\foo');
+  });
 });

@@ -17,7 +17,7 @@ import pc from 'picocolors';
 import { existsSync } from 'node:fs';
 import { access, mkdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import type { Command } from 'commander';
 
 const handleConfigPath = (): void => {
@@ -291,8 +291,8 @@ const handleSetPort = async (value: string, options: { port?: number }): Promise
  * Handles both absolute paths and relative paths (resolved against configDir).
  */
 const resolveStoredPluginPath = (storedPath: string, configDir: string): string => {
-  if (storedPath.startsWith('/')) return storedPath;
   if (storedPath.startsWith('~/')) return resolve(homedir(), storedPath.slice(2));
+  if (isAbsolute(storedPath)) return storedPath;
   return resolve(configDir, storedPath);
 };
 

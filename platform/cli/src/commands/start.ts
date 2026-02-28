@@ -18,6 +18,7 @@ import pc from 'picocolors';
 import { spawn } from 'node:child_process';
 import { mkdirSync, createWriteStream } from 'node:fs';
 import { access } from 'node:fs/promises';
+import net from 'node:net';
 import { resolve, dirname } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
@@ -76,16 +77,15 @@ const resolveServerEntry = (): string => {
   }
 };
 
-const isPortInUse = async (port: number): Promise<boolean> => {
-  try {
-    await fetch(`http://localhost:${port}/health`, {
-      signal: AbortSignal.timeout(1_000),
+const isPortInUse = (port: number): Promise<boolean> =>
+  new Promise(resolve => {
+    const server = net.createServer();
+    server.once('error', () => resolve(true));
+    server.once('listening', () => {
+      server.close(() => resolve(false));
     });
-    return true;
-  } catch {
-    return false;
-  }
-};
+    server.listen(port, '127.0.0.1');
+  });
 
 /**
  * Pipe a readable stream to both a terminal writable and a log file stream.
