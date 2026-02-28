@@ -290,9 +290,11 @@ const handleAudit = async (options: AuditOptions): Promise<void> => {
     if (isConnectionRefused(err)) {
       console.error(pc.red('MCP server is not running.'));
       console.error(pc.dim(startHint));
+      console.error(pc.dim('Tip: Use --file to read audit history from the persistent disk log.'));
     } else if (isTimeout(err)) {
       console.error(pc.red('Server not responding (timed out). Is the server running?'));
       console.error(pc.dim(`The server at port ${port} did not respond in time.`));
+      console.error(pc.dim('Tip: Use --file to read audit history from the persistent disk log.'));
     } else {
       const message = toErrorMessage(err);
       console.error(pc.red(`Error: ${message}`));
