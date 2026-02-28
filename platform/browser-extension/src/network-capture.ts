@@ -11,6 +11,9 @@ const MAX_BODY_LENGTH = 102_400;
 /** How long a pending request entry lives before it is pruned as stale (ms). */
 const PENDING_REQUEST_TTL_MS = 60_000;
 
+/** How often the periodic pruning timer fires to remove stale entries during idle captures (ms). */
+const PRUNE_INTERVAL_MS = 30_000;
+
 /** Headers whose values are replaced with '[REDACTED]' before returning to MCP clients. */
 const SENSITIVE_HEADERS = new Set([
   'authorization',
@@ -91,6 +94,8 @@ interface CaptureState {
   requestIdToRequest: Map<string, CapturedRequest>;
   /** Maps requestId → WebSocket URL from Network.webSocketCreated events */
   wsFramesByRequestId: Map<string, string>;
+  /** Handle for the periodic stale-entry pruning interval; cleared in stopCapture */
+  pruneIntervalId?: ReturnType<typeof setInterval>;
 }
 
 interface HeaderEntry {
@@ -372,7 +377,9 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
 
 // Clean up capture state when a tab is closed
 chrome.tabs.onRemoved.addListener((tabId: number) => {
-  if (captures.has(tabId)) {
+  const state = captures.get(tabId);
+  if (state) {
+    clearInterval(state.pruneIntervalId);
     void chrome.debugger.detach({ tabId }).catch(() => {});
     captures.delete(tabId);
   }
@@ -384,6 +391,8 @@ chrome.tabs.onRemoved.addListener((tabId: number) => {
 chrome.debugger.onDetach.addListener((source: chrome.debugger.Debuggee, _reason: string) => {
   const tabId = source.tabId;
   if (tabId !== undefined) {
+    const state = captures.get(tabId);
+    if (state) clearInterval(state.pruneIntervalId);
     captures.delete(tabId);
   }
 });
@@ -424,7 +433,7 @@ export const startCapture = async (
     throw err;
   }
 
-  captures.set(tabId, {
+  const captureState: CaptureState = {
     requests: [],
     consoleLogs: [],
     wsFrames: [],
@@ -435,7 +444,23 @@ export const startCapture = async (
     pendingRequests: new Map(),
     requestIdToRequest: new Map(),
     wsFramesByRequestId: new Map(),
-  });
+  };
+
+  captureState.pruneIntervalId = setInterval(() => {
+    const now = Date.now();
+    for (const [id, pending] of captureState.pendingRequests) {
+      if (pending.timestamp !== undefined && now - pending.timestamp > PENDING_REQUEST_TTL_MS) {
+        captureState.pendingRequests.delete(id);
+      }
+    }
+    for (const [id, req] of captureState.requestIdToRequest) {
+      if (now - req.timestamp > PENDING_REQUEST_TTL_MS) {
+        captureState.requestIdToRequest.delete(id);
+      }
+    }
+  }, PRUNE_INTERVAL_MS);
+
+  captures.set(tabId, captureState);
 };
 
 /**
@@ -446,6 +471,8 @@ export const stopCapture = (tabId: number): void => {
   const state = captures.get(tabId);
   if (!state) return;
 
+  clearInterval(state.pruneIntervalId);
+  state.wsFramesByRequestId.clear();
   void chrome.debugger.detach({ tabId }).catch(() => {});
   captures.delete(tabId);
 };

@@ -320,6 +320,93 @@ describe('Network.webSocketClosed', () => {
   });
 });
 
+describe('stopCapture wsFramesByRequestId cleanup', () => {
+  test('clears wsFramesByRequestId entries when stopCapture is called without webSocketClosed', async () => {
+    const tabId = 3101;
+    await startCapture(tabId);
+
+    // Simulate WebSocket open — stores requestId → url in wsFramesByRequestId
+    capturedOnEventListener?.({ tabId }, 'Network.webSocketCreated', {
+      requestId: 'ws-orphan-1',
+      url: 'wss://example.com/live',
+    });
+
+    // A frame is captured, proving wsFramesByRequestId has the entry
+    capturedOnEventListener?.({ tabId }, 'Network.webSocketFrameReceived', {
+      requestId: 'ws-orphan-1',
+      response: { opcode: 1, payloadData: 'data', mask: false },
+    });
+    expect(getWsFrames(tabId, false)).toHaveLength(1);
+
+    // Stop without firing webSocketClosed — orphaned entry must be cleaned up
+    stopCapture(tabId);
+
+    // After stopCapture, no frames are accessible (capture is gone)
+    expect(getWsFrames(tabId, false)).toHaveLength(0);
+  });
+});
+
+describe('periodic pruning interval', () => {
+  test('prunes stale requestIdToRequest entries even when no new requests arrive', async () => {
+    vi.useFakeTimers();
+    const tabId = 4001;
+
+    const chromeMock = (globalThis as Record<string, unknown>).chrome as {
+      debugger: { sendCommand: ReturnType<typeof vi.fn> };
+    };
+
+    await startCapture(tabId);
+
+    // responseReceived moves the pending entry into requestIdToRequest
+    capturedOnEventListener?.({ tabId }, 'Network.requestWillBeSent', {
+      requestId: 'req-prune-1',
+      request: { url: 'https://example.com/api', method: 'GET', headers: {} },
+    });
+    capturedOnEventListener?.({ tabId }, 'Network.responseReceived', {
+      requestId: 'req-prune-1',
+      response: {
+        url: 'https://example.com/api',
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        mimeType: 'application/json',
+      },
+    });
+    // req-prune-1 is now in requestIdToRequest, waiting for loadingFinished
+
+    // Advance time so the periodic interval fires three times;
+    // the third tick (at +90 s) makes the entry older than PENDING_REQUEST_TTL_MS (60 s)
+    vi.advanceTimersByTime(90_000);
+
+    // Clear sendCommand call history so we can assert on the upcoming loadingFinished
+    chromeMock.debugger.sendCommand.mockClear();
+
+    // Fire loadingFinished — if the entry was pruned the handler returns early
+    // without calling Network.getResponseBody
+    capturedOnEventListener?.({ tabId }, 'Network.loadingFinished', { requestId: 'req-prune-1' });
+
+    expect(chromeMock.debugger.sendCommand).not.toHaveBeenCalled();
+
+    stopCapture(tabId);
+    vi.useRealTimers();
+  });
+
+  test('clears the pruning interval when stopCapture is called', async () => {
+    vi.useFakeTimers();
+    const tabId = 4002;
+
+    await startCapture(tabId);
+    // One active timer: the pruning interval
+    expect(vi.getTimerCount()).toBe(1);
+
+    stopCapture(tabId);
+    // Interval must be cleared — no active timers remain
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.useRealTimers();
+  });
+});
+
 describe('getRequests', () => {
   test('clear=true discards in-flight pending requests so they do not appear in subsequent reads', async () => {
     const tabId = 1001;
