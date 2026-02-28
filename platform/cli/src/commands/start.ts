@@ -284,6 +284,9 @@ const handleStart = async (options: StartOptions): Promise<void> => {
     env: env,
     stdin: 'inherit',
   });
+  // Suppress unhandled rejection if spawn fails before proc.exited is awaited below.
+  // The error is still surfaced when await proc.exited runs.
+  proc.exited.catch(() => {});
 
   const stdoutPipe = teeStream(proc.stdout, process.stdout, logStream);
   const stderrPipe = teeStream(proc.stderr, process.stderr, logStream);
