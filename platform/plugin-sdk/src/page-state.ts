@@ -9,6 +9,8 @@
  * @example
  * const token = getPageGlobal('TS.boot_data.api_token') as string | undefined;
  */
+const BLOCKED_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype']);
+
 export const getPageGlobal = (path: string): unknown => {
   try {
     const segments = path.split('.');
@@ -16,6 +18,7 @@ export const getPageGlobal = (path: string): unknown => {
     for (const segment of segments) {
       if (current === null || current === undefined) return undefined;
       if (typeof current !== 'object' && typeof current !== 'function') return undefined;
+      if (BLOCKED_SEGMENTS.has(segment)) return undefined;
       current = (current as Record<string, unknown>)[segment];
     }
     return current;
