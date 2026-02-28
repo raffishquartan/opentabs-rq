@@ -447,7 +447,14 @@ const detectApis = (requests: NetworkRequest[], wsFrames?: WsFrame[]): ApiAnalys
       for (const frame of wsFrames) {
         if (samples.length >= MAX_WS_FRAME_SAMPLES) break;
         if (frame.direction !== 'received' || frame.opcode !== 1) continue;
-        if (frame.url !== ep.url) continue;
+        let normalizedFrameUrl: string;
+        try {
+          const parsedFrame = new URL(frame.url);
+          normalizedFrameUrl = `${parsedFrame.origin}${parsedFrame.pathname}`;
+        } catch {
+          normalizedFrameUrl = frame.url;
+        }
+        if (normalizedFrameUrl !== ep.url) continue;
         const payload =
           frame.data.length > MAX_WS_FRAME_SAMPLE_LENGTH
             ? frame.data.slice(0, MAX_WS_FRAME_SAMPLE_LENGTH) + '...'

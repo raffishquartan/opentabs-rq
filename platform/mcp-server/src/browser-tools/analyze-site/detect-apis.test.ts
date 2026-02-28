@@ -908,6 +908,20 @@ describe('detectApis', () => {
       expect(otherEp.wsFrameSamples).toEqual(['other-msg']);
     });
 
+    test('matches frames to endpoints when frame URL has query params', () => {
+      const wsRequestWithQuery = req({
+        url: 'wss://example.com/ws?token=abc',
+        method: 'GET',
+        status: 101,
+      });
+      const frames: WsFrame[] = [frame({ url: 'wss://example.com/ws?token=abc', data: 'ws-msg' })];
+      const result = detectApis([wsRequestWithQuery], frames);
+      const wsEp = findByProtocol(result.endpoints, 'websocket');
+      // Endpoint URL is normalized (no query params), frame URL has query params — must still match
+      expect(wsEp.url).toBe('wss://example.com/ws');
+      expect(wsEp.wsFrameSamples).toEqual(['ws-msg']);
+    });
+
     test('non-WebSocket endpoints have undefined wsFrameSamples', () => {
       const restRequest = req({
         url: 'https://api.example.com/v1/items',
