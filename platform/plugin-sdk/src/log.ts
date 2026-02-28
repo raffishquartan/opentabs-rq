@@ -29,62 +29,66 @@ const MAX_STRING_LENGTH = 4096;
  * non-serializable values without throwing.
  */
 const safeSerializeArg = (value: unknown): unknown => {
-  if (value === null || value === undefined) return value;
-
-  const type = typeof value;
-  if (type === 'boolean' || type === 'number') return value;
-
-  if (type === 'string') {
-    return (value as string).length > MAX_STRING_LENGTH ? (value as string).slice(0, MAX_STRING_LENGTH) + '…' : value;
-  }
-
-  if (type === 'function') return `[Function: ${(value as { name?: string }).name || 'anonymous'}]`;
-  if (type === 'symbol') return `[Symbol: ${(value as symbol).description ?? ''}]`;
-  if (type === 'bigint') return `[BigInt: ${(value as bigint).toString()}]`;
-
-  // DOM nodes — require both nodeType (number) and nodeName (string) to avoid
-  // treating arbitrary objects like { nodeType: 1, className: 42 } as DOM nodes.
-  if (
-    typeof (value as { nodeType?: unknown }).nodeType === 'number' &&
-    typeof (value as { nodeName?: unknown }).nodeName === 'string'
-  ) {
-    try {
-      const node = value as { nodeName: string; id?: string; className?: unknown };
-      let classStr = '';
-      if (typeof node.className === 'string') {
-        classStr = node.className ? `.${node.className.split(' ')[0] ?? ''}` : '';
-      } else if (node.className !== null && typeof node.className === 'object') {
-        // SVGAnimatedString has a .baseVal string property
-        const baseVal = (node.className as { baseVal?: unknown }).baseVal;
-        if (typeof baseVal === 'string') {
-          classStr = baseVal ? `.${baseVal.split(' ')[0] ?? ''}` : '';
-        }
-      }
-      return `[${node.nodeName}${node.id ? `#${node.id}` : ''}${classStr}]`;
-    } catch {
-      // Fall through to JSON fallback
-    }
-  }
-
-  // Errors
-  if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack };
-  }
-
-  // Fallback: attempt JSON round-trip to strip non-serializable properties
   try {
-    const seen = new WeakSet();
-    const json = JSON.stringify(value, (_key, v: unknown) => {
-      if (typeof v === 'object' && v !== null) {
-        if (seen.has(v)) return '[Circular]';
-        seen.add(v);
+    if (value === null || value === undefined) return value;
+
+    const type = typeof value;
+    if (type === 'boolean' || type === 'number') return value;
+
+    if (type === 'string') {
+      return (value as string).length > MAX_STRING_LENGTH ? (value as string).slice(0, MAX_STRING_LENGTH) + '…' : value;
+    }
+
+    if (type === 'function') return `[Function: ${(value as { name?: string }).name || 'anonymous'}]`;
+    if (type === 'symbol') return `[Symbol: ${(value as symbol).description ?? ''}]`;
+    if (type === 'bigint') return `[BigInt: ${(value as bigint).toString()}]`;
+
+    // DOM nodes — require both nodeType (number) and nodeName (string) to avoid
+    // treating arbitrary objects like { nodeType: 1, className: 42 } as DOM nodes.
+    if (
+      typeof (value as { nodeType?: unknown }).nodeType === 'number' &&
+      typeof (value as { nodeName?: unknown }).nodeName === 'string'
+    ) {
+      try {
+        const node = value as { nodeName: string; id?: string; className?: unknown };
+        let classStr = '';
+        if (typeof node.className === 'string') {
+          classStr = node.className ? `.${node.className.split(' ')[0] ?? ''}` : '';
+        } else if (node.className !== null && typeof node.className === 'object') {
+          // SVGAnimatedString has a .baseVal string property
+          const baseVal = (node.className as { baseVal?: unknown }).baseVal;
+          if (typeof baseVal === 'string') {
+            classStr = baseVal ? `.${baseVal.split(' ')[0] ?? ''}` : '';
+          }
+        }
+        return `[${node.nodeName}${node.id ? `#${node.id}` : ''}${classStr}]`;
+      } catch {
+        // Fall through to JSON fallback
       }
-      if (typeof v === 'function') return `[Function: ${(v as { name?: string }).name || 'anonymous'}]`;
-      if (typeof v === 'bigint') return `[BigInt: ${v.toString()}]`;
-      if (typeof v === 'symbol') return `[Symbol: ${v.description ?? ''}]`;
-      return v;
-    });
-    return JSON.parse(json) as unknown;
+    }
+
+    // Errors
+    if (value instanceof Error) {
+      return { name: value.name, message: value.message, stack: value.stack };
+    }
+
+    // Fallback: attempt JSON round-trip to strip non-serializable properties
+    try {
+      const seen = new WeakSet();
+      const json = JSON.stringify(value, (_key, v: unknown) => {
+        if (typeof v === 'object' && v !== null) {
+          if (seen.has(v)) return '[Circular]';
+          seen.add(v);
+        }
+        if (typeof v === 'function') return `[Function: ${(v as { name?: string }).name || 'anonymous'}]`;
+        if (typeof v === 'bigint') return `[BigInt: ${v.toString()}]`;
+        if (typeof v === 'symbol') return `[Symbol: ${v.description ?? ''}]`;
+        return v;
+      });
+      return JSON.parse(json) as unknown;
+    } catch {
+      return `[Unserializable: ${typeof value}]`;
+    }
   } catch {
     return `[Unserializable: ${typeof value}]`;
   }

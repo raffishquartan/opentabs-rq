@@ -251,4 +251,27 @@ describe('safe serialization', () => {
     }).not.toThrow();
     expect(entries[0]?.data).toHaveLength(3);
   });
+
+  test('serializes anonymous functions as [Function: anonymous]', () => {
+    const entries = collect();
+    log.info('test', () => {});
+
+    expect(entries[0]?.data).toEqual(['[Function: anonymous]']);
+  });
+
+  test('objects with throwing property getters serialize to fallback string without crashing', () => {
+    const entries = collect();
+    const obj: Record<string, unknown> = {};
+    Object.defineProperty(obj, 'nodeType', {
+      get() {
+        throw new Error('getter threw');
+      },
+      configurable: true,
+    });
+
+    expect(() => log.info('test', obj)).not.toThrow();
+    const result = entries[0]?.data[0] as string | undefined;
+    expect(typeof result).toBe('string');
+    expect(result).toMatch(/^\[Unserializable:/);
+  });
 });
