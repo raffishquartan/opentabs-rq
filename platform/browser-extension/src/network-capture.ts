@@ -116,6 +116,9 @@ interface HeaderEntry {
 
 const captures = new Map<number, CaptureState>();
 
+/** Tracks in-flight startCapture promises by tabId to serialize concurrent calls. */
+const pendingCaptures = new Map<number, Promise<void>>();
+
 // ---------------------------------------------------------------------------
 // Chrome debugger event listener (registered once at module load)
 // ---------------------------------------------------------------------------
@@ -427,62 +430,79 @@ export const startCapture = async (
   maxConsoleLogs: number = 500,
   maxWsFrames: number = 200,
 ): Promise<void> => {
+  // If a startCapture is already in flight for this tab, wait for it and return.
+  // This serializes concurrent calls so the second caller does not attempt to
+  // attach the debugger while the first is still attaching.
+  const inFlightCapture = pendingCaptures.get(tabId);
+  if (inFlightCapture) {
+    return inFlightCapture;
+  }
+
   if (captures.has(tabId)) {
     throw new Error(`Network capture already active for tab ${tabId}. Call stopCapture first.`);
   }
 
+  const capturePromise = (async () => {
+    try {
+      await chrome.debugger.attach({ tabId }, CDP_VERSION);
+    } catch (err) {
+      throw new Error(
+        `Failed to attach debugger to tab ${tabId}: ${toErrorMessage(err)}. ` +
+          'Another debugger (e.g., DevTools) may already be attached.',
+      );
+    }
+
+    try {
+      await chrome.debugger.sendCommand({ tabId }, 'Network.enable');
+      await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable');
+    } catch (err) {
+      await chrome.debugger.detach({ tabId }).catch(() => {});
+      throw err;
+    }
+
+    const captureState: CaptureState = {
+      requests: [],
+      consoleLogs: [],
+      wsFrames: [],
+      maxRequests,
+      maxConsoleLogs,
+      maxWsFrames,
+      urlFilter,
+      pendingRequests: new Map(),
+      requestIdToRequest: new Map(),
+      wsFramesByRequestId: new Map(),
+      wsCreatedAt: new Map(),
+    };
+
+    captureState.pruneIntervalId = setInterval(() => {
+      const now = Date.now();
+      for (const [id, pendingReq] of captureState.pendingRequests) {
+        if (pendingReq.timestamp !== undefined && now - pendingReq.timestamp > PENDING_REQUEST_TTL_MS) {
+          captureState.pendingRequests.delete(id);
+        }
+      }
+      for (const [id, req] of captureState.requestIdToRequest) {
+        if (now - req.timestamp > PENDING_REQUEST_TTL_MS) {
+          captureState.requestIdToRequest.delete(id);
+        }
+      }
+      for (const [id, createdAt] of captureState.wsCreatedAt) {
+        if (now - createdAt > WS_TTL_MS) {
+          captureState.wsFramesByRequestId.delete(id);
+          captureState.wsCreatedAt.delete(id);
+        }
+      }
+    }, PRUNE_INTERVAL_MS);
+
+    captures.set(tabId, captureState);
+  })();
+
+  pendingCaptures.set(tabId, capturePromise);
   try {
-    await chrome.debugger.attach({ tabId }, CDP_VERSION);
-  } catch (err) {
-    throw new Error(
-      `Failed to attach debugger to tab ${tabId}: ${toErrorMessage(err)}. ` +
-        'Another debugger (e.g., DevTools) may already be attached.',
-    );
+    await capturePromise;
+  } finally {
+    pendingCaptures.delete(tabId);
   }
-
-  try {
-    await chrome.debugger.sendCommand({ tabId }, 'Network.enable');
-    await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable');
-  } catch (err) {
-    await chrome.debugger.detach({ tabId }).catch(() => {});
-    throw err;
-  }
-
-  const captureState: CaptureState = {
-    requests: [],
-    consoleLogs: [],
-    wsFrames: [],
-    maxRequests,
-    maxConsoleLogs,
-    maxWsFrames,
-    urlFilter,
-    pendingRequests: new Map(),
-    requestIdToRequest: new Map(),
-    wsFramesByRequestId: new Map(),
-    wsCreatedAt: new Map(),
-  };
-
-  captureState.pruneIntervalId = setInterval(() => {
-    const now = Date.now();
-    for (const [id, pending] of captureState.pendingRequests) {
-      if (pending.timestamp !== undefined && now - pending.timestamp > PENDING_REQUEST_TTL_MS) {
-        captureState.pendingRequests.delete(id);
-      }
-    }
-    for (const [id, req] of captureState.requestIdToRequest) {
-      if (now - req.timestamp > PENDING_REQUEST_TTL_MS) {
-        captureState.requestIdToRequest.delete(id);
-      }
-    }
-    for (const [id, createdAt] of captureState.wsCreatedAt) {
-      if (now - createdAt > WS_TTL_MS) {
-        captureState.wsFramesByRequestId.delete(id);
-        captureState.wsCreatedAt.delete(id);
-      }
-    }
-  }, PRUNE_INTERVAL_MS);
-
-  captures.set(tabId, captureState);
 };
 
 /**

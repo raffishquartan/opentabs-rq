@@ -497,6 +497,54 @@ describe('wsFramesByRequestId pruning', () => {
   });
 });
 
+describe('concurrent startCapture guard', () => {
+  test('second concurrent call waits for first and does not re-attach the debugger', async () => {
+    const tabId = 6001;
+    const chromeMock = (globalThis as Record<string, unknown>).chrome as {
+      debugger: { attach: ReturnType<typeof vi.fn> };
+    };
+    chromeMock.debugger.attach.mockClear();
+
+    // Fire both calls synchronously — the second sees pendingCaptures entry set by the first
+    const call1 = startCapture(tabId);
+    const call2 = startCapture(tabId);
+
+    await Promise.all([call1, call2]);
+
+    // attach should have been called exactly once (no double-attach)
+    expect(chromeMock.debugger.attach).toHaveBeenCalledTimes(1);
+    expect(isCapturing(tabId)).toBe(true);
+
+    stopCapture(tabId);
+  });
+
+  test('non-racing call after capture is active still throws', async () => {
+    const tabId = 6002;
+    await startCapture(tabId);
+
+    await expect(startCapture(tabId)).rejects.toThrow(`Network capture already active for tab ${tabId}`);
+
+    stopCapture(tabId);
+  });
+
+  test('if first startCapture fails, second does not report the tab as capturing', async () => {
+    const tabId = 6003;
+    const chromeMock = (globalThis as Record<string, unknown>).chrome as {
+      debugger: { attach: ReturnType<typeof vi.fn> };
+    };
+    chromeMock.debugger.attach.mockRejectedValueOnce(new Error('debugger attach failed'));
+
+    const call1 = startCapture(tabId);
+    const call2 = startCapture(tabId);
+
+    const [result1, result2] = await Promise.allSettled([call1, call2]);
+
+    expect(result1.status).toBe('rejected');
+    expect(result2.status).toBe('rejected');
+    expect(isCapturing(tabId)).toBe(false);
+  });
+});
+
 describe('getRequests', () => {
   test('clear=true discards in-flight pending requests so they do not appear in subsequent reads', async () => {
     const tabId = 1001;
