@@ -751,44 +751,47 @@ test.describe('Malformed WebSocket messages', () => {
       setTimeout(() => reject(new Error('Raw WebSocket connect timeout')), 5_000);
     });
 
-    await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
+    try {
+      await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
 
-    // Set up the pong listener BEFORE sending any messages, so we don't miss
-    // it due to the extension's reconnect racing us.
-    const pongPromise = new Promise<boolean>(resolve => {
-      const timeout = setTimeout(() => resolve(false), 5_000);
-      rawWs.onmessage = event => {
-        try {
-          const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
-          if (msg.method === 'pong') {
-            clearTimeout(timeout);
-            resolve(true);
+      // Set up the pong listener BEFORE sending any messages, so we don't miss
+      // it due to the extension's reconnect racing us.
+      const pongPromise = new Promise<boolean>(resolve => {
+        const timeout = setTimeout(() => resolve(false), 5_000);
+        rawWs.onmessage = event => {
+          try {
+            const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
+            if (msg.method === 'pong') {
+              clearTimeout(timeout);
+              resolve(true);
+            }
+          } catch {
+            // ignore non-JSON (e.g. sync.full)
           }
-        } catch {
-          // ignore non-JSON (e.g. sync.full)
-        }
-      };
-    });
+        };
+      });
 
-    // Send all malformed messages in rapid succession, then a ping to verify
-    // the connection is still alive. No waits between messages — the extension
-    // may reconnect within ~1s and replace the raw WS.
-    // 1. Invalid JSON (not parseable)
-    rawWs.send('this is not valid JSON {{{');
-    // 2. Valid JSON but a primitive (not an object)
-    rawWs.send('"just a string"');
-    // 3. Valid JSON array (not an object)
-    rawWs.send('[1, 2, 3]');
-    // 4. JSON object with neither method nor id
-    rawWs.send(JSON.stringify({ jsonrpc: '2.0', data: 'no method or id' }));
-    // 5. Verify the connection survived by sending a ping
-    rawWs.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
+      // Send all malformed messages in rapid succession, then a ping to verify
+      // the connection is still alive. No waits between messages — the extension
+      // may reconnect within ~1s and replace the raw WS.
+      // 1. Invalid JSON (not parseable)
+      rawWs.send('this is not valid JSON {{{');
+      // 2. Valid JSON but a primitive (not an object)
+      rawWs.send('"just a string"');
+      // 3. Valid JSON array (not an object)
+      rawWs.send('[1, 2, 3]');
+      // 4. JSON object with neither method nor id
+      rawWs.send(JSON.stringify({ jsonrpc: '2.0', data: 'no method or id' }));
+      // 5. Verify the connection survived by sending a ping
+      rawWs.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
 
-    const pongReceived = await pongPromise;
-    expect(pongReceived).toBe(true);
-
-    // Close the raw WS and wait for the real extension to reconnect
-    rawWs.close();
+      const pongReceived = await pongPromise;
+      expect(pongReceived).toBe(true);
+    } finally {
+      // Always close the raw WS so orphaned connections don't accumulate on failure
+      rawWs.close();
+    }
+    // Wait for the real extension to reconnect after the raw WS is closed
     await waitForExtensionConnected(mcpServer, 45_000);
     await waitForLog(mcpServer, 'tab.syncAll received');
 
