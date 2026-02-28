@@ -111,7 +111,7 @@ The `context` parameter is optional — tools that don't need progress reporting
 ## Example
 
 ```typescript
-import { defineTool, fetchJSON, ToolError } from '@opentabs-dev/plugin-sdk';
+import { defineTool, postJSON, ToolError } from '@opentabs-dev/plugin-sdk';
 import type { ToolHandlerContext } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
 
@@ -132,19 +132,12 @@ export const sendMessage = defineTool({
   }),
 
   async handle(params, context?: ToolHandlerContext) {
-    const result = await fetchJSON<{ ok: boolean; ts: string }>(
+    const result = await postJSON<{ ok: boolean; ts: string }>(
       '/api/chat.postMessage',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channel: params.channel,
-          text: params.text,
-        }),
-      },
+      { channel: params.channel, text: params.text },
     );
 
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw ToolError.internal('Failed to send message');
     }
 

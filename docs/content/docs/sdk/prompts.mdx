@@ -222,6 +222,10 @@ export const summarizeThread = definePrompt({
       `/api/conversations.replies?thread_ts=${extractTs(args.thread_url)}`,
     );
 
+    if (!data) {
+      return [];
+    }
+
     const threadText = data.messages
       .map((m) => `${m.user}: ${m.text}`)
       .join('\n');
