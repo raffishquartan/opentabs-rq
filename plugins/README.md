@@ -34,7 +34,8 @@ npm run check   # build + type-check + lint + format:check
 ## Adding a new plugin
 
 ```bash
-npx create-opentabs-plugin <name> --domain <domain>
+opentabs plugin create <name> --domain <domain>
+# or: npx @opentabs-dev/create-plugin <name> --domain <domain>
 ```
 
 Or manually: create a directory here following the same structure as the existing plugins.

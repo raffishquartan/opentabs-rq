@@ -103,7 +103,15 @@ Want to extend OpenTabs for a new website? You need [Node.js](https://nodejs.org
 ### Scaffold a new plugin
 
 ```bash
-npx create-opentabs-plugin my-plugin
+opentabs plugin create my-plugin --domain .example.com
+cd my-plugin
+npm install
+```
+
+Or if you don't have the `opentabs` CLI installed globally:
+
+```bash
+npx @opentabs-dev/create-plugin my-plugin --domain .example.com
 cd my-plugin
 npm install
 ```

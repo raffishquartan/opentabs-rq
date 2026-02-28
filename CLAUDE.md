@@ -126,7 +126,7 @@ npm run storybook       # Launch Storybook dev server (browser extension compone
 npm install             # Install dependencies
 ```
 
-The `npm run` commands above are for **platform contributors** working in the monorepo. Normal users interact via the `opentabs` CLI, and plugin developers use `npm run build` / `npx create-opentabs-plugin`.
+The `npm run` commands above are for **platform contributors** working in the monorepo. Normal users interact via the `opentabs` CLI, and plugin developers use `npm run build` / `opentabs plugin create` (or `npx @opentabs-dev/create-plugin` for those without the CLI installed globally).
 
 ### Loading the Extension
 
