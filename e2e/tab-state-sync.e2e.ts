@@ -25,6 +25,7 @@ import {
   setupToolTest,
   waitForToolResult,
   waitForExtensionConnected,
+  waitForExtensionDisconnected,
   waitForLog,
   setupAdapterSymlink,
 } from './helpers.js';
@@ -310,10 +311,9 @@ test.describe('Tab state sync — server restart reconnect', () => {
       // 3. Kill the MCP server
       await server1.kill();
 
-      // 4. Wait a moment for the extension to detect the disconnection.
-      // The offscreen document's pong timeout is 5s, so we wait enough time
-      // for the WebSocket close to be detected.
-      await new Promise(r => setTimeout(r, 8_000));
+      // 4. Wait for the extension to detect the disconnection.
+      // The offscreen document's pong timeout is 5s, plus buffer for detection.
+      await waitForExtensionDisconnected(server1, 15_000);
 
       // 5. Restart the MCP server on the same port — the extension's offscreen
       // document reconnect logic will find the new server at the same URL.
