@@ -1,5 +1,15 @@
 import { ToolError } from './errors.js';
-import { fetchFromPage, fetchJSON, postJSON } from './fetch.js';
+import {
+  fetchFromPage,
+  fetchJSON,
+  postJSON,
+  postForm,
+  postFormData,
+  putJSON,
+  patchJSON,
+  deleteJSON,
+  parseRetryAfterMs,
+} from './fetch.js';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { createServer } from 'node:http';
@@ -123,6 +133,40 @@ beforeAll(
         if (url.pathname === '/no-content') {
           res.writeHead(204);
           res.end();
+          return;
+        }
+
+        if (url.pathname === '/echo-form') {
+          const chunks: Buffer[] = [];
+          req.on('data', (chunk: Buffer) => chunks.push(chunk));
+          req.on('end', () => {
+            const body = Buffer.concat(chunks).toString('utf-8');
+            const contentType = req.headers['content-type'] ?? null;
+            const method = req.method ?? null;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ body, contentType, method }));
+          });
+          return;
+        }
+
+        if (url.pathname === '/echo-method') {
+          const chunks: Buffer[] = [];
+          req.on('data', (chunk: Buffer) => chunks.push(chunk));
+          req.on('end', () => {
+            let received: unknown = null;
+            const raw = Buffer.concat(chunks).toString('utf-8');
+            if (raw.length > 0) {
+              try {
+                received = JSON.parse(raw) as unknown;
+              } catch {
+                received = raw;
+              }
+            }
+            const contentType = req.headers['content-type'] ?? null;
+            const method = req.method ?? null;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ method, contentType, received }));
+          });
           return;
         }
 
@@ -473,5 +517,194 @@ describe('postJSON', () => {
       expect(toolError.category).toBe('validation');
       expect(toolError.message).toContain('failed schema validation');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// postForm
+// ---------------------------------------------------------------------------
+
+describe('postForm', () => {
+  test('sends POST request with application/x-www-form-urlencoded Content-Type', async () => {
+    const data = await postForm<{ body: string; contentType: string; method: string }>(`${baseUrl}/echo-form`, {
+      name: 'alice',
+      age: '30',
+    });
+    expect(data.method).toBe('POST');
+    expect(data.contentType).toBe('application/x-www-form-urlencoded');
+    expect(data.body).toContain('name=alice');
+    expect(data.body).toContain('age=30');
+  });
+
+  test('merges custom headers with Content-Type preserved', async () => {
+    const data = await postForm<{ body: string; contentType: string; method: string }>(
+      `${baseUrl}/echo-form`,
+      { key: 'value' },
+      { headers: { 'X-Custom': 'test' } },
+    );
+    expect(data.contentType).toBe('application/x-www-form-urlencoded');
+  });
+
+  test('returns parsed JSON response', async () => {
+    const data = await postForm<{ body: string; contentType: string; method: string }>(`${baseUrl}/echo-form`, {
+      foo: 'bar',
+    });
+    expect(data).toHaveProperty('body');
+    expect(data).toHaveProperty('contentType');
+  });
+
+  test('validates response against Zod schema when provided', async () => {
+    const schema = z.object({ body: z.string(), contentType: z.string(), method: z.string() });
+    const data = await postForm(`${baseUrl}/echo-form`, { x: '1' }, undefined, schema);
+    expect(data.method).toBe('POST');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// postFormData
+// ---------------------------------------------------------------------------
+
+describe('postFormData', () => {
+  test('sends POST request without explicitly setting Content-Type (set automatically by fetch)', async () => {
+    const formData = new FormData();
+    formData.append('field', 'value');
+    const data = await postFormData<{ contentType: string; hasCookies: boolean }>(`${baseUrl}/echo-headers`, formData);
+    // The fetch API sets Content-Type to multipart/form-data with boundary automatically
+    expect(data.contentType).toMatch(/^multipart\/form-data/);
+  });
+
+  test('returns parsed JSON response', async () => {
+    const formData = new FormData();
+    formData.append('key', 'value');
+    const data = await postFormData<{ contentType: string; hasCookies: boolean }>(`${baseUrl}/echo-headers`, formData);
+    expect(data).toHaveProperty('contentType');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// putJSON
+// ---------------------------------------------------------------------------
+
+describe('putJSON', () => {
+  test('sends PUT request with JSON body and application/json Content-Type', async () => {
+    const data = await putJSON<{ method: string; contentType: string; received: { name: string } }>(
+      `${baseUrl}/echo-method`,
+      { name: 'test' },
+    );
+    expect(data.method).toBe('PUT');
+    expect(data.contentType).toBe('application/json');
+    expect(data.received).toEqual({ name: 'test' });
+  });
+
+  test('allows additional headers via init', async () => {
+    const data = await putJSON<{ method: string; contentType: string; received: unknown }>(
+      `${baseUrl}/echo-method`,
+      { data: 1 },
+      { headers: { 'X-Custom': 'header' } },
+    );
+    expect(data.method).toBe('PUT');
+    expect(data.contentType).toBe('application/json');
+  });
+
+  test('validates response against Zod schema when provided', async () => {
+    const schema = z.object({ method: z.string(), contentType: z.string().nullable(), received: z.unknown() });
+    const data = await putJSON(`${baseUrl}/echo-method`, { x: 1 }, undefined, schema);
+    expect(data.method).toBe('PUT');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// patchJSON
+// ---------------------------------------------------------------------------
+
+describe('patchJSON', () => {
+  test('sends PATCH request with JSON body and application/json Content-Type', async () => {
+    const data = await patchJSON<{ method: string; contentType: string; received: { value: number } }>(
+      `${baseUrl}/echo-method`,
+      { value: 42 },
+    );
+    expect(data.method).toBe('PATCH');
+    expect(data.contentType).toBe('application/json');
+    expect(data.received).toEqual({ value: 42 });
+  });
+
+  test('allows additional headers via init', async () => {
+    const data = await patchJSON<{ method: string; contentType: string; received: unknown }>(
+      `${baseUrl}/echo-method`,
+      { data: 1 },
+      { headers: { 'X-Custom': 'header' } },
+    );
+    expect(data.method).toBe('PATCH');
+    expect(data.contentType).toBe('application/json');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteJSON
+// ---------------------------------------------------------------------------
+
+describe('deleteJSON', () => {
+  test('sends DELETE request', async () => {
+    const data = await deleteJSON<{ method: string; contentType: string | null; received: null }>(
+      `${baseUrl}/echo-method`,
+    );
+    expect(data?.method).toBe('DELETE');
+  });
+
+  test('returns undefined for 204 No Content response', async () => {
+    const data = await deleteJSON(`${baseUrl}/no-content`);
+    expect(data).toBeUndefined();
+  });
+
+  test('returns parsed JSON for non-204 responses', async () => {
+    const data = await deleteJSON<{ method: string; contentType: string | null; received: null }>(
+      `${baseUrl}/echo-method`,
+    );
+    expect(data).toHaveProperty('method', 'DELETE');
+  });
+
+  test('validates response against Zod schema when provided', async () => {
+    const schema = z.object({ method: z.string(), contentType: z.string().nullable(), received: z.null() });
+    const data = await deleteJSON(`${baseUrl}/echo-method`, undefined, schema);
+    expect(data.method).toBe('DELETE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseRetryAfterMs
+// ---------------------------------------------------------------------------
+
+describe('parseRetryAfterMs', () => {
+  test('parses integer seconds into milliseconds', () => {
+    expect(parseRetryAfterMs('60')).toBe(60_000);
+  });
+
+  test('parses zero seconds', () => {
+    expect(parseRetryAfterMs('0')).toBe(0);
+  });
+
+  test('parses decimal seconds into milliseconds', () => {
+    expect(parseRetryAfterMs('1.5')).toBe(1_500);
+  });
+
+  test('returns undefined for negative values', () => {
+    expect(parseRetryAfterMs('-1')).toBeUndefined();
+  });
+
+  test('returns undefined for invalid strings', () => {
+    expect(parseRetryAfterMs('invalid')).toBeUndefined();
+  });
+
+  test('parses future HTTP-date format into positive milliseconds', () => {
+    const futureDate = new Date(Date.now() + 60_000).toUTCString();
+    const result = parseRetryAfterMs(futureDate);
+    expect(result).toBeDefined();
+    expect(result).toBeGreaterThan(0);
+    expect(result).toBeLessThanOrEqual(60_000);
+  });
+
+  test('returns undefined for past HTTP-date', () => {
+    const pastDate = new Date(Date.now() - 60_000).toUTCString();
+    expect(parseRetryAfterMs(pastDate)).toBeUndefined();
   });
 });
