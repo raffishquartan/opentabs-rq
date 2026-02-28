@@ -645,10 +645,16 @@ import type { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
 // Typed accessor for the globalThis.__openTabs runtime namespace, replacing
 // untyped \`(globalThis as any).__openTabs\` casts throughout the wrapper.
 interface LogEntry { level: string; message: string; data: unknown[]; ts: string }
+interface NavigationInterceptor {
+  callbacks: Map<string, () => void>;
+  origPushState: typeof history.pushState;
+  origReplaceState: typeof history.replaceState;
+}
 interface OpenTabsRuntime {
   adapters: Record<string, OpenTabsPlugin>;
   _setLogTransport?: (fn: (entry: LogEntry) => void) => () => void;
   _logNonce?: string;
+  _navigationInterceptor?: NavigationInterceptor;
 }
 declare global {
   var __openTabs: OpenTabsRuntime | undefined;
@@ -777,7 +783,10 @@ if (typeof plugin.onActivate === 'function') {
   try { plugin.onActivate(); } catch (e) { console.warn('[OpenTabs] onActivate failed for ' + ${name} + ':', e); }
 }
 
-// Wire onNavigate — intercept history methods and listen for popstate/hashchange
+// Wire onNavigate — use a shared interceptor so multiple plugins can coexist.
+// A single monkey-patch of history.pushState/replaceState dispatches to all
+// registered callbacks. Each plugin registers/unregisters its callback. When
+// the last callback is removed, the original methods are restored.
 if (typeof plugin.onNavigate === 'function') {
   let lastUrl = location.href;
   const checkUrl = () => {
@@ -787,28 +796,49 @@ if (typeof plugin.onNavigate === 'function') {
       try { plugin.onNavigate!(newUrl); } catch (e) { console.warn('[OpenTabs] onNavigate failed:', e); }
     }
   };
-  const origPushState = history.pushState.bind(history);
-  const origReplaceState = history.replaceState.bind(history);
-  history.pushState = function(...args: Parameters<typeof history.pushState>) {
-    origPushState(...args);
-    checkUrl();
-  };
-  history.replaceState = function(...args: Parameters<typeof history.replaceState>) {
-    origReplaceState(...args);
-    checkUrl();
-  };
+
+  const ot = globalThis.__openTabs!;
+  if (!ot._navigationInterceptor) {
+    // First plugin to need navigation — install the shared interceptor
+    const origPushState = history.pushState.bind(history);
+    const origReplaceState = history.replaceState.bind(history);
+    const callbacks = new Map<string, () => void>();
+    ot._navigationInterceptor = { callbacks, origPushState, origReplaceState };
+    history.pushState = function(...args: Parameters<typeof history.pushState>) {
+      origPushState(...args);
+      for (const cb of callbacks.values()) { cb(); }
+    };
+    history.replaceState = function(...args: Parameters<typeof history.replaceState>) {
+      origReplaceState(...args);
+      for (const cb of callbacks.values()) { cb(); }
+    };
+  }
+
+  const interceptor = ot._navigationInterceptor;
+  interceptor.callbacks.set(${name}, checkUrl);
+
+  // popstate/hashchange use addEventListener which safely supports multiple listeners
   window.addEventListener('popstate', checkUrl);
   window.addEventListener('hashchange', checkUrl);
 
-  // Wrap teardown to restore navigation listeners when this adapter is later replaced
+  // Wrap teardown to unregister this plugin's navigation callback
   const origTeardown = typeof plugin.teardown === 'function' ? plugin.teardown.bind(plugin) : undefined;
   const origOnDeactivate = typeof plugin.onDeactivate === 'function' ? plugin.onDeactivate.bind(plugin) : undefined;
   plugin.teardown = function() {
     if (origOnDeactivate) {
       try { origOnDeactivate(); } catch (e) { console.warn('[OpenTabs] onDeactivate failed for ' + ${name} + ':', e); }
     }
-    history.pushState = origPushState;
-    history.replaceState = origReplaceState;
+    // Unregister this plugin's callback from the shared interceptor
+    const nav = globalThis.__openTabs?._navigationInterceptor;
+    if (nav) {
+      nav.callbacks.delete(${name});
+      if (nav.callbacks.size === 0) {
+        // Last plugin removed — restore original history methods
+        history.pushState = nav.origPushState;
+        history.replaceState = nav.origReplaceState;
+        delete globalThis.__openTabs!._navigationInterceptor;
+      }
+    }
     window.removeEventListener('popstate', checkUrl);
     window.removeEventListener('hashchange', checkUrl);
     // Flush remaining logs and tear down log transport
