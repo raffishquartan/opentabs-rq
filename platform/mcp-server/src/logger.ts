@@ -44,7 +44,7 @@ const formatArgs = (args: unknown[], includeStack: boolean): unknown[] => {
   if (last instanceof Error) {
     const rest = args.slice(0, -1);
     if (includeStack && last.stack) {
-      return [...rest, last.message + '\n  ' + last.stack];
+      return [...rest, '\n  ' + last.stack];
     }
     return [...rest, last.message];
   }
