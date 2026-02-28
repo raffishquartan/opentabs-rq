@@ -60,6 +60,7 @@ const TOOL_TIERS: Record<string, ToolTier> = {
   browser_enable_network_capture: 'interact',
   browser_get_network_requests: 'interact',
   browser_get_websocket_frames: 'interact',
+  browser_export_har: 'interact',
   extension_force_reconnect: 'interact',
   extension_reload: 'interact',
   plugin_analyze_site: 'interact',

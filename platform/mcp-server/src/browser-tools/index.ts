@@ -14,6 +14,7 @@ import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
 import { enableNetworkCapture } from './enable-network-capture.js';
 import { executeScript } from './execute-script.js';
+import { exportHar } from './export-har.js';
 import { extensionCheckAdapter } from './extension-check-adapter.js';
 import { extensionForceReconnect } from './extension-force-reconnect.js';
 import { extensionGetLogs } from './extension-get-logs.js';
@@ -71,6 +72,7 @@ const browserTools: BrowserToolDefinition[] = [
   enableNetworkCapture,
   getNetworkRequests,
   getWebSocketFrames,
+  exportHar,
   disableNetworkCapture,
   getConsoleLogs,
   clearConsoleLogs,

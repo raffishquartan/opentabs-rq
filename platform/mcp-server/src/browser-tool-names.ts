@@ -34,6 +34,7 @@ const BROWSER_TOOL_NAMES: readonly string[] = [
   'browser_enable_network_capture',
   'browser_get_network_requests',
   'browser_get_websocket_frames',
+  'browser_export_har',
   'browser_disable_network_capture',
   'browser_get_console_logs',
   'browser_clear_console_logs',
