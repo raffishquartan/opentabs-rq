@@ -719,9 +719,9 @@ export const ConfigDirectory = () => (
         Configuration (0600, created on first run)
       </text>
 
-      {/* auth.json */}
+      {/* audit.log */}
       <text x="28" y="94" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
-        auth.json
+        audit.log
       </text>
       <text
         x="220"
@@ -730,12 +730,12 @@ export const ConfigDirectory = () => (
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-foreground)"
         opacity="0.45">
-        Auth secret + port (written on server start)
+        Tool invocation log (NDJSON, append-only)
       </text>
 
-      {/* audit.log */}
+      {/* server.log */}
       <text x="28" y="120" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
-        audit.log
+        server.log
       </text>
       <text
         x="220"
@@ -744,30 +744,16 @@ export const ConfigDirectory = () => (
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-foreground)"
         opacity="0.45">
-        Tool invocation log (NDJSON, append-only)
-      </text>
-
-      {/* server.log */}
-      <text x="28" y="146" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
-        server.log
-      </text>
-      <text
-        x="220"
-        y="146"
-        fontSize="10"
-        fontFamily="var(--font-mono), monospace"
-        fill="var(--color-foreground)"
-        opacity="0.45">
         Server output (written by opentabs start)
       </text>
 
       {/* Divider */}
-      <line x1="20" y1="162" x2="500" y2="162" stroke="var(--color-foreground)" strokeWidth="1" opacity="0.15" />
+      <line x1="20" y1="136" x2="500" y2="136" stroke="var(--color-foreground)" strokeWidth="1" opacity="0.15" />
 
       {/* extension/ directory */}
       <text
         x="28"
-        y="186"
+        y="160"
         fontSize="12"
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-primary)"
@@ -776,7 +762,7 @@ export const ConfigDirectory = () => (
       </text>
       <text
         x="220"
-        y="186"
+        y="160"
         fontSize="10"
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-foreground)"
@@ -785,13 +771,42 @@ export const ConfigDirectory = () => (
       </text>
 
       {/* extension/manifest.json */}
-      <text x="62" y="212" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
+      <text x="62" y="186" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
         manifest.json
       </text>
 
-      {/* extension/background.js */}
+      {/* extension/dist/ */}
+      <text
+        x="62"
+        y="212"
+        fontSize="12"
+        fontFamily="var(--font-mono), monospace"
+        fill="var(--color-primary)"
+        fontWeight="bold">
+        dist/
+      </text>
+      <text
+        x="220"
+        y="212"
+        fontSize="10"
+        fontFamily="var(--font-mono), monospace"
+        fill="var(--color-foreground)"
+        opacity="0.45">
+        Compiled extension JS
+      </text>
+
+      {/* extension/auth.json */}
       <text x="62" y="238" fontSize="12" fontFamily="var(--font-mono), monospace" fill="var(--color-foreground)">
-        background.js
+        auth.json
+      </text>
+      <text
+        x="220"
+        y="238"
+        fontSize="10"
+        fontFamily="var(--font-mono), monospace"
+        fill="var(--color-foreground)"
+        opacity="0.45">
+        Auth secret (written on server start)
       </text>
 
       {/* extension/adapters/ */}
@@ -2687,7 +2702,7 @@ export const InstallPaths = () => (
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-primary)"
         textAnchor="middle">
-        + Node.js 20+
+        + Node.js 22+
       </text>
       <rect x="266" y="94" width="176" height="22" fill="var(--color-foreground)" />
       <text
@@ -3219,7 +3234,7 @@ export const PluginStructure = () => (
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-primary)"
         opacity="0.6">
-        {'defineTool({ name, input, output, handle })'}
+        {'defineTool({ name, description, input, ... })'}
       </text>
 
       <rect
