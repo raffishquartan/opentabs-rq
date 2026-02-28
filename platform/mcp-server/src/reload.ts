@@ -257,7 +257,13 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     // The 500ms delay lets sync.full flush before the extension restarts.
     if (secretChanged) {
       log.info('Auth secret changed — sending reload signal to extension');
-      setTimeout(() => sendExtensionReload(state), 500);
+      setTimeout(() => {
+        try {
+          sendExtensionReload(state);
+        } catch (err) {
+          log.warn('Failed to send extension reload signal:', err);
+        }
+      }, 500);
     }
   }
 };
@@ -332,7 +338,13 @@ const performReload = async (
           // sync.full flush first (the extension handles extension.reload by
           // calling chrome.runtime.reload() after its own flush delay).
           log.info('Extension version changed — sending reload signal to connected extension');
-          setTimeout(() => sendExtensionReload(state), 500);
+          setTimeout(() => {
+            try {
+              sendExtensionReload(state);
+            } catch (err) {
+              log.warn('Failed to send extension reload signal:', err);
+            }
+          }, 500);
         } else {
           // Extension not connected — flag for reload on next connect
           log.info('Extension version changed — reload will be sent on next extension connect');

@@ -569,7 +569,13 @@ const createHandleWsOpen =
         if (state.pendingExtensionReload) {
           state.pendingExtensionReload = false;
           log.info('Sending deferred extension reload (version was updated while extension was disconnected)');
-          setTimeout(() => sendExtensionReload(state), 500);
+          setTimeout(() => {
+            try {
+              sendExtensionReload(state);
+            } catch (err) {
+              log.warn('Failed to send extension reload signal:', err);
+            }
+          }, 500);
         }
       })
       .catch((err: unknown) => {
