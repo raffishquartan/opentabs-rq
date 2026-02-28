@@ -14,7 +14,8 @@ export const getPageGlobal = (path: string): unknown => {
     const segments = path.split('.');
     let current: unknown = globalThis;
     for (const segment of segments) {
-      if (current === null || current === undefined || typeof current !== 'object') return undefined;
+      if (current === null || current === undefined) return undefined;
+      if (typeof current !== 'object' && typeof current !== 'function') return undefined;
       current = (current as Record<string, unknown>)[segment];
     }
     return current;

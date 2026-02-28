@@ -89,6 +89,26 @@ describe('getPageGlobal', () => {
     const result = getPageGlobal('nonExistent.deep.path');
     expect(result).toBeUndefined();
   });
+
+  test('traverses through function-typed intermediate values', () => {
+    const ctor = function SomeConstructor() {
+      /* noop */
+    } as unknown as Record<string, unknown>;
+    ctor['config'] = { token: 'abc123' };
+    (globalThis as Record<string, unknown>).SomeConstructor = ctor;
+    expect(getPageGlobal('SomeConstructor.config.token')).toBe('abc123');
+    delete (globalThis as Record<string, unknown>).SomeConstructor;
+  });
+
+  test('returns undefined for primitive intermediates after function traversal', () => {
+    const ctor = function SomeLib() {
+      /* noop */
+    } as unknown as Record<string, unknown>;
+    ctor['version'] = '1.0.0';
+    (globalThis as Record<string, unknown>).SomeLib = ctor;
+    expect(getPageGlobal('SomeLib.version.patch')).toBeUndefined();
+    delete (globalThis as Record<string, unknown>).SomeLib;
+  });
 });
 
 // ---------------------------------------------------------------------------
