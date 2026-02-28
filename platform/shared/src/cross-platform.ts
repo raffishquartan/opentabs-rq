@@ -60,7 +60,7 @@ export const platformExec = (cmd: string): string => {
  *                    skipped on Windows with a debug-level warning.
  */
 export const atomicWrite = async (filePath: string, content: string, mode?: number): Promise<void> => {
-  const tmpPath = filePath + '.tmp';
+  const tmpPath = `${filePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`;
   try {
     await writeFile(tmpPath, content, 'utf-8');
 
