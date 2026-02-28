@@ -1,7 +1,7 @@
 ---
 title: Browser Tools
 description: 39 built-in browser tools that give AI agents direct control over Chrome tabs, DOM, network, cookies, and more — independent of any plugin.
-lastUpdated: 2026-02-21
+lastUpdated: 2026-02-28
 ---
 
 ## Tab Management
@@ -57,7 +57,7 @@ lastUpdated: 2026-02-21
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_get_page_html`</Table.Cell>
-      <Table.Cell>Extract raw HTML (outerHTML) from a page or specific element. Useful for DOM inspection, finding data attributes, and embedded JSON.</Table.Cell>
+      <Table.Cell>Extract raw HTML (outerHTML) from a page or specific element. Useful for DOM inspection, finding data attributes, and embedded JSON. Configurable max length (default 200,000 chars).</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_execute_script`</Table.Cell>
@@ -123,7 +123,7 @@ lastUpdated: 2026-02-21
   <Table.Body>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_scroll`</Table.Cell>
-      <Table.Cell>Scroll a page or container by direction, distance, or absolute position. Returns current scroll position, total scroll size, and viewport dimensions.</Table.Cell>
+      <Table.Cell>Scroll the page or a scrollable container by direction, distance, or absolute position. Use the optional `container` parameter (CSS selector) to scroll within a specific scrollable element instead of the page. Returns current scroll position, total scroll size, and viewport dimensions.</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_handle_dialog`</Table.Cell>
@@ -210,7 +210,7 @@ Console log capture is enabled alongside network capture via `browser_enable_net
   <Table.Body>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_get_console_logs`</Table.Cell>
-      <Table.Cell>Get console log messages from a tab. Filter by level: log, warn, error, info, debug, or all. Optionally clears the buffer.</Table.Cell>
+      <Table.Cell>Get console log messages from a tab. Requires `browser_enable_network_capture` to be active on the tab (the debugger captures both network requests and console output). Filter by level: log, warn, error, info, debug, or all. Optionally clears the buffer.</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_clear_console_logs`</Table.Cell>
@@ -235,7 +235,7 @@ Console log capture is enabled alongside network capture via `browser_enable_net
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`browser_get_resource_content`</Table.Cell>
-      <Table.Cell>Read content of a specific resource by URL from the browser cache (no re-fetch). Returns text as a string or binary as base64. Useful for reading JavaScript source to understand API patterns and endpoints.</Table.Cell>
+      <Table.Cell>Read content of a specific resource by URL from the browser cache (no re-fetch). Returns text as a string or binary as base64. Configurable max length (default 500,000 chars). Useful for reading JavaScript source to understand API patterns and endpoints.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
@@ -291,7 +291,7 @@ These tools control and diagnose the OpenTabs Chrome extension itself. They use 
   <Table.Body>
     <Table.Row>
       <Table.Cell className="font-medium">`plugin_analyze_site`</Table.Cell>
-      <Table.Cell>Comprehensively analyze a web page to produce actionable intelligence for building OpenTabs plugins. Opens the URL, captures network traffic, detects auth methods (cookies, JWT, Bearer, API keys, CSRF), classifies API endpoints by protocol (REST, GraphQL, gRPC-Web, JSON-RPC, tRPC, WebSocket, SSE), identifies frontend frameworks with SPA/SSR flags, scans globals, forms, and storage keys, and generates concrete tool suggestions. Input: `{ url, waitSeconds? }`.</Table.Cell>
+      <Table.Cell>Comprehensively analyze a web page to produce actionable intelligence for building OpenTabs plugins. Opens the URL, captures network traffic, detects auth methods (cookies, JWT, Bearer, API keys, CSRF), classifies API endpoints by protocol (REST, GraphQL, gRPC-Web, JSON-RPC, tRPC, WebSocket, SSE), identifies frontend frameworks with SPA/SSR flags, scans globals, forms, and storage keys, and generates concrete tool suggestions. Input: `{ url, waitSeconds? }` — `waitSeconds` defaults to 5, max 25.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
