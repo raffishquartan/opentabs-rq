@@ -1,5 +1,6 @@
 import { colorTabState, formatUptime, handleStatus, isNonOpenTabsHttpError, isTimeout } from './status.js';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { MockInstance } from 'vitest';
 
 vi.mock('../config.js', () => ({
   readAuthSecret: vi.fn().mockResolvedValue(null),
@@ -179,9 +180,9 @@ describe('isNonOpenTabsHttpError', () => {
 // ---------------------------------------------------------------------------
 
 describe('handleStatus --json error paths', () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
-  let stderrSpy: ReturnType<typeof vi.spyOn<typeof console, 'error'>>;
-  let exitSpy: ReturnType<typeof vi.spyOn<typeof process, 'exit'>>;
+  let consoleSpy: MockInstance<typeof console.log>;
+  let stderrSpy: MockInstance<typeof console.error>;
+  let exitSpy: MockInstance;
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 
   beforeEach(() => {
