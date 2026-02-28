@@ -75,7 +75,7 @@ Each subdirectory has its own `CLAUDE.md` with package-specific details.
 
 **Authentication and secrets**: The WebSocket secret is stored in `~/.opentabs/extension/auth.json` as `{ "secret": "<hex>" }`. This is the single source of truth — `config.json` does not store the secret.
 
-**Plugin discovery**: npm auto-discovery + local plugins from `~/.opentabs/config.json`. Four-phase pipeline: resolve → load → determine trust tier → build immutable registry. See `platform/mcp-server/CLAUDE.md` for details.
+**Plugin discovery**: npm auto-discovery + local plugins from `~/.opentabs/config.json`. Five-phase pipeline: discover npm → resolve local → load all (with trust tier) → merge (local overrides npm) → build immutable registry. See `platform/mcp-server/CLAUDE.md` for details.
 
 **Lifecycle hooks**: `onActivate`, `onDeactivate`, `onNavigate`, `onToolInvocationStart`, `onToolInvocationEnd`. See `platform/plugin-sdk/CLAUDE.md` for details.
 
