@@ -275,4 +275,18 @@ describe('getCookie', () => {
     });
     expect(getCookie('empty')).toBe('');
   });
+
+  test('returns null when document.cookie getter throws SecurityError', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(win.document, 'cookie');
+    Object.defineProperty(win.document, 'cookie', {
+      get: () => {
+        throw new DOMException('Access denied', 'SecurityError');
+      },
+      configurable: true,
+    });
+    expect(getCookie('anything')).toBeNull();
+    if (originalDescriptor) {
+      Object.defineProperty(win.document, 'cookie', originalDescriptor);
+    }
+  });
 });

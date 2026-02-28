@@ -219,4 +219,31 @@ describe('observeDOM', () => {
   test('throws descriptive error for invalid CSS selector', () => {
     expect(() => observeDOM('[invalid', () => {})).toThrow('observeDOM: invalid CSS selector "[invalid"');
   });
+
+  test('does not call callback after cleanup function is invoked', async () => {
+    document.body.innerHTML = '<div id="cleanup-container"></div>';
+    let callCount = 0;
+    const disconnect = observeDOM('#cleanup-container', () => {
+      callCount++;
+    });
+
+    const container = document.querySelector('#cleanup-container');
+
+    // First mutation — observer is active, callback should fire
+    if (container) {
+      container.appendChild(document.createElement('span'));
+    }
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    expect(callCount).toBe(1);
+
+    // Disconnect the observer
+    disconnect();
+
+    // Second mutation — observer is disconnected, callback should NOT fire
+    if (container) {
+      container.appendChild(document.createElement('span'));
+    }
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    expect(callCount).toBe(1);
+  });
 });

@@ -286,4 +286,30 @@ describe('safe serialization', () => {
     expect(typeof result).toBe('string');
     expect(result).toMatch(/^\[Unserializable:/);
   });
+
+  test('serializes functions nested inside objects via JSON replacer', () => {
+    const entries = collect();
+    const myCallback = () => {};
+    Object.defineProperty(myCallback, 'name', { value: 'myCallback' });
+    log.info('test', { callback: myCallback });
+
+    const data = entries[0]?.data[0] as Record<string, unknown>;
+    expect(data['callback']).toBe('[Function: myCallback]');
+  });
+
+  test('serializes bigints nested inside objects via JSON replacer', () => {
+    const entries = collect();
+    log.info('test', { count: BigInt(42) });
+
+    const data = entries[0]?.data[0] as Record<string, unknown>;
+    expect(data['count']).toBe('[BigInt: 42]');
+  });
+
+  test('serializes symbols nested inside objects via JSON replacer', () => {
+    const entries = collect();
+    log.info('test', { key: Symbol('mySymbol') });
+
+    const data = entries[0]?.data[0] as Record<string, unknown>;
+    expect(data['key']).toBe('[Symbol: mySymbol]');
+  });
 });
