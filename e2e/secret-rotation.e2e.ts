@@ -25,14 +25,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 test.describe('Secret rotation via POST /reload', () => {
-  let configDir: string;
+  let configDir = '';
 
   test.beforeEach(() => {
     configDir = createTestConfigDir();
   });
 
   test.afterEach(() => {
-    cleanupTestConfigDir(configDir);
+    if (configDir) cleanupTestConfigDir(configDir);
   });
 
   test('server accepts new secret and rejects old secret after rotation', async () => {
@@ -121,11 +121,11 @@ test.describe('Secret rotation via POST /reload', () => {
       const oldClient = createMcpClient(server.port, oldSecret);
       try {
         await oldClient.initialize();
-        // Should not reach here — initialization should fail with 401
-        expect(true).toBe(false);
+        throw new Error('Expected old-secret client to be rejected during initialize');
       } catch (err: unknown) {
-        // Expected: server rejects the old secret
-        expect(err).toBeDefined();
+        // Expected: server rejects the old secret with 401 Unauthorized
+        const message = err instanceof Error ? err.message : String(err);
+        expect(message).toMatch(/401|Unauthorized/i);
       } finally {
         await oldClient.close();
       }
