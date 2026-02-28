@@ -100,6 +100,11 @@ const notifyConfirmationRequest = (params: Record<string, unknown>): void => {
  * the same id decrements the count only once. This prevents double-decrements
  * when both the background timeout and the side panel's sp:confirmationTimeout
  * fire for the same confirmation id.
+ *
+ * After decrementing, the id is pruned from clearedConfirmationIds if no
+ * background timeout is pending for it. Without a pending timeout, no timeout
+ * callback can race against this call, so the entry is no longer needed for
+ * idempotency and keeping it would cause unbounded growth during long sessions.
  */
 const clearConfirmationBadge = (id?: string): void => {
   if (id !== undefined) {
@@ -111,6 +116,11 @@ const clearConfirmationBadge = (id?: string): void => {
   }
   pendingConfirmationCount = Math.max(0, pendingConfirmationCount - 1);
   updateConfirmationBadge();
+  // Prune the id when no background timeout is pending — without a pending
+  // timeout, no timeout callback can race, so the entry is no longer needed.
+  if (id !== undefined && !confirmationTimeouts.has(id)) {
+    clearedConfirmationIds.delete(id);
+  }
 };
 
 /**

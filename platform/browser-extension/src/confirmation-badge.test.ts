@@ -269,6 +269,37 @@ describe('clearConfirmationBadge', () => {
     expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
   });
 
+  test('prunes id immediately when no background timeout is pending (production order: clearConfirmationBackgroundTimeout then clearConfirmationBadge)', () => {
+    // This is the order used in handleSpConfirmationResponse and handleSpConfirmationTimeout
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 5000 });
+    clearConfirmationBackgroundTimeout('req-1'); // cancels and removes from confirmationTimeouts
+    clearConfirmationBadge('req-1'); // decrement — id should be pruned immediately
+
+    // New confirmation with the same id — must be clearable without clearAll
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 0 });
+    mockSetBadgeText.mockClear();
+
+    clearConfirmationBadge('req-1');
+
+    // Must decrement — pruned id should not block this
+    expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
+  });
+
+  test('does not prune id when background timeout is still pending (idempotency preserved for in-flight race)', () => {
+    // When the bg timeout is still pending, the id must stay in clearedConfirmationIds
+    // so a concurrent bg timeout callback cannot double-decrement.
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 3000 });
+    notifyConfirmationRequest({ id: 'req-2', timeoutMs: 10000 }); // longer timeout, won't fire
+
+    clearConfirmationBadge('req-1'); // first clear while bg timeout is still pending
+
+    // Bg timeout fires for req-1 — the id is in clearedConfirmationIds, so it's a no-op
+    vi.advanceTimersByTime(3000 + 2000);
+
+    // Count should still be 1 (req-2 still pending, req-1 decremented exactly once)
+    expect(mockSetBadgeText).toHaveBeenLastCalledWith({ text: '1' });
+  });
+
   test('re-used id after background timeout fires can be cleared again without clearAll', () => {
     // req-1 is handled by the background timeout — id pruned from cleared set
     notifyConfirmationRequest({ id: 'req-1', timeoutMs: 3000 });
