@@ -1485,7 +1485,7 @@ export const ProgressFlow = () => (
         fontFamily="var(--font-mono), monospace"
         fill="var(--color-foreground)"
         opacity="0.5">
-        window.postMessage
+        CustomEvent
       </text>
 
       {/* ── Step 3: Content Script Relay ──────────────── */}
