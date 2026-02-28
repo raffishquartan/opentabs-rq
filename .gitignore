@@ -19,6 +19,9 @@ playwright-report/
 !/.ralph/perfect-extension.sh
 !/.ralph/perfect-backend.sh
 !/.ralph/perfect-cli-user.sh
+!/.ralph/perfect-e2e.sh
+!/.ralph/perfect-plugins.sh
+!/.ralph/perfect-sdk.sh
 !/.ralph/perfect.sh
 .claude/worktrees/
 .tmp/
