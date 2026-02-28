@@ -221,6 +221,73 @@ describe('handleBrowserWaitForElement', () => {
 });
 
 // ---------------------------------------------------------------------------
+// handleBrowserWaitForElement — visibility check for fixed/sticky elements
+// ---------------------------------------------------------------------------
+
+describe('handleBrowserWaitForElement — visibility', () => {
+  beforeEach(() => {
+    mockSendToServer.mockReset();
+    mockExecuteScript.mockReset();
+  });
+
+  test('detects position: fixed element as visible', async () => {
+    vi.useFakeTimers();
+
+    const fixedEl = { tagName: 'DIV', offsetParent: null, textContent: 'fixed header' };
+    (globalThis as Record<string, unknown>).document = { querySelector: vi.fn().mockReturnValue(fixedEl) };
+    (globalThis as Record<string, unknown>).getComputedStyle = vi
+      .fn()
+      .mockReturnValue({ display: 'block', visibility: 'visible', position: 'fixed' });
+
+    mockExecuteScript.mockImplementation(async (opts: unknown) => {
+      const scriptOpts = opts as { func: (...a: unknown[]) => Promise<unknown>; args: unknown[] };
+      const resultPromise = scriptOpts.func(...scriptOpts.args);
+      await vi.advanceTimersByTimeAsync(100);
+      const result = await resultPromise;
+      return [{ result }];
+    });
+
+    await handleBrowserWaitForElement({ tabId: 5, selector: '.fixed-header', visible: true }, 'req-vis-fixed');
+
+    expect(firstSentMessage()).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'req-vis-fixed',
+      result: { found: true, tagName: 'div' },
+    });
+
+    vi.useRealTimers();
+  });
+
+  test('detects position: sticky element as visible', async () => {
+    vi.useFakeTimers();
+
+    const stickyEl = { tagName: 'HEADER', offsetParent: null, textContent: 'sticky nav' };
+    (globalThis as Record<string, unknown>).document = { querySelector: vi.fn().mockReturnValue(stickyEl) };
+    (globalThis as Record<string, unknown>).getComputedStyle = vi
+      .fn()
+      .mockReturnValue({ display: 'block', visibility: 'visible', position: 'sticky' });
+
+    mockExecuteScript.mockImplementation(async (opts: unknown) => {
+      const scriptOpts = opts as { func: (...a: unknown[]) => Promise<unknown>; args: unknown[] };
+      const resultPromise = scriptOpts.func(...scriptOpts.args);
+      await vi.advanceTimersByTimeAsync(100);
+      const result = await resultPromise;
+      return [{ result }];
+    });
+
+    await handleBrowserWaitForElement({ tabId: 5, selector: '.sticky-nav', visible: true }, 'req-vis-sticky');
+
+    expect(firstSentMessage()).toMatchObject({
+      jsonrpc: '2.0',
+      id: 'req-vis-sticky',
+      result: { found: true, tagName: 'header' },
+    });
+
+    vi.useRealTimers();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // handleBrowserQueryElements
 // ---------------------------------------------------------------------------
 

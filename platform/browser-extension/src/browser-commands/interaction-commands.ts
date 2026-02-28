@@ -203,7 +203,12 @@ export const handleBrowserWaitForElement = async (
             const el = document.querySelector(sel);
             if (el) {
               const htmlEl = el as HTMLElement;
-              const isVisible = !vis || (htmlEl.offsetParent !== null && getComputedStyle(htmlEl).display !== 'none');
+              const style = getComputedStyle(htmlEl);
+              const isVisible =
+                !vis ||
+                (style.display !== 'none' &&
+                  style.visibility !== 'hidden' &&
+                  (htmlEl.offsetParent !== null || style.position === 'fixed' || style.position === 'sticky'));
               if (isVisible) {
                 clearInterval(poll);
                 resolve({
