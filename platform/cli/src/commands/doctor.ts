@@ -227,14 +227,30 @@ interface McpClientLocation {
   path: string;
 }
 
-const defaultMcpClientLocations = (): McpClientLocation[] => [
-  { name: 'Claude Code', path: join(homedir(), '.claude', 'settings', 'mcp.json') },
-  { name: 'Cursor', path: join(homedir(), '.cursor', 'mcp.json') },
-  { name: 'Cursor', path: join(process.cwd(), '.cursor', 'mcp.json') },
-  { name: 'OpenCode', path: join(homedir(), '.config', 'opencode', 'opencode.json') },
-  { name: 'OpenCode', path: join(process.cwd(), 'opencode.json') },
-  { name: 'Windsurf', path: join(homedir(), '.codeium', 'windsurf', 'mcp_config.json') },
-];
+/**
+ * Returns true when the current working directory appears to be a project directory.
+ * CWD-relative MCP config paths (e.g. `.cursor/mcp.json`) are only meaningful inside
+ * a project, not when CWD is the filesystem root (common in containers).
+ */
+const isCwdProjectDirectory = (): boolean => {
+  const cwd = process.cwd();
+  if (cwd === '/') return false;
+  return existsSync(join(cwd, 'package.json')) || existsSync(join(cwd, '.git'));
+};
+
+const defaultMcpClientLocations = (): McpClientLocation[] => {
+  const home = homedir();
+  const cwd = process.cwd();
+  const cwdIsProject = isCwdProjectDirectory();
+  return [
+    { name: 'Claude Code', path: join(home, '.claude', 'settings', 'mcp.json') },
+    { name: 'Cursor', path: join(home, '.cursor', 'mcp.json') },
+    ...(cwdIsProject ? [{ name: 'Cursor', path: join(cwd, '.cursor', 'mcp.json') }] : []),
+    { name: 'OpenCode', path: join(home, '.config', 'opencode', 'opencode.json') },
+    ...(cwdIsProject ? [{ name: 'OpenCode', path: join(cwd, 'opencode.json') }] : []),
+    { name: 'Windsurf', path: join(home, '.codeium', 'windsurf', 'mcp_config.json') },
+  ];
+};
 
 const checkMcpClientConfig = async (
   clients: McpClientLocation[] = defaultMcpClientLocations(),
@@ -520,6 +536,8 @@ export {
   checkNpmPlugins,
   checkPlugins,
   checkServerHealth,
+  defaultMcpClientLocations,
+  isCwdProjectDirectory,
   registerDoctorCommand,
 };
-export type { CheckResult };
+export type { CheckResult, McpClientLocation };

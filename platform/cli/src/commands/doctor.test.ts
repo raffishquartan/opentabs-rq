@@ -8,12 +8,14 @@ import {
   checkNpmPlugins,
   checkPlugins,
   checkServerHealth,
+  defaultMcpClientLocations,
+  isCwdProjectDirectory,
 } from './doctor.js';
-import { afterAll, describe, expect, test } from 'vitest';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { afterAll, afterEach, describe, expect, test, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { CheckResult } from './doctor.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -639,5 +641,107 @@ describe('checkMcpClientConfig', () => {
     const result = await checkMcpClientConfig([{ name: 'Both', path: configPath }]);
     expect(result.ok).toBe(true);
     expect(result.detail).toContain('Both');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isCwdProjectDirectory
+// ---------------------------------------------------------------------------
+
+describe('isCwdProjectDirectory', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('returns false when CWD is filesystem root', () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/');
+    expect(isCwdProjectDirectory()).toBe(false);
+  });
+
+  test('returns false when CWD has neither package.json nor .git', () => {
+    const emptyDir = mkdtempSync(join(tmpdir(), 'opentabs-cwd-empty-'));
+    try {
+      vi.spyOn(process, 'cwd').mockReturnValue(emptyDir);
+      expect(isCwdProjectDirectory()).toBe(false);
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  test('returns true when CWD has package.json', () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'opentabs-cwd-pkg-'));
+    try {
+      writeFileSync(join(projectDir, 'package.json'), JSON.stringify({ name: 'test' }));
+      vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
+      expect(isCwdProjectDirectory()).toBe(true);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
+  });
+
+  test('returns true when CWD has .git directory', () => {
+    const gitDir = mkdtempSync(join(tmpdir(), 'opentabs-cwd-git-'));
+    try {
+      mkdirSync(join(gitDir, '.git'));
+      vi.spyOn(process, 'cwd').mockReturnValue(gitDir);
+      expect(isCwdProjectDirectory()).toBe(true);
+    } finally {
+      rmSync(gitDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// defaultMcpClientLocations
+// ---------------------------------------------------------------------------
+
+describe('defaultMcpClientLocations', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('always includes home-directory-relative paths', () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/');
+    const locations = defaultMcpClientLocations();
+    const home = homedir();
+    const homePaths = locations.filter(l => l.path.startsWith(home));
+    expect(homePaths.length).toBeGreaterThan(0);
+    expect(locations.some(l => l.name === 'Claude Code')).toBe(true);
+    expect(locations.some(l => l.name === 'Windsurf')).toBe(true);
+  });
+
+  test('excludes CWD-relative paths when CWD is filesystem root', () => {
+    vi.spyOn(process, 'cwd').mockReturnValue('/');
+    const locations = defaultMcpClientLocations();
+    const home = homedir();
+    const cwdPaths = locations.filter(l => !l.path.startsWith(home));
+    expect(cwdPaths).toHaveLength(0);
+  });
+
+  test('excludes CWD-relative paths when CWD is not a project directory', () => {
+    const emptyDir = mkdtempSync(join(tmpdir(), 'opentabs-cwd-noproject-'));
+    try {
+      vi.spyOn(process, 'cwd').mockReturnValue(emptyDir);
+      const locations = defaultMcpClientLocations();
+      const cwdPaths = locations.filter(l => l.path.startsWith(emptyDir));
+      expect(cwdPaths).toHaveLength(0);
+    } finally {
+      rmSync(emptyDir, { recursive: true, force: true });
+    }
+  });
+
+  test('includes CWD-relative paths when CWD is a project directory', () => {
+    const projectDir = mkdtempSync(join(tmpdir(), 'opentabs-cwd-project-'));
+    try {
+      writeFileSync(join(projectDir, 'package.json'), JSON.stringify({ name: 'test' }));
+      vi.spyOn(process, 'cwd').mockReturnValue(projectDir);
+      const locations = defaultMcpClientLocations();
+      const cwdPaths = locations.filter(l => l.path.startsWith(projectDir));
+      expect(cwdPaths.length).toBeGreaterThan(0);
+      expect(cwdPaths.some(l => l.name === 'Cursor')).toBe(true);
+      expect(cwdPaths.some(l => l.name === 'OpenCode')).toBe(true);
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true });
+    }
   });
 });
