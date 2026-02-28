@@ -80,31 +80,47 @@ const handleStatus = async (options: StatusOptions): Promise<void> => {
 
     const res = await fetch(url, { headers, signal: AbortSignal.timeout(3_000) });
     if (res.status === 401) {
-      console.error(pc.red('Authentication failed.'));
-      console.error(
-        pc.dim(
-          'The secret in ~/.opentabs/extension/auth.json may not match the running server.\n' +
-            'Try restarting the server or running: opentabs config rotate-secret --confirm',
-        ),
-      );
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'auth_failed', error: 'Authentication failed' }));
+      } else {
+        console.error(pc.red('Authentication failed.'));
+        console.error(
+          pc.dim(
+            'The secret in ~/.opentabs/extension/auth.json may not match the running server.\n' +
+              'Try restarting the server or running: opentabs config rotate-secret --confirm',
+          ),
+        );
+      }
       process.exit(1);
     }
 
     if (!res.ok) {
       const contentType = res.headers.get('content-type');
       if (isNonOpenTabsHttpError(res.status, contentType)) {
-        console.error(pc.red(`No OpenTabs server found on port ${port}.`));
-        console.error(pc.dim('The port may be in use by another service.'));
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'not_found', error: `No OpenTabs server found on port ${port}` }));
+        } else {
+          console.error(pc.red(`No OpenTabs server found on port ${port}.`));
+          console.error(pc.dim('The port may be in use by another service.'));
+        }
       } else {
-        console.error(pc.red(`Error: MCP server returned HTTP ${res.status}.`));
-        console.error(pc.dim('The server may be misconfigured. Check the server logs for details.'));
+        if (options.json) {
+          console.log(JSON.stringify({ status: 'error', error: `MCP server returned HTTP ${res.status}` }));
+        } else {
+          console.error(pc.red(`Error: MCP server returned HTTP ${res.status}.`));
+          console.error(pc.dim('The server may be misconfigured. Check the server logs for details.'));
+        }
       }
       process.exit(1);
     }
     const data = (await res.json()) as Record<string, unknown>;
     if (typeof data.status !== 'string') {
-      console.error(pc.red(`No OpenTabs server found on port ${port}.`));
-      console.error(pc.dim('The port may be in use by another service.'));
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'not_found', error: `No OpenTabs server found on port ${port}` }));
+      } else {
+        console.error(pc.red(`No OpenTabs server found on port ${port}.`));
+        console.error(pc.dim('The port may be in use by another service.'));
+      }
       process.exit(1);
     }
     if (options.json) {
@@ -201,18 +217,34 @@ const handleStatus = async (options: StatusOptions): Promise<void> => {
     const startHint = `Start it with: opentabs start${port !== 9515 ? ` --port ${port}` : ''}`;
 
     if (isConnectionRefused(err)) {
-      console.error(pc.red('Server not running'));
-      console.error(pc.dim(startHint));
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'not_running', error: 'Server not running' }));
+      } else {
+        console.error(pc.red('Server not running'));
+        console.error(pc.dim(startHint));
+      }
     } else if (isTimeout(err)) {
-      console.error(pc.red('Server not responding (timed out after 3s)'));
-      console.error(pc.dim(`The server at port ${port} did not respond in time.`));
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'timeout', error: 'Server not responding (timed out after 3s)' }));
+      } else {
+        console.error(pc.red('Server not responding (timed out after 3s)'));
+        console.error(pc.dim(`The server at port ${port} did not respond in time.`));
+      }
     } else if (err instanceof SyntaxError) {
-      console.error(pc.red('Server returned invalid response'));
-      console.error(pc.dim('The health endpoint did not return valid JSON.'));
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'invalid_response', error: 'Server returned invalid response' }));
+      } else {
+        console.error(pc.red('Server returned invalid response'));
+        console.error(pc.dim('The health endpoint did not return valid JSON.'));
+      }
     } else {
       const message = toErrorMessage(err);
-      console.error(pc.red(`Error: ${message}`));
-      console.error(pc.dim(startHint));
+      if (options.json) {
+        console.log(JSON.stringify({ status: 'error', error: message }));
+      } else {
+        console.error(pc.red(`Error: ${message}`));
+        console.error(pc.dim(startHint));
+      }
     }
 
     process.exit(1);

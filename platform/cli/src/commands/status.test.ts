@@ -1,5 +1,15 @@
-import { colorTabState, formatUptime, isNonOpenTabsHttpError, isTimeout } from './status.js';
-import { describe, expect, test } from 'vitest';
+import { colorTabState, formatUptime, handleStatus, isNonOpenTabsHttpError, isTimeout } from './status.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+
+vi.mock('../config.js', () => ({
+  readAuthSecret: vi.fn().mockResolvedValue(null),
+  getPidFilePath: vi.fn().mockReturnValue('/tmp/opentabs-test.pid'),
+  isConnectionRefused: (err: unknown): boolean => {
+    if (!(err instanceof TypeError)) return false;
+    const cause = (err as TypeError & { cause?: { code?: string } }).cause;
+    return cause?.code === 'ECONNREFUSED';
+  },
+}));
 
 // ---------------------------------------------------------------------------
 // formatUptime
@@ -161,5 +171,132 @@ describe('isNonOpenTabsHttpError', () => {
 
   test('returns false for 502 with application/json content type', () => {
     expect(isNonOpenTabsHttpError(502, 'application/json; charset=utf-8')).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleStatus --json error paths
+// ---------------------------------------------------------------------------
+
+describe('handleStatus --json error paths', () => {
+  let consoleSpy: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
+  let stderrSpy: ReturnType<typeof vi.spyOn<typeof console, 'error'>>;
+  let exitSpy: ReturnType<typeof vi.spyOn<typeof process, 'exit'>>;
+  let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
+
+  beforeEach(() => {
+    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    stderrSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: string | number | null) => {
+      throw new Error(`process.exit(${String(_code)})`);
+    });
+    fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  test('outputs JSON with status "not_running" when server is not running', async () => {
+    const err = new TypeError('fetch failed');
+    (err as TypeError & { cause: { code: string } }).cause = { code: 'ECONNREFUSED' };
+    fetchMock.mockRejectedValue(err);
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({ status: 'not_running', error: 'Server not running' }));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "timeout" on timeout', async () => {
+    const err = new DOMException('The operation timed out', 'TimeoutError');
+    fetchMock.mockRejectedValue(err);
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      JSON.stringify({ status: 'timeout', error: 'Server not responding (timed out after 3s)' }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "auth_failed" on 401', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 401, headers: { 'content-type': 'application/json' } }));
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({ status: 'auth_failed', error: 'Authentication failed' }));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "not_found" for non-OpenTabs HTTP error (404)', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 404, headers: { 'content-type': 'application/json' } }));
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      JSON.stringify({ status: 'not_found', error: 'No OpenTabs server found on port 9515' }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "error" for non-2xx HTTP response (500 with JSON content type)', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 500, headers: { 'content-type': 'application/json' } }));
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({ status: 'error', error: 'MCP server returned HTTP 500' }));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "not_found" when response has no status field', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ version: '1.0.0' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      JSON.stringify({ status: 'not_found', error: 'No OpenTabs server found on port 9515' }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "invalid_response" when response is not valid JSON', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('not valid json', { status: 200, headers: { 'content-type': 'text/plain' } }),
+    );
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      JSON.stringify({ status: 'invalid_response', error: 'Server returned invalid response' }),
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('outputs JSON with status "error" for generic errors', async () => {
+    fetchMock.mockRejectedValue(new Error('Something went wrong'));
+
+    await expect(handleStatus({ json: true })).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).toHaveBeenCalledWith(JSON.stringify({ status: 'error', error: 'Something went wrong' }));
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('non-JSON mode still outputs to stderr for connection refused', async () => {
+    const err = new TypeError('fetch failed');
+    (err as TypeError & { cause: { code: string } }).cause = { code: 'ECONNREFUSED' };
+    fetchMock.mockRejectedValue(err);
+
+    await expect(handleStatus({})).rejects.toThrow('process.exit(1)');
+
+    expect(consoleSpy).not.toHaveBeenCalled();
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Server not running'));
   });
 });
