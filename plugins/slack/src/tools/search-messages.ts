@@ -82,8 +82,8 @@ export const searchMessages = defineTool({
     if (params.sort_dir) {
       body.sort_dir = params.sort_dir;
     }
-    const data = await slackApi<{ messages: SearchMessagesResponse }>('search.messages', body);
-    const messages = data.messages;
+    const data = await slackApi<{ messages?: SearchMessagesResponse }>('search.messages', body);
+    const messages = data.messages ?? { total: 0, matches: [] as SearchMatch[] };
     return {
       messages: {
         total: messages.total,

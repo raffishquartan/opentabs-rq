@@ -49,7 +49,7 @@ export const readThread = defineTool({
         ts: m.ts,
         thread_ts: m.thread_ts,
       })),
-      has_more: data.has_more,
+      has_more: data.has_more ?? false,
       response_metadata: data.response_metadata?.next_cursor
         ? { next_cursor: data.response_metadata.next_cursor }
         : undefined,
