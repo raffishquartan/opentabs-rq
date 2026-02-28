@@ -1,7 +1,7 @@
 ---
 title: Utilities
 description: API reference for all SDK utility functions — DOM, Fetch, Storage, Page State, and Timing helpers for plugin authors.
-lastUpdated: 2026-02-21
+lastUpdated: 2026-02-28
 ---
 
 The plugin SDK ships utility functions that run in the browser page context, reducing boilerplate for common plugin operations. All utilities are exported from `@opentabs-dev/plugin-sdk`.
@@ -697,6 +697,12 @@ function waitUntil(
       <Table.Cell>`10000`</Table.Cell>
       <Table.Cell>Timeout in milliseconds. Throws an `Error` if the predicate doesn't return `true` in time.</Table.Cell>
     </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`signal`</Table.Cell>
+      <Table.Cell>`AbortSignal`</Table.Cell>
+      <Table.Cell>—</Table.Cell>
+      <Table.Cell>Cancel polling early. The signal is checked between polling intervals.</Table.Cell>
+    </Table.Row>
   </Table.Body>
 </Table>
 
@@ -708,6 +714,14 @@ await waitUntil(() => getPageGlobal('App.ready') === true);
 await waitUntil(
   () => getTextContent('.status-badge') === 'Connected',
   { interval: 500, timeout: 15_000 },
+);
+
+// Cancel polling after 5 seconds
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5000);
+await waitUntil(
+  () => getTextContent('.status') === 'Ready',
+  { signal: controller.signal },
 );
 ```
 
