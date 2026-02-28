@@ -125,10 +125,22 @@ const EVENT_HANDLER_RE =
 // Color parsing utilities
 // ---------------------------------------------------------------------------
 
-/** Parse a hex color (#RGB or #RRGGBB) to [R, G, B] */
+/** Parse a hex color (#RGB, #RGBA, #RRGGBB, or #RRGGBBAA) to [R, G, B] — alpha is ignored */
 const parseHex = (hex: string): [number, number, number] | null => {
   const trimmedHex = hex.trim();
   if (trimmedHex.length === 4) {
+    // #RGB
+    const c1 = trimmedHex[1] ?? '0';
+    const c2 = trimmedHex[2] ?? '0';
+    const c3 = trimmedHex[3] ?? '0';
+    const red = parseInt(c1 + c1, 16);
+    const green = parseInt(c2 + c2, 16);
+    const blue = parseInt(c3 + c3, 16);
+    if (Number.isNaN(red) || Number.isNaN(green) || Number.isNaN(blue)) return null;
+    return [red, green, blue];
+  }
+  if (trimmedHex.length === 5) {
+    // #RGBA — expand each RGB digit, ignore alpha
     const c1 = trimmedHex[1] ?? '0';
     const c2 = trimmedHex[2] ?? '0';
     const c3 = trimmedHex[3] ?? '0';
@@ -139,6 +151,15 @@ const parseHex = (hex: string): [number, number, number] | null => {
     return [red, green, blue];
   }
   if (trimmedHex.length === 7) {
+    // #RRGGBB
+    const red = parseInt(trimmedHex.slice(1, 3), 16);
+    const green = parseInt(trimmedHex.slice(3, 5), 16);
+    const blue = parseInt(trimmedHex.slice(5, 7), 16);
+    if (Number.isNaN(red) || Number.isNaN(green) || Number.isNaN(blue)) return null;
+    return [red, green, blue];
+  }
+  if (trimmedHex.length === 9) {
+    // #RRGGBBAA — parse RGB portion, ignore alpha
     const red = parseInt(trimmedHex.slice(1, 3), 16);
     const green = parseInt(trimmedHex.slice(3, 5), 16);
     const blue = parseInt(trimmedHex.slice(5, 7), 16);
@@ -304,7 +325,8 @@ const validateIconSvg = (content: string, _filename: string): ValidationResult =
 
 /**
  * Validate that an SVG contains only achromatic colors.
- * Checks fill, stroke, stop-color, and flood-color attributes and inline styles.
+ * Checks fill, stroke, stop-color, and flood-color in attributes, inline styles,
+ * and <style> blocks.
  */
 const validateInactiveIconColors = (content: string): ValidationResult => {
   const errors: string[] = [];
@@ -332,6 +354,23 @@ const validateInactiveIconColors = (content: string): ValidationResult => {
         const value = (propMatch[1] ?? '').trim();
         if (value && !isAchromaticColor(value)) {
           errors.push(`Style property ${attr}: ${value} uses a saturated color`);
+        }
+      }
+    }
+  }
+
+  // Check <style> blocks for color declarations
+  const styleBlockPattern = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+  let styleBlockMatch;
+  while ((styleBlockMatch = styleBlockPattern.exec(content)) !== null) {
+    const cssContent = styleBlockMatch[1] ?? '';
+    for (const attr of COLOR_ATTRS) {
+      const cssPropPattern = new RegExp(`${attr.replace('-', '\\-')}\\s*:\\s*([^;}"']+)`, 'gi');
+      let cssPropMatch;
+      while ((cssPropMatch = cssPropPattern.exec(cssContent)) !== null) {
+        const value = (cssPropMatch[1] ?? '').trim();
+        if (value && !isAchromaticColor(value)) {
+          errors.push(`<style> property ${attr}: ${value} uses a saturated color`);
         }
       }
     }
@@ -411,7 +450,8 @@ const convertColorToGray = (value: string): string => {
 
 /**
  * Convert all color values in an SVG to luminance-equivalent grays.
- * Processes fill, stroke, stop-color, and flood-color in both attributes and inline styles.
+ * Processes fill, stroke, stop-color, and flood-color in attributes, inline styles,
+ * and <style> blocks.
  * Uses ITU-R BT.709: gray = 0.2126*R + 0.7152*G + 0.0722*B
  */
 const generateInactiveIcon = (svgContent: string): string => {
@@ -436,6 +476,20 @@ const generateInactiveIcon = (svgContent: string): string => {
       });
     }
     return fullMatch.replace(styleValue, newStyle);
+  });
+
+  // Convert colors in <style> blocks
+  const styleBlockPattern = /(<style[^>]*>)([\s\S]*?)(<\/style>)/gi;
+  result = result.replace(styleBlockPattern, (_fullMatch, openTag: string, cssContent: string, closeTag: string) => {
+    let newCss = cssContent;
+    for (const attr of COLOR_ATTRS) {
+      const cssPropPattern = new RegExp(`(${attr.replace('-', '\\-')}\\s*:\\s*)([^;}"']+)`, 'gi');
+      newCss = newCss.replace(cssPropPattern, (_m, propPrefix: string, propValue: string) => {
+        const converted = convertColorToGray(propValue);
+        return `${propPrefix}${converted}`;
+      });
+    }
+    return `${openTag}${newCss}${closeTag}`;
   });
 
   return result;

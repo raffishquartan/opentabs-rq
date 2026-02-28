@@ -118,7 +118,7 @@ const BASE64URL_SEGMENT = /^[A-Za-z0-9_-]+$/;
 const looksLikeJwt = (value: string): boolean => {
   const parts = value.split('.');
   if (parts.length !== 3) return false;
-  return parts.every(p => p.length > 0 && BASE64URL_SEGMENT.test(p));
+  return parts.every(p => p.length >= 10 && BASE64URL_SEGMENT.test(p));
 };
 
 // ---------------------------------------------------------------------------

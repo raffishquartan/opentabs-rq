@@ -183,6 +183,29 @@ describe('detectAuth', () => {
       expect(result.methods.filter(m => m.type === 'jwt-localstorage')).toHaveLength(2);
     });
 
+    test('does NOT flag version strings like "1.2.3" as JWTs', () => {
+      const result = detectAuth({
+        ...emptyInput,
+        localStorageEntries: [
+          { key: 'app_version', value: '1.2.3' },
+          { key: 'api_version', value: '1.0.0' },
+          { key: 'sdk_version', value: 'a.b.c' },
+        ],
+      });
+      expect(result.methods.filter(m => m.type === 'jwt-localstorage')).toHaveLength(0);
+    });
+
+    test('does NOT flag short dotted strings with base64url chars as JWTs', () => {
+      const result = detectAuth({
+        ...emptyInput,
+        localStorageEntries: [
+          { key: 'short', value: 'abc.def.ghi' },
+          { key: 'semver', value: '10.20.30' },
+        ],
+      });
+      expect(result.methods.filter(m => m.type === 'jwt-localstorage')).toHaveLength(0);
+    });
+
     test('does NOT detect base64-padded segments as JWT (no = padding in base64url)', () => {
       // A three-segment dot-separated string where one segment has base64 standard padding (=)
       // Per RFC 7515, base64url does not use padding — this should not match

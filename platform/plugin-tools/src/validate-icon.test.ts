@@ -240,6 +240,113 @@ describe('validateInactiveIconColors', () => {
     const result = validateInactiveIconColors(svg);
     expect(result.valid).toBe(false);
   });
+
+  // -- 8-digit and 4-digit hex (#RRGGBBAA, #RGBA) --
+
+  test('fill="#FF0000FF" (#RRGGBBAA red with full opacity) fails', () => {
+    const svg = svgWrap('<rect fill="#FF0000FF"/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('fill="#80808080" (#RRGGBBAA gray with alpha) passes', () => {
+    const svg = svgWrap('<rect fill="#80808080"/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  test('fill="#f00f" (#RGBA red with full opacity) fails', () => {
+    const svg = svgWrap('<rect fill="#f00f"/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('fill="#888f" (#RGBA gray with alpha) passes', () => {
+    const svg = svgWrap('<rect fill="#888f"/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  // -- <style> block detection --
+
+  test('<style> block with fill: red fails', () => {
+    const svg = svgWrap('<style>circle { fill: red; }</style><circle/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.some(e => e.includes('<style>'))).toBe(true);
+    }
+  });
+
+  test('<style> block with stroke: #ff0000 fails', () => {
+    const svg = svgWrap('<style>.cls { stroke: #ff0000; }</style><rect class="cls"/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with fill: rgb(255, 0, 0) fails', () => {
+    const svg = svgWrap('<style>rect { fill: rgb(255, 0, 0); }</style><rect/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with fill: #aabbcc (non-achromatic hex) fails', () => {
+    const svg = svgWrap('<style>path { fill: #aabbcc; }</style><path/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with fill: #aabbccdd (#RRGGBBAA non-achromatic) fails', () => {
+    const svg = svgWrap('<style>path { fill: #aabbccdd; }</style><path/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with fill: #abc (#RGB non-achromatic) fails', () => {
+    const svg = svgWrap('<style>path { fill: #abc; }</style><path/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with only achromatic colors passes', () => {
+    const svg = svgWrap('<style>rect { fill: #333; stroke: gray; }</style><rect/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  test('<style> block with fill: black and stroke: white passes', () => {
+    const svg = svgWrap('<style>.icon { fill: black; stroke: white; }</style><rect class="icon"/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  test('<style> block with fill: none passes', () => {
+    const svg = svgWrap('<style>rect { fill: none; }</style><rect/>');
+    expect(validateInactiveIconColors(svg)).toEqual({ valid: true });
+  });
+
+  test('<style> block with both fill and stroke saturated reports both', () => {
+    const svg = svgWrap('<style>rect { fill: red; stroke: blue; }</style><rect/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+    if (!result.valid) {
+      expect(result.errors.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  test('multiple <style> blocks are all checked', () => {
+    const svg = svgWrap('<style>rect { fill: gray; }</style><style>circle { fill: red; }</style><rect/><circle/>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with stop-color is validated', () => {
+    const svg = svgWrap('<style>.gradient-stop { stop-color: #ff0000; }</style>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
+
+  test('<style> block with flood-color is validated', () => {
+    const svg = svgWrap('<style>.flood { flood-color: orange; }</style>');
+    const result = validateInactiveIconColors(svg);
+    expect(result.valid).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -537,5 +644,104 @@ describe('generateInactiveIcon', () => {
     expect(result).toContain('fill: #363636');
     expect(result).toContain('stroke: #121212');
     expect(result).toContain('stop-color: #d0d0d0');
+  });
+
+  // -- 8-digit and 4-digit hex (#RRGGBBAA, #RGBA) --
+
+  test('fill="#FF0000FF" (#RRGGBBAA red with full opacity) → luminance 54 → fill="#363636"', () => {
+    const svg = svgWrap('<rect fill="#FF0000FF"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#363636"');
+  });
+
+  test('fill="#00FF00FF" (#RRGGBBAA green with full opacity) → luminance 182 → fill="#b6b6b6"', () => {
+    const svg = svgWrap('<rect fill="#00FF00FF"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#b6b6b6"');
+  });
+
+  test('fill="#f00f" (#RGBA red with full opacity) → luminance 54 → fill="#363636"', () => {
+    const svg = svgWrap('<rect fill="#f00f"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#363636"');
+  });
+
+  test('fill="#ffff" (#RGBA white) → luminance 255 → fill="#ffffff"', () => {
+    const svg = svgWrap('<rect fill="#ffff"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill="#ffffff"');
+  });
+
+  // -- <style> block conversion --
+
+  test('<style> block fill: red → converted to grayscale hex', () => {
+    const svg = svgWrap('<style>circle { fill: red; }</style><circle/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: #363636');
+    expect(result).not.toContain('fill: red');
+  });
+
+  test('<style> block stroke: #ff0000 → converted to grayscale', () => {
+    const svg = svgWrap('<style>.cls { stroke: #ff0000; }</style><rect class="cls"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('stroke: #363636');
+  });
+
+  test('<style> block fill: rgb(255, 0, 0) → converted to grayscale', () => {
+    const svg = svgWrap('<style>rect { fill: rgb(255, 0, 0); }</style><rect/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: #363636');
+  });
+
+  test('<style> block fill: hsl(0, 100%, 50%) → saturation set to 0%', () => {
+    const svg = svgWrap('<style>rect { fill: hsl(0, 100%, 50%); }</style><rect/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: hsl(0, 0%, 50%)');
+  });
+
+  test('<style> block with multiple color properties → all converted', () => {
+    const svg = svgWrap('<style>rect { fill: red; stroke: blue; }</style><rect/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: #363636');
+    expect(result).toContain('stroke: #121212');
+  });
+
+  test('<style> block with achromatic colors → unchanged values', () => {
+    const svg = svgWrap('<style>rect { fill: #333333; stroke: gray; }</style><rect/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: #333333');
+    expect(result).toContain('stroke: #808080');
+  });
+
+  test('<style> block with fill: none → unchanged', () => {
+    const svg = svgWrap('<style>rect { fill: none; }</style><rect/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: none');
+  });
+
+  test('<style> block stop-color → converted', () => {
+    const svg = svgWrap('<style>.stop { stop-color: #ff0000; }</style>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('stop-color: #363636');
+  });
+
+  test('<style> block flood-color → converted', () => {
+    const svg = svgWrap('<style>.flood { flood-color: gold; }</style>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('flood-color: #d0d0d0');
+  });
+
+  test('generateInactiveIcon output with <style> blocks passes validateInactiveIconColors', () => {
+    const css = 'rect { fill: red; stroke: blue; } circle { fill: gold; }';
+    const svg = svgWrap(`<style>${css}</style><rect/><circle/>`);
+    const inactive = generateInactiveIcon(svg);
+    expect(validateInactiveIconColors(inactive)).toEqual({ valid: true });
+  });
+
+  test('mixed <style> blocks and attribute colors → all converted', () => {
+    const svg = svgWrap('<style>.cls { fill: red; }</style>' + '<rect class="cls" stroke="#00ff00"/>');
+    const result = generateInactiveIcon(svg);
+    expect(result).toContain('fill: #363636');
+    expect(result).toContain('stroke="#b6b6b6"');
   });
 });
