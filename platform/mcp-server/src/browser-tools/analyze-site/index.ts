@@ -80,7 +80,11 @@ const executeInTab = async (state: ServerState, tabId: number, code: string): Pr
     }
     return inner?.value ?? null;
   } finally {
-    void deleteExecFile(filename);
+    try {
+      await deleteExecFile(filename);
+    } catch {
+      // Best-effort cleanup
+    }
   }
 };
 
