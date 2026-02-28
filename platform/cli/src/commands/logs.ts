@@ -17,6 +17,7 @@ import { InvalidArgumentError } from 'commander';
 import pc from 'picocolors';
 import { existsSync, statSync, createReadStream, watch } from 'node:fs';
 import { open, stat } from 'node:fs/promises';
+import { StringDecoder } from 'node:string_decoder';
 import type { Command } from 'commander';
 
 interface LogsOptions {
@@ -82,6 +83,11 @@ const followFile = async (filePath: string, initialOffset: number, filter?: stri
   let reading = false;
   let readRequested = false;
   let partialLine = '';
+  // StringDecoder is used instead of setting encoding on createReadStream so that
+  // incomplete multi-byte UTF-8 sequences at the end of one read cycle are preserved
+  // in the decoder's internal buffer and completed when the remaining bytes arrive in
+  // the next cycle — avoiding U+FFFD replacement characters in the output.
+  let decoder = new StringDecoder('utf-8');
 
   const readNewContent = (): void => {
     if (reading) {
@@ -99,12 +105,13 @@ const followFile = async (filePath: string, initialOffset: number, filter?: stri
       // File was truncated (e.g., new server start) — read from beginning
       offset = 0;
       partialLine = '';
+      decoder = new StringDecoder('utf-8');
     }
     if (currentSize <= offset) return;
     reading = true;
-    const stream = createReadStream(filePath, { start: offset, encoding: 'utf-8' });
+    const stream = createReadStream(filePath, { start: offset });
     stream.on('data', (chunk: string | Buffer) => {
-      const text = typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
+      const text = Buffer.isBuffer(chunk) ? decoder.write(chunk) : chunk;
       if (!filter) {
         process.stdout.write(text);
         return;
@@ -129,6 +136,7 @@ const followFile = async (filePath: string, initialOffset: number, filter?: stri
       }
     });
     stream.on('error', () => {
+      decoder = new StringDecoder('utf-8');
       reading = false;
       if (readRequested) {
         readRequested = false;
@@ -138,6 +146,11 @@ const followFile = async (filePath: string, initialOffset: number, filter?: stri
   };
 
   const watcher = watch(filePath, () => readNewContent());
+  // Silently absorb watcher errors (e.g. ENOENT when the file is deleted on Linux
+  // via inotify). readNewContent already handles the missing-file case via the
+  // statSync try/catch, so no recovery is needed here — just prevent the default
+  // behaviour of an unhandled 'error' event crashing the process.
+  watcher.on('error', () => undefined);
   // Read immediately to catch content written between tailFile and watcher setup
   readNewContent();
 
