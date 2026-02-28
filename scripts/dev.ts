@@ -34,6 +34,16 @@ const MAGENTA = '\x1b[35m';
 const BOLD = '\x1b[1m';
 const RESET = '\x1b[0m';
 
+// Matches ANSI/VT escape sequences emitted by tsc --watch and other child processes.
+// Built via String.fromCharCode to avoid no-control-regex lint violations.
+const ANSI_RE = new RegExp(
+  `[${String.fromCharCode(0x1b)}${String.fromCharCode(0x9b)}](?:\\[[0-9;]*[A-Za-z]|\\].*?(?:${String.fromCharCode(0x07)}|${String.fromCharCode(0x1b)}\\\\)|[()#][AB012]|c)`,
+  'g',
+);
+
+/** Strip ANSI escape sequences and leading whitespace from a line of child process output. */
+const sanitize = (s: string): string => s.replace(ANSI_RE, '').trimStart();
+
 type Writable = { write(data: string): boolean };
 
 /**
@@ -57,15 +67,17 @@ const pipeWithPrefix = async (
     partial += decoder.decode(value, { stream: true });
     const lines = partial.split('\n');
     partial = lines.pop() ?? '';
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = sanitize(rawLine);
       if (line.length > 0) {
         output.write(`${coloredPrefix} ${line}\n`);
       }
     }
   }
 
-  if (partial.length > 0) {
-    output.write(`${coloredPrefix} ${partial}\n`);
+  const trimmedPartial = sanitize(partial);
+  if (trimmedPartial.length > 0) {
+    output.write(`${coloredPrefix} ${trimmedPartial}\n`);
   }
 };
 
@@ -93,7 +105,8 @@ const pipeTscStdout = async (
     partial += decoder.decode(value, { stream: true });
     const lines = partial.split('\n');
     partial = lines.pop() ?? '';
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = sanitize(rawLine);
       if (line.length > 0) {
         output.write(`${coloredPrefix} ${line}\n`);
       }
@@ -103,8 +116,9 @@ const pipeTscStdout = async (
     }
   }
 
-  if (partial.length > 0) {
-    output.write(`${coloredPrefix} ${partial}\n`);
+  const trimmedPartial = sanitize(partial);
+  if (trimmedPartial.length > 0) {
+    output.write(`${coloredPrefix} ${trimmedPartial}\n`);
   }
 };
 
