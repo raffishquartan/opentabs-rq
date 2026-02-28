@@ -266,6 +266,9 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
       if (chrome.runtime.lastError || !result) return;
       const responseData = result as { body?: string; base64Encoded?: boolean };
       if (typeof responseData.body !== 'string') return;
+      // Guard: skip if the request was evicted from the buffer between the
+      // loadingFinished event and the async body fetch completing.
+      if (!state.requests.includes(request)) return;
       // For text content, store directly; for base64-encoded text, decode from
       // base64 to UTF-8 via Uint8Array + TextDecoder (bare atob returns Latin1,
       // which corrupts non-ASCII characters like Chinese text or emoji).

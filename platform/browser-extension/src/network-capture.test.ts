@@ -23,6 +23,7 @@ let capturedOnDetachListener: ((source: { tabId?: number }, reason: string) => v
     detach: vi.fn(() => Promise.resolve()),
     sendCommand: vi.fn(() => Promise.resolve()),
   },
+  runtime: { lastError: undefined },
   tabs: { onRemoved: { addListener: vi.fn() } },
 };
 
@@ -181,6 +182,96 @@ describe('onDetach handler', () => {
     const tabId = 9904;
     expect(() => capturedOnDetachListener?.({ tabId }, 'target_closed')).not.toThrow();
     expect(isCapturing(tabId)).toBe(false);
+  });
+});
+
+describe('Network.loadingFinished', () => {
+  test('sets responseBody on request still in buffer', async () => {
+    const tabId = 2001;
+    await startCapture(tabId);
+
+    const chromeMock = (globalThis as Record<string, unknown>).chrome as {
+      debugger: { sendCommand: ReturnType<typeof vi.fn> };
+    };
+
+    // Mock sendCommand to capture the callback so we can invoke it synchronously
+    let capturedBodyCallback: ((result: unknown) => void) | undefined;
+    chromeMock.debugger.sendCommand.mockImplementationOnce(
+      (_target: unknown, _method: unknown, _params: unknown, callback?: (result: unknown) => void) => {
+        capturedBodyCallback = callback;
+      },
+    );
+
+    capturedOnEventListener?.({ tabId }, 'Network.requestWillBeSent', {
+      requestId: 'req-body-1',
+      request: { url: 'https://example.com/api', method: 'GET', headers: {} },
+    });
+    capturedOnEventListener?.({ tabId }, 'Network.responseReceived', {
+      requestId: 'req-body-1',
+      response: { url: 'https://example.com/api', status: 200, statusText: 'OK', headers: {}, mimeType: 'text/plain' },
+    });
+    capturedOnEventListener?.({ tabId }, 'Network.loadingFinished', { requestId: 'req-body-1' });
+
+    // Invoke callback before reading — spread in getRequests will capture the written body
+    capturedBodyCallback?.({ body: 'hello world', base64Encoded: false });
+
+    const requests = getRequests(tabId, false);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toHaveProperty('responseBody', 'hello world');
+
+    stopCapture(tabId);
+  });
+
+  test('does not write responseBody to a request evicted from the buffer', async () => {
+    const tabId = 2002;
+    // maxRequests=1 so that when req-2 arrives, req-1 is evicted
+    await startCapture(tabId, 1);
+
+    const chromeMock = (globalThis as Record<string, unknown>).chrome as {
+      debugger: { sendCommand: ReturnType<typeof vi.fn> };
+    };
+
+    // Capture the body callback for req-1's loadingFinished
+    let capturedBodyCallback: ((result: unknown) => void) | undefined;
+    chromeMock.debugger.sendCommand.mockImplementationOnce(
+      (_target: unknown, _method: unknown, _params: unknown, callback?: (result: unknown) => void) => {
+        capturedBodyCallback = callback;
+      },
+    );
+
+    // req-1: enters buffer (buffer: [req-1])
+    capturedOnEventListener?.({ tabId }, 'Network.requestWillBeSent', {
+      requestId: 'req-evict-1',
+      request: { url: 'https://example.com/r1', method: 'GET', headers: {} },
+    });
+    capturedOnEventListener?.({ tabId }, 'Network.responseReceived', {
+      requestId: 'req-evict-1',
+      response: { url: 'https://example.com/r1', status: 200, statusText: 'OK', headers: {}, mimeType: 'text/plain' },
+    });
+    // loadingFinished for req-1: deletes from requestIdToRequest, defers body fetch
+    capturedOnEventListener?.({ tabId }, 'Network.loadingFinished', { requestId: 'req-evict-1' });
+    expect(capturedBodyCallback).toBeDefined();
+
+    // req-2: buffer at capacity — evicts req-1; buffer is now [req-2]
+    capturedOnEventListener?.({ tabId }, 'Network.requestWillBeSent', {
+      requestId: 'req-evict-2',
+      request: { url: 'https://example.com/r2', method: 'GET', headers: {} },
+    });
+    capturedOnEventListener?.({ tabId }, 'Network.responseReceived', {
+      requestId: 'req-evict-2',
+      response: { url: 'https://example.com/r2', status: 200, statusText: 'OK', headers: {}, mimeType: 'text/plain' },
+    });
+
+    // Invoke the deferred callback for the evicted req-1 — guard must discard the write
+    capturedBodyCallback?.({ body: 'evicted-body', base64Encoded: false });
+
+    // Buffer should contain only req-2; req-1's deferred body write was discarded
+    const requests = getRequests(tabId, false);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]).toHaveProperty('url', 'https://example.com/r2');
+    expect(requests[0]).not.toHaveProperty('responseBody');
+
+    stopCapture(tabId);
   });
 });
 
