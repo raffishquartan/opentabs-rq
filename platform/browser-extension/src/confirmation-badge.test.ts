@@ -228,29 +228,28 @@ describe('clearConfirmationBadge', () => {
     expect(mockSetBadgeText).not.toHaveBeenCalled();
   });
 
-  test('when background timeout and side panel both clear same id, count decrements by exactly 1', () => {
+  test('calling twice with the same id within the confirmation lifetime decrements count only once', () => {
     notifyConfirmationRequest({ id: 'req-1', timeoutMs: 5000 });
     notifyConfirmationRequest({ id: 'req-2', timeoutMs: 5000 });
 
-    // Background timeout fires for req-1
-    vi.advanceTimersByTime(5000 + 2000);
+    // Both clears happen before the background timeout fires (within lifetime)
+    clearConfirmationBadge('req-1'); // first clear
     mockSetBadgeText.mockClear();
 
-    // Side panel also sends clearConfirmationBadge for the same id
-    clearConfirmationBadge('req-1');
+    clearConfirmationBadge('req-1'); // second clear — must be a no-op
 
-    // Must be a no-op — count stays at 1 (req-2 still pending)
+    // Count stays at 1 (req-2 still pending)
     expect(mockSetBadgeText).not.toHaveBeenCalled();
   });
 
-  test('when 3 confirmations pending and 1 cleared via both paths, badge shows 2 not 1', () => {
+  test('when 3 confirmations pending and 1 cleared twice within lifetime, badge shows 2 not 1', () => {
     notifyConfirmationRequest({ id: 'req-1', timeoutMs: 0 });
     notifyConfirmationRequest({ id: 'req-2', timeoutMs: 0 });
     notifyConfirmationRequest({ id: 'req-3', timeoutMs: 0 });
     mockSetBadgeText.mockClear();
 
-    clearConfirmationBadge('req-1'); // first clear (e.g. background timeout)
-    clearConfirmationBadge('req-1'); // second clear (e.g. sp:confirmationTimeout) — no-op
+    clearConfirmationBadge('req-1'); // first clear (e.g. side panel)
+    clearConfirmationBadge('req-1'); // second clear (within lifetime) — no-op
 
     // Badge must show 2, not 1
     expect(mockSetBadgeText).toHaveBeenLastCalledWith({ text: '2' });
@@ -267,6 +266,21 @@ describe('clearConfirmationBadge', () => {
     clearConfirmationBadge('req-1');
 
     // Must decrement — cleared set was reset by clearAllConfirmationBadges
+    expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
+  });
+
+  test('re-used id after background timeout fires can be cleared again without clearAll', () => {
+    // req-1 is handled by the background timeout — id pruned from cleared set
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 3000 });
+    vi.advanceTimersByTime(3000 + 2000);
+
+    // New confirmation with the same id (no clearAll required)
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 0 });
+    mockSetBadgeText.mockClear();
+
+    clearConfirmationBadge('req-1');
+
+    // Must decrement — pruning ensures the id is not stuck in the cleared set
     expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
   });
 });
@@ -298,6 +312,22 @@ describe('clearConfirmationBackgroundTimeout', () => {
 
     // Original timeout should still fire
     vi.advanceTimersByTime(5000 + 2000);
+    expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
+  });
+
+  test('prunes id from cleared set so re-used id in new confirmation can be decremented without clearAll', () => {
+    // Side-panel path: clearConfirmationBadge then clearConfirmationBackgroundTimeout
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 5000 });
+    clearConfirmationBadge('req-1'); // side panel clears → id added to cleared set
+    clearConfirmationBackgroundTimeout('req-1'); // cancels timeout, prunes id
+
+    // New confirmation with the same id (no clearAll required)
+    notifyConfirmationRequest({ id: 'req-1', timeoutMs: 0 });
+    mockSetBadgeText.mockClear();
+
+    clearConfirmationBadge('req-1');
+
+    // Must decrement — pruning ensures the id is not stuck in the cleared set
     expect(mockSetBadgeText).toHaveBeenCalledWith({ text: '' });
   });
 });

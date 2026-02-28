@@ -74,6 +74,9 @@ const notifyConfirmationRequest = (params: Record<string, unknown>): void => {
   const bgTimeoutId = setTimeout(() => {
     confirmationTimeouts.delete(id);
     clearConfirmationBadge(id);
+    // Prune the id now that the timeout has fired — the entry is no longer
+    // needed for idempotency because the background timeout can only fire once.
+    clearedConfirmationIds.delete(id);
   }, effectiveTimeoutMs + CONFIRMATION_BACKGROUND_TIMEOUT_BUFFER_MS);
   confirmationTimeouts.set(id, bgTimeoutId);
 
@@ -121,6 +124,9 @@ const clearConfirmationBackgroundTimeout = (id: string): void => {
   if (timeoutId !== undefined) {
     clearTimeout(timeoutId);
     confirmationTimeouts.delete(id);
+    // Prune the id now that the background timeout is cancelled — it can no
+    // longer fire, so the clearedConfirmationIds entry serves no purpose.
+    clearedConfirmationIds.delete(id);
   }
 };
 
