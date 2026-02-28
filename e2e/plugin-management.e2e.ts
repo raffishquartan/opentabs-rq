@@ -447,7 +447,7 @@ test.describe('plugin.checkUpdates', () => {
 
 test.describe('notification rejection', () => {
   test('plugin methods without id get no response (treated as notifications)', async ({ mcpServer }) => {
-    const { ws, close } = await connectWs(mcpServer.port, mcpServer.secret);
+    const { ws, sendRequest, close } = await connectWs(mcpServer.port, mcpServer.secret);
 
     try {
       const methods = [
@@ -477,14 +477,17 @@ test.describe('notification rejection', () => {
         ws.send(JSON.stringify({ jsonrpc: '2.0', method, params: {} }));
       }
 
-      // Wait a bit to see if any responses come back
-      await new Promise(r => setTimeout(r, 2_000));
+      // Sentinel request: send a real request after the notifications. Since the
+      // server processes messages in order, when this response arrives we know all
+      // prior notifications have already been handled — no sleep needed.
+      await sendRequest('plugin.checkUpdates');
 
       // Filter out non-plugin responses (sync.full, pong, plugins.changed, etc.)
       // A JSON-RPC response has an "id" field. Notifications from the server
       // (sync.full, plugins.changed) have no id but have a "method" field.
       // We're looking for any response that indicates our notification-style
       // calls got a response — they shouldn't.
+      // The sentinel response has an id and is excluded by the m.id === undefined filter.
       const pluginResponses = received.filter(m => m.error !== undefined && m.id === undefined);
 
       // No error responses should be returned for notification-style calls
