@@ -260,13 +260,15 @@ test.describe('WebSocket connection management', () => {
     });
 
     // 3. Wait for the server to log the replacement
-    await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
+    try {
+      await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
 
-    const logsJoined = mcpServer.logs.join('\n');
-    expect(logsJoined).toContain('Closing previous extension WebSocket');
-
-    // 4. Close our fake client
-    ws.close();
+      const logsJoined = mcpServer.logs.join('\n');
+      expect(logsJoined).toContain('Closing previous extension WebSocket');
+    } finally {
+      // 4. Close our fake client
+      ws.close();
+    }
 
     // 5. The real extension should detect it was disconnected (via the close
     //    event from the server) and reconnect. Since the fake client also
@@ -298,27 +300,29 @@ test.describe('WebSocket connection management', () => {
     });
 
     // Send a JSON-RPC ping and wait for pong
-    const pongPromise = new Promise<boolean>(resolve => {
-      const timeout = setTimeout(() => resolve(false), 5_000);
-      ws.onmessage = event => {
-        try {
-          const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
-          if (msg.method === 'pong') {
-            clearTimeout(timeout);
-            resolve(true);
+    try {
+      const pongPromise = new Promise<boolean>(resolve => {
+        const timeout = setTimeout(() => resolve(false), 5_000);
+        ws.onmessage = event => {
+          try {
+            const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
+            if (msg.method === 'pong') {
+              clearTimeout(timeout);
+              resolve(true);
+            }
+          } catch {
+            // ignore non-JSON messages (e.g. sync.full)
           }
-        } catch {
-          // ignore non-JSON messages (e.g. sync.full)
-        }
-      };
-    });
+        };
+      });
 
-    ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
+      ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
 
-    const gotPong = await pongPromise;
-    expect(gotPong).toBe(true);
-
-    ws.close();
+      const gotPong = await pongPromise;
+      expect(gotPong).toBe(true);
+    } finally {
+      ws.close();
+    }
   });
 });
 
@@ -354,10 +358,12 @@ test.describe('Pong watchdog (zombie detection)', () => {
     });
 
     // Wait for the server to log the replacement (confirms old WS was closed)
-    await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
-
-    // Close our fake client too so the server has no extension
-    ws.close();
+    try {
+      await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
+    } finally {
+      // Close our fake client too so the server has no extension
+      ws.close();
+    }
 
     // Server should now show no extension connected (briefly)
     await waitForExtensionDisconnected(mcpServer, 5_000);
@@ -441,27 +447,29 @@ test.describe('WebSocket authentication', () => {
     });
 
     // Send a JSON-RPC ping and verify we get a pong back
-    const pongPromise = new Promise<boolean>(resolve => {
-      const timeout = setTimeout(() => resolve(false), 5_000);
-      ws.onmessage = event => {
-        try {
-          const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
-          if (msg.method === 'pong') {
-            clearTimeout(timeout);
-            resolve(true);
+    try {
+      const pongPromise = new Promise<boolean>(resolve => {
+        const timeout = setTimeout(() => resolve(false), 5_000);
+        ws.onmessage = event => {
+          try {
+            const msg = JSON.parse(typeof event.data === 'string' ? event.data : '') as Record<string, unknown>;
+            if (msg.method === 'pong') {
+              clearTimeout(timeout);
+              resolve(true);
+            }
+          } catch {
+            // ignore non-JSON messages
           }
-        } catch {
-          // ignore non-JSON messages
-        }
-      };
-    });
+        };
+      });
 
-    ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
+      ws.send(JSON.stringify({ jsonrpc: '2.0', method: 'ping' }));
 
-    const gotPong = await pongPromise;
-    expect(gotPong).toBe(true);
-
-    ws.close();
+      const gotPong = await pongPromise;
+      expect(gotPong).toBe(true);
+    } finally {
+      ws.close();
+    }
   });
 });
 
