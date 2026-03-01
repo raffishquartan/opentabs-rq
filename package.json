@@ -28,7 +28,7 @@
     "check": "npm run build && npm run lint && npm run format:check && npm run knip && npm run test",
     "check:everything": "npm run check && npm run test:e2e && npm run check:docs && npm run check:plugins",
     "test": "vitest run",
-    "test:e2e": "cd plugins/e2e-test && npm ci && OPENTABS_CONFIG_DIR=/tmp/opentabs-e2e-prebuild npm run build && cd ../.. && npx playwright test",
+    "test:e2e": "cd plugins/e2e-test && npm ci && rm -f tsconfig.tsbuildinfo && OPENTABS_CONFIG_DIR=/tmp/opentabs-e2e-prebuild npm run build && cd ../.. && npx playwright test",
     "dev:docs": "npm run --prefix docs dev",
     "build:docs": "npm run --prefix docs build",
     "lint:docs": "npm run --prefix docs lint",

@@ -89,13 +89,19 @@ if (allMode) {
     }
   }
 
-  // plugins/*/node_modules and plugins/*/dist
+  // plugins/*/node_modules, plugins/*/dist, and plugins/*/*.tsbuildinfo
   const pluginsDir = join(repoRoot, 'plugins');
   try {
     for (const plugin of readdirSync(pluginsDir, { withFileTypes: true })) {
       if (plugin.isDirectory()) {
         remove(join(pluginsDir, plugin.name, 'node_modules'));
         remove(join(pluginsDir, plugin.name, 'dist'));
+        const pluginDir = join(pluginsDir, plugin.name);
+        for (const file of readdirSync(pluginDir)) {
+          if (file.endsWith('.tsbuildinfo')) {
+            remove(join(pluginDir, file));
+          }
+        }
       }
     }
   } catch {
