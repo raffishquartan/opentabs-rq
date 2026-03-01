@@ -123,7 +123,8 @@ test.describe('Icon pipeline — side panel rendering', () => {
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
 
       // 1. With no matching tab open (closed state), capture the inactive icon's SVG content
-      const iconContainer = sidePanelPage.locator('.border-border').first();
+      const e2ePluginButton = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
+      const iconContainer = e2ePluginButton.locator('.border-border').first();
       const inactiveHtml = await iconContainer.innerHTML();
       expect(inactiveHtml).toContain('<svg');
 
@@ -163,7 +164,8 @@ test.describe('Icon pipeline — side panel rendering', () => {
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 15_000 });
 
       // 3. Capture the active icon's SVG content
-      const activeIconContainer = sidePanelPage.locator('.border-border').first();
+      const activePluginButton = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
+      const activeIconContainer = activePluginButton.locator('.border-border').first();
       const activeHtml = await activeIconContainer.innerHTML();
       expect(activeHtml).toContain('<svg');
 

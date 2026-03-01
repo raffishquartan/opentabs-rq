@@ -86,5 +86,19 @@ const WithToolFilter: Story = {
   render: () => <WithToolFilterDemo />,
 };
 
+const interactiveTools: BrowserToolState[] = [
+  ...mockBrowserTools,
+  { name: 'extension_get_state', description: 'Get extension internal state', enabled: true },
+];
+
+const InteractiveDemo = () => {
+  const [tools, setTools] = useState(interactiveTools);
+  return <BrowserToolsCard tools={tools} activeTools={new Set()} onToolsChange={updater => setTools(updater)} />;
+};
+
+const Interactive: Story = {
+  render: () => <InteractiveDemo />,
+};
+
 export default meta;
-export { Default, SomeDisabled, AllDisabled, WithActiveTool, WithToolFilter };
+export { Default, SomeDisabled, AllDisabled, WithActiveTool, WithToolFilter, Interactive };

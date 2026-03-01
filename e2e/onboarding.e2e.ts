@@ -3,8 +3,8 @@
  * for empty plugins, plugin discovery, and disconnection.
  *
  * These tests exercise the side panel's state machine:
- *   - 0 plugins → "No Plugins Installed" card
- *   - Adding a plugin → transition to plugin list
+ *   - 0 plugins → browser tools section (built-in tools always visible when connected)
+ *   - Adding a plugin → browser tools + plugin list
  *   - Server disconnect → "Cannot Reach MCP Server" card
  *
  * All tests use dynamic ports and isolated config directories.
@@ -64,11 +64,8 @@ test.describe('Empty states', () => {
       // Open the side panel
       const sidePanelPage = await openSidePanel(context);
 
-      // Verify the no-plugins heading is visible
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeVisible({ timeout: 10_000 });
-
-      // The opentabs plugin command should be present
-      await expect(sidePanelPage.locator('text=opentabs plugin')).toBeVisible({ timeout: 5_000 });
+      // Browser tools section is always visible when connected (no NoPluginsState)
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
 
       await sidePanelPage.close();
     } finally {
@@ -97,9 +94,9 @@ test.describe('Empty states', () => {
       await waitForExtensionConnected(server);
       await waitForLog(server, 'Config watcher: Watching', 10_000);
 
-      // Open the side panel and verify no-plugins state
+      // Open the side panel and verify browser tools section is visible (no plugins installed)
       const sidePanelPage = await openSidePanel(context);
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
 
       // Add a plugin via config.json modification
       const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
@@ -115,10 +112,8 @@ test.describe('Empty states', () => {
       await waitForLog(server, 'Config reload complete', 10_000);
       await postReload(server.port, configDir);
 
-      // Verify the no-plugins view disappears and the plugin list appears
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeHidden({ timeout: 30_000 });
-      await expect(sidePanelPage.locator('button[data-radix-collection-item]')).toBeVisible({ timeout: 10_000 });
-      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 5_000 });
+      // Verify the plugin card appeared
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
 
       await sidePanelPage.close();
     } finally {
@@ -146,9 +141,9 @@ test.describe('Empty states', () => {
 
       await waitForExtensionConnected(server);
 
-      // Open the side panel and verify no-plugins state
+      // Open the side panel and verify browser tools section is visible (no plugins installed)
       const sidePanelPage = await openSidePanel(context);
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
 
       // Kill the MCP server
       await server.kill();
@@ -202,8 +197,9 @@ test.describe('Empty states', () => {
       await waitForLog(server, 'Config reload complete: 0 plugin', 10_000);
       await postReload(server.port, configDir);
 
-      // Verify the no-plugins card appears
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeVisible({ timeout: 30_000 });
+      // Verify the plugin list is gone and browser tools section is still visible
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeHidden({ timeout: 30_000 });
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 5_000 });
 
       await sidePanelPage.close();
     } finally {

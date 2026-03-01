@@ -67,8 +67,8 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       // 2. Open the side panel
       const sidePanelPage = await openSidePanel(context);
 
-      // 3. Verify side panel initially shows no-plugins state
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeVisible({ timeout: 10_000 });
+      // 3. Verify side panel shows browser tools section (no plugins installed)
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
 
       // 4. Add a plugin by modifying config.json
       const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
@@ -89,9 +89,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       await postReload(server.port, configDir);
 
       // 5. Verify the side panel DOM updates to show the new plugin.
-      await expect(sidePanelPage.locator('text=No Plugins Installed')).toBeHidden({ timeout: 30_000 });
-      await expect(sidePanelPage.locator('button[data-radix-collection-item]')).toBeVisible({ timeout: 10_000 });
-      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 5_000 });
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
 
       await sidePanelPage.close();
     } finally {
@@ -133,8 +131,9 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       await waitForLog(server, 'Config reload complete: 0 plugin', 10_000);
       await postReload(server.port, configDir);
 
-      // Verify the side panel updates to show empty state
-      await expect(sidePanelPage.locator('text=No Plugins')).toBeVisible({ timeout: 30_000 });
+      // Verify the plugin is gone and browser tools section remains visible
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeHidden({ timeout: 30_000 });
+      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 5_000 });
 
       await sidePanelPage.close();
     } finally {

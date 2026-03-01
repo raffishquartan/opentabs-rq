@@ -1,3 +1,4 @@
+import { BrowserToolsCard } from './BrowserToolsCard';
 import { DisconnectedState, NoPluginsState, LoadingState } from './EmptyStates';
 import { Footer } from './Footer';
 import { PluginCard } from './PluginCard';
@@ -7,7 +8,7 @@ import { Input } from './retro/Input';
 import { SearchResults } from './SearchResults';
 import { Search, X } from 'lucide-react';
 import { useState } from 'react';
-import type { FailedPluginState, PluginSearchResult, PluginState } from '../bridge';
+import type { BrowserToolState, FailedPluginState, PluginSearchResult, PluginState } from '../bridge';
 import type { Meta, StoryObj } from '@storybook/react';
 
 // ---------------------------------------------------------------------------
@@ -176,6 +177,15 @@ const jiraPlugin = (): PluginState =>
 const mockFailedPlugins: FailedPluginState[] = [
   { specifier: '/Users/dev/plugins/broken', error: 'Missing dist/tools.json' },
   { specifier: 'opentabs-plugin-notion', error: 'SDK version 0.1.0 is newer than server 0.0.3 — rebuild the plugin' },
+];
+
+const mockBrowserTools: BrowserToolState[] = [
+  { name: 'browser_list_tabs', description: 'List all open browser tabs', enabled: true },
+  { name: 'browser_open_tab', description: 'Open a new browser tab with a URL', enabled: true },
+  { name: 'browser_screenshot_tab', description: 'Capture a screenshot of a tab', enabled: true },
+  { name: 'browser_click_element', description: 'Click an element matching a CSS selector', enabled: true },
+  { name: 'browser_execute_script', description: 'Execute JavaScript in a tab', enabled: false },
+  { name: 'extension_get_state', description: 'Get extension internal state', enabled: true },
 ];
 
 // ---------------------------------------------------------------------------
@@ -785,6 +795,50 @@ const PluginUpdatingDemo = () => {
 const PluginUpdating: Story = { render: () => <PluginUpdatingDemo /> };
 
 // ---------------------------------------------------------------------------
+// 26: Browser tools + plugins (BrowserToolsCard above PluginList)
+// ---------------------------------------------------------------------------
+
+const WithBrowserToolsDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin(), githubPlugin()]);
+  const [browserTools, setBrowserTools] = useState(mockBrowserTools);
+  return (
+    <SidePanelShell>
+      <Accordion type="multiple" className="mb-2 space-y-2">
+        <BrowserToolsCard
+          tools={browserTools}
+          activeTools={new Set()}
+          onToolsChange={updater => setBrowserTools(updater)}
+        />
+      </Accordion>
+      <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+    </SidePanelShell>
+  );
+};
+
+const WithBrowserTools: Story = { render: () => <WithBrowserToolsDemo /> };
+
+// ---------------------------------------------------------------------------
+// 27: Browser tools only — no plugins installed, BrowserToolsCard shown alone
+// ---------------------------------------------------------------------------
+
+const BrowserToolsOnlyDemo = () => {
+  const [browserTools, setBrowserTools] = useState(mockBrowserTools);
+  return (
+    <SidePanelShell>
+      <Accordion type="multiple" className="mb-2 space-y-2">
+        <BrowserToolsCard
+          tools={browserTools}
+          activeTools={new Set()}
+          onToolsChange={updater => setBrowserTools(updater)}
+        />
+      </Accordion>
+    </SidePanelShell>
+  );
+};
+
+const BrowserToolsOnly: Story = { render: () => <BrowserToolsOnlyDemo /> };
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -813,4 +867,6 @@ export {
   PluginWithContextMenu,
   PluginRemoving,
   PluginUpdating,
+  WithBrowserTools,
+  BrowserToolsOnly,
 };

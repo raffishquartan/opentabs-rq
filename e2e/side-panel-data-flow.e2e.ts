@@ -409,7 +409,7 @@ test.describe('Side panel data flow — tool invocation animation', () => {
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 15_000 });
 
       // Click the plugin card to expand it and show tool rows
-      const pluginCard = sidePanelPage.locator('button[aria-expanded]').first();
+      const pluginCard = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
       await pluginCard.click();
 
       // Verify tool rows are visible (displayName is primary text; description is in tooltip)

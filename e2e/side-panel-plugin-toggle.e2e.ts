@@ -150,7 +150,7 @@ test.describe('Side panel — tool toggle', () => {
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
 
       // Expand the plugin card to reveal tool rows
-      const pluginCard = sidePanelPage.locator('button[aria-expanded]').first();
+      const pluginCard = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
       await pluginCard.click();
 
       // Verify tool rows are visible (displayName is primary text; description is in tooltip)
@@ -253,7 +253,7 @@ test.describe('Side panel — disabled tool dispatch rejection', () => {
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
 
       // Expand the plugin card
-      const pluginCard = sidePanelPage.locator('button[aria-expanded]').first();
+      const pluginCard = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
       await pluginCard.click();
 
       // Find and click the echo tool toggle to disable it
