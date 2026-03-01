@@ -153,6 +153,10 @@ Pass `Authorization: Bearer <secret>` to get the full payload:
       "toolCount": 22,
       "tools": ["slack_send_message", "slack_list_channels"],
       "tabState": "ready",
+      "tabs": [
+        { "tabId": 1, "url": "https://app.slack.com/client", "title": "Slack", "ready": true }
+      ],
+      "iconSvg": "<svg>...</svg>",
       "source": "local",
       "sdkVersion": "0.0.4",
       "logBufferSize": 42
@@ -162,6 +166,7 @@ Pass `Authorization: Bearer <secret>` to get the full payload:
   "toolCount": 59,
   "browserToolCount": 40,
   "pluginToolCount": 19,
+  "browserToolNames": ["browser_navigate", "browser_click", "browser_screenshot"],
   "disabledBrowserTools": ["browser_execute_script"],
   "confirmationBypassed": false,
   "uptime": 3600,
@@ -192,7 +197,10 @@ Key fields:
 - `sdkVersion` — server-level SDK version
 - `browserToolCount` — number of built-in browser tools registered
 - `pluginToolCount` — total number of plugin tools across all loaded plugins
+- `browserToolNames` — all registered browser tool names (including disabled ones)
 - `pluginDetails[].tools` — prefixed tool names exposed by this plugin (e.g., `["slack_send_message"]`)
+- `pluginDetails[].tabs` — array of currently matching tabs: `{ tabId, url, title, ready }` per tab
+- `pluginDetails[].iconSvg` — SVG markup for the plugin icon (present only if the plugin provides one)
 - `pluginDetails[].sdkVersion` — per-plugin SDK version (null if missing)
 - `pluginDetails[].logBufferSize` — number of log entries in the per-plugin ring buffer
 - `failedPlugins` — plugins that failed to load (path + error message)
