@@ -36,9 +36,18 @@ The extension connects to the server automatically. You should see the OpenTabs 
 
 When `opentabs start` ran in step 2, it printed ready-to-copy MCP client config blocks — with your auth secret already filled in. Copy the block for your client and merge it into your MCP client config file:
 
+For Claude Code, the easiest way is the CLI:
+
+```bash
+claude mcp add --transport http opentabs http://127.0.0.1:9515/mcp \
+  --header "Authorization: Bearer YOUR_SECRET_HERE"
+```
+
+Or merge the printed JSON block into `~/.claude.json` under `"mcpServers"` manually.
+
 | Client | Config file |
 | --- | --- |
-| Claude Code | `~/.claude/settings/mcp.json` (merge into `"mcpServers"`) |
+| Claude Code | `~/.claude.json` (merge into `"mcpServers"`) |
 | Cursor | `.cursor/mcp.json` in your project root |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` |
 | OpenCode | `~/.config/opencode/opencode.json` |

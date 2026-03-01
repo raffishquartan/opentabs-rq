@@ -539,7 +539,14 @@ Timeouts: 30 seconds by default, extended by progress reports (up to 5 minutes m
 
 ### Claude Code
 
-Add to `~/.claude/settings/mcp.json` (merge into the existing `"mcpServers"` object):
+The easiest way is the `claude mcp add` CLI command:
+
+```bash
+claude mcp add --transport http opentabs http://127.0.0.1:9515/mcp \
+  --header "Authorization: Bearer <secret>"
+```
+
+Or add manually to `~/.claude.json` (merge into the existing `"mcpServers"` object):
 
 ```json
 {
