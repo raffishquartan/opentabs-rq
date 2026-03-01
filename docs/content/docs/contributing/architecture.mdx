@@ -1,7 +1,7 @@
 ---
 title: Architecture
 description: How the MCP server, Chrome extension, and plugins work together to give AI agents access to web applications.
-lastUpdated: 2026-02-28
+lastUpdated: 2026-03-01
 ---
 
 OpenTabs has three main components: the **MCP server** (discovers plugins and dispatches requests), the **Chrome extension** (injects plugin adapters into browser tabs), and **plugins** (define tools, resources, and prompts that run in the page context). All communication uses JSON-RPC 2.0.
@@ -43,7 +43,7 @@ The MCP server runs on `localhost:9515` (configurable via the `PORT` env var). T
       <Table.Cell className="font-medium">`/ws-info`</Table.Cell>
       <Table.Cell>GET</Table.Cell>
       <Table.Cell>Bearer token</Table.Cell>
-      <Table.Cell>Returns WebSocket URL and auth secret for extension bootstrap.</Table.Cell>
+      <Table.Cell>Returns WebSocket URL for extension bootstrap.</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`/health`</Table.Cell>
