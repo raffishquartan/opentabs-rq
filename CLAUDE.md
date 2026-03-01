@@ -213,6 +213,21 @@ git pull
 
 This repository is configured with `pull.rebase = true`, so `git pull` automatically rebases local commits on top of the remote. If the pull fails due to conflicts, resolve them before proceeding.
 
+### Webhook Auto-Pull and Build
+
+A local webhook server (`~/.opentabs/webhook/`) automatically pulls and builds the repository when code is pushed to `main`. The server uses [adnanh/webhook](https://github.com/adnanh/webhook) on port 9000, exposed to GitHub via a Cloudflare Tunnel. On each push to `main`, the webhook validates the HMAC-SHA256 signature, runs `git pull --rebase origin main`, and then runs `npm run build`. The webhook is registered as a launchd service (`dev.opentabs.webhook`) that starts on login.
+
+The pull is skipped if the local branch is not `main` or the working tree is dirty. Build output is logged to `~/.opentabs/webhook/pull.log`.
+
+Key files:
+
+| File                             | Purpose                                                     |
+| -------------------------------- | ----------------------------------------------------------- |
+| `~/.opentabs/webhook/hooks.json` | Hook definitions (routes, HMAC validation, trigger rules)   |
+| `~/.opentabs/webhook/pull.sh`    | Execution script: pull + build                              |
+| `~/.opentabs/webhook/start.sh`   | Startup: launches webhook + tunnel + registers GitHub hooks |
+| `~/.opentabs/webhook/ctl.sh`     | Control script (`start`/`stop`/`restart`/`status`/`logs`)   |
+
 ---
 
 ## Git Identity
