@@ -473,17 +473,14 @@ const handleSetPort = async (value: string, options: { port?: number }): Promise
   console.log(`port: ${pc.cyan(String(newPort))}`);
 
   if (newPort !== oldPort) {
-    // Port is changing: notify the server on the actual running port.
-    // If reached, show a restart reminder mentioning the running port.
-    const runningPort = resolvePort(options);
+    // Port is changing: notify the server on the actual running port (old port),
+    // unless the user explicitly passed --port to indicate where the server is.
+    const runningPort = options.port ?? oldPort;
     await notifyServer({
       port: runningPort,
       warnIfNotRunning: true,
       successMessage: pc.yellow(`Server running on port ${runningPort}. Restart to apply port change.`),
     });
-  } else {
-    console.log(pc.yellow('Restart the MCP server for the port change to take effect.'));
-    await notifyServer({ port: resolvePort(options), warnIfNotRunning: true });
   }
 };
 
@@ -613,7 +610,7 @@ const handleConfigSet = async (
     return handleListBrowserTools(options);
   }
 
-  if (!value) {
+  if (value === undefined || value === '') {
     console.error(pc.red('Missing value.'));
     console.error(SUPPORTED_KEYS);
     process.exit(1);
