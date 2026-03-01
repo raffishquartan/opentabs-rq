@@ -96,7 +96,7 @@ The script:
 5. Runs `npm run build` again with the new versions
 6. Publishes in dependency order: `shared` → `browser-extension` → `mcp-server` → `plugin-sdk` → `plugin-tools` → `cli` → `create-plugin`
 
-All packages except `browser-extension` use `"publishConfig": { "access": "restricted" }` — only `@opentabs-dev` org members can install them.
+Six packages use `"publishConfig": { "access": "restricted" }` explicitly. `browser-extension` omits `publishConfig` but is still restricted — npm defaults to restricted access for scoped packages. Only `@opentabs-dev` org members can install any of them.
 
 ## After Publishing
 
