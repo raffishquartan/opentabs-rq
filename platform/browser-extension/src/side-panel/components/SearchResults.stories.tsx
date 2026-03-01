@@ -66,8 +66,10 @@ const InstalledOnlyDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="send"
       npmResults={[]}
       npmSearching={false}
@@ -86,8 +88,10 @@ const NpmOnlyDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="notion"
       npmResults={[
         mockNpmResult(),
@@ -114,8 +118,10 @@ const BothDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="slack"
       npmResults={[
         mockNpmResult({
@@ -142,8 +148,10 @@ const NoResultsDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="xyznotexist"
       npmResults={[]}
       npmSearching={false}
@@ -162,8 +170,10 @@ const NpmLoadingDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="notion"
       npmResults={[]}
       npmSearching={true}
@@ -182,8 +192,10 @@ const InstallingPluginDemo = () => {
     <SearchResults
       plugins={plugins}
       failedPlugins={[]}
+      browserTools={[]}
       activeTools={new Set()}
       setPlugins={setPlugins}
+      setBrowserTools={() => undefined}
       toolFilter="notion"
       npmResults={[
         mockNpmResult(),
@@ -216,8 +228,10 @@ const AllStatesDemo = () => {
         <SearchResults
           plugins={plugins1}
           failedPlugins={[]}
+          browserTools={[]}
           activeTools={new Set()}
           setPlugins={setPlugins1}
+          setBrowserTools={() => undefined}
           toolFilter="send"
           npmResults={[]}
           npmSearching={false}
@@ -231,8 +245,10 @@ const AllStatesDemo = () => {
         <SearchResults
           plugins={plugins2}
           failedPlugins={[]}
+          browserTools={[]}
           activeTools={new Set()}
           setPlugins={setPlugins2}
+          setBrowserTools={() => undefined}
           toolFilter="notion"
           npmResults={[]}
           npmSearching={true}
@@ -246,8 +262,10 @@ const AllStatesDemo = () => {
         <SearchResults
           plugins={plugins3}
           failedPlugins={[]}
+          browserTools={[]}
           activeTools={new Set()}
           setPlugins={setPlugins3}
+          setBrowserTools={() => undefined}
           toolFilter="xyznotexist"
           npmResults={[]}
           npmSearching={false}
@@ -261,8 +279,10 @@ const AllStatesDemo = () => {
         <SearchResults
           plugins={plugins4}
           failedPlugins={[]}
+          browserTools={[]}
           activeTools={new Set()}
           setPlugins={setPlugins4}
+          setBrowserTools={() => undefined}
           toolFilter="slack"
           npmResults={[
             mockNpmResult({

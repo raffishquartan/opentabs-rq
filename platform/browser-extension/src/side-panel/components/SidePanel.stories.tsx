@@ -504,8 +504,10 @@ const OmnisearchWithResultsDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="notion"
         npmResults={mockNpmResults.slice(0, 1)}
         npmSearching={false}
@@ -526,8 +528,10 @@ const OmnisearchNpmLoadingDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="notion"
         npmResults={[]}
         npmSearching={true}
@@ -548,8 +552,10 @@ const OmnisearchInstallingDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="notion"
         npmResults={mockNpmResults}
         npmSearching={false}
@@ -605,8 +611,10 @@ const OmnisearchInstalledResultsDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="slack"
         npmResults={[]}
         npmSearching={false}
@@ -631,8 +639,10 @@ const OmnisearchNpmResultsDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="notion"
         npmResults={mockNpmResults}
         npmSearching={false}
@@ -657,8 +667,10 @@ const OmnisearchMixedDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="github"
         npmResults={mockNpmResults}
         npmSearching={false}
@@ -683,8 +695,10 @@ const OmnisearchNoResultsDemo = () => {
       <SearchResults
         plugins={plugins}
         failedPlugins={[]}
+        browserTools={[]}
         activeTools={new Set()}
         setPlugins={() => undefined}
+        setBrowserTools={() => undefined}
         toolFilter="xyzzy"
         npmResults={[]}
         npmSearching={false}

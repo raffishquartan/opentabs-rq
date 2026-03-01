@@ -9,17 +9,19 @@ import {
   removePlugin,
   updatePlugin,
 } from './bridge.js';
+import { BrowserToolsCard } from './components/BrowserToolsCard.js';
 import { ConfirmationDialog } from './components/ConfirmationDialog.js';
 import { DisconnectedState, NoPluginsState, LoadingState } from './components/EmptyStates.js';
 import { Footer } from './components/Footer.js';
 import { PluginList } from './components/PluginList.js';
+import { Accordion } from './components/retro/Accordion.js';
 import { Input } from './components/retro/Input.js';
 import { Tooltip } from './components/retro/Tooltip.js';
 import { SearchResults } from './components/SearchResults.js';
 import { useServerNotifications } from './hooks/useServerNotifications.js';
 import { Search, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { FailedPluginState, PluginSearchResult, PluginState } from './bridge.js';
+import type { BrowserToolState, FailedPluginState, PluginSearchResult, PluginState } from './bridge.js';
 import type { DisconnectReason, InternalMessage } from '../extension-messages.js';
 import type { ConfirmationData } from './components/ConfirmationDialog.js';
 import type { TabState } from '@opentabs-dev/shared';
@@ -29,6 +31,7 @@ const App = () => {
   const [disconnectReason, setDisconnectReason] = useState<DisconnectReason | undefined>();
   const [plugins, setPlugins] = useState<PluginState[]>([]);
   const [failedPlugins, setFailedPlugins] = useState<FailedPluginState[]>([]);
+  const [browserTools, setBrowserTools] = useState<BrowserToolState[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTools, setActiveTools] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,10 +74,11 @@ const App = () => {
         setPluginsLoaded(true);
         setPlugins(updatedPlugins);
         setFailedPlugins(result.failedPlugins);
+        setBrowserTools(result.browserTools);
         setActiveTools(prev => {
           const next = new Set<string>();
           for (const key of prev) {
-            if (updatedPlugins.some(p => key.startsWith(p.name + ':'))) {
+            if (key.startsWith('browser:') || updatedPlugins.some(p => key.startsWith(p.name + ':'))) {
               next.add(key);
             }
           }
@@ -216,6 +220,7 @@ const App = () => {
           setPluginsLoaded(false);
           setPlugins([]);
           setFailedPlugins([]);
+          setBrowserTools([]);
           setActiveTools(new Set());
           setPendingConfirmations([]);
           handleSearchChange('');
@@ -280,7 +285,7 @@ const App = () => {
     setPendingConfirmations([]);
   }, [pendingConfirmations, clearConfirmationTimeout]);
 
-  const hasContent = plugins.length > 0 || failedPlugins.length > 0;
+  const hasContent = plugins.length > 0 || failedPlugins.length > 0 || browserTools.length > 0;
   const showPlugins = !loading && connected && (hasContent || !!searchQuery);
   const showSearchBar = connected && !loading;
   const showNoPlugins = pluginsLoaded && !hasContent && !searchQuery;
@@ -328,8 +333,10 @@ const App = () => {
             <SearchResults
               plugins={plugins}
               failedPlugins={failedPlugins}
+              browserTools={browserTools}
               activeTools={activeTools}
               setPlugins={setPlugins}
+              setBrowserTools={setBrowserTools}
               toolFilter={searchQuery}
               npmResults={npmResults}
               npmSearching={npmSearching}
@@ -341,16 +348,23 @@ const App = () => {
               removingPlugins={removingPlugins}
             />
           ) : hasContent ? (
-            <PluginList
-              plugins={plugins}
-              failedPlugins={failedPlugins}
-              activeTools={activeTools}
-              setPlugins={setPlugins}
-              toolFilter=""
-              onUpdate={handleUpdate}
-              onRemove={handleRemove}
-              removingPlugins={removingPlugins}
-            />
+            <>
+              {browserTools.length > 0 && (
+                <Accordion type="multiple" className="mb-2 space-y-2">
+                  <BrowserToolsCard tools={browserTools} activeTools={activeTools} onToolsChange={setBrowserTools} />
+                </Accordion>
+              )}
+              <PluginList
+                plugins={plugins}
+                failedPlugins={failedPlugins}
+                activeTools={activeTools}
+                setPlugins={setPlugins}
+                toolFilter=""
+                onUpdate={handleUpdate}
+                onRemove={handleRemove}
+                removingPlugins={removingPlugins}
+              />
+            </>
           ) : null}
         </main>
         <Footer />
