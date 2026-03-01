@@ -224,6 +224,10 @@ export const channelList = defineResource({
       '/api/conversations.list?types=public_channel,private_channel',
     );
 
+    if (!data) {
+      return { uri, text: '[]', mimeType: 'application/json' };
+    }
+
     return {
       uri,
       text: JSON.stringify(data, null, 2),
