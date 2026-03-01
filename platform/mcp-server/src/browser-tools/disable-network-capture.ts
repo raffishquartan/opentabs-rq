@@ -10,6 +10,7 @@ const disableNetworkCapture = defineBrowserTool({
   name: 'browser_disable_network_capture',
   description:
     'Stop capturing network requests for a tab and release the Chrome DevTools Protocol debugger. Clears the request buffer.',
+  icon: 'wifi-off',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID to stop capturing for'),
   }),

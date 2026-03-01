@@ -15,6 +15,7 @@ const handleDialog = defineBrowserTool({
     'For prompt() dialogs, provide promptText with the text to enter before accepting. ' +
     'Common scenario: a tool call times out or errors because a dialog appeared — call this tool to dismiss it, ' +
     'then retry the original action.',
+  icon: 'message-square',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page with the dialog'),
     action: z.enum(['accept', 'dismiss']).describe('Whether to accept (OK/Yes) or dismiss (Cancel) the dialog'),

@@ -10,6 +10,7 @@ import { z } from 'zod';
 const navigateTab = defineBrowserTool({
   name: 'browser_navigate_tab',
   description: 'Navigate an existing browser tab to a new URL. Use browser_list_tabs to find tab IDs.',
+  icon: 'compass',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID to navigate'),
     url: safeUrl.describe('URL to navigate to'),

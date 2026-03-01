@@ -14,6 +14,7 @@ const pressKey = defineBrowserTool({
     'submit forms, Escape to close modals/dialogs, Tab to move between fields, arrow keys to navigate custom ' +
     'menus/dropdowns, Ctrl+K or Cmd+K for search. Supports Ctrl and Meta (Cmd) as independent modifiers. ' +
     'Uses standard KeyboardEvent.key values.',
+  icon: 'command',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page to interact with'),
     key: z

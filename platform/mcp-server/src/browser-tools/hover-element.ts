@@ -14,6 +14,7 @@ const hoverElement = defineBrowserTool({
     'This reveals dropdown menus, tooltips, and hidden UI that only appears on mouseover. ' +
     'Dispatches a realistic pointer/mouse event sequence matching real browser behavior. ' +
     'Suggest taking a screenshot after hovering to see the result.',
+  icon: 'hand',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page to interact with'),
     selector: z.string().min(1).describe('CSS selector of the element to hover over'),

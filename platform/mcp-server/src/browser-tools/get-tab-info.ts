@@ -11,6 +11,7 @@ const getTabInfo = defineBrowserTool({
   description:
     'Get detailed information about a specific browser tab including loading status, URL, title, ' +
     'favicon URL, and whether it is active or incognito. Use browser_list_tabs to find tab IDs.',
+  icon: 'info',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID to get information for'),
   }),

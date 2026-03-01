@@ -12,6 +12,7 @@ const clickElement = defineBrowserTool({
     'Click an element on the page matching the given CSS selector. Dispatches a click event on the first matching ' +
     'element. Returns the tag name and trimmed text content of the clicked element. Useful for submitting forms, ' +
     'toggling buttons, and navigating.',
+  icon: 'mouse-pointer-click',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page to interact with'),
     selector: z.string().min(1).describe('CSS selector of the element to click (e.g., "button#submit", ".nav-link")'),

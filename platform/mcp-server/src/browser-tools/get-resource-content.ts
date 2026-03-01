@@ -14,6 +14,7 @@ const getResourceContent = defineBrowserTool({
     'Use browser_list_resources first to find the resource URL you want to read. ' +
     'Useful for reading minified JavaScript to understand API patterns, endpoints, data models, and authentication. ' +
     'Text content is returned as a string; binary resources (images, fonts, wasm) are returned as base64.',
+  icon: 'file-code',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID that loaded the resource'),
     url: z.string().describe('The full URL of the resource to read (from browser_list_resources output)'),

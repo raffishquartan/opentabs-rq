@@ -11,6 +11,7 @@ const focusTab = defineBrowserTool({
   description:
     'Focus a browser tab by making it the active tab in its window and bringing the window to the foreground. ' +
     'Useful for bringing a tab to the foreground for visual inspection. Use browser_list_tabs to find tab IDs.',
+  icon: 'eye',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID to focus'),
   }),

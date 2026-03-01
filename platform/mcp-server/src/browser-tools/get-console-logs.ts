@@ -11,6 +11,7 @@ const getConsoleLogs = defineBrowserTool({
   description:
     'Get console log messages from a browser tab. Requires browser_enable_network_capture to be active on the tab ' +
     '(the debugger captures both network requests and console output). Filter by level to see only errors, warnings, etc.',
+  icon: 'terminal',
   input: z.object({
     tabId: z
       .number()

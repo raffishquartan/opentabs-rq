@@ -16,6 +16,7 @@ const scroll = defineBrowserTool({
     'If none are provided, returns the current scroll position without scrolling. Use the optional container parameter ' +
     'to scroll within a specific scrollable element instead of the page. Returns scroll position, total scroll size, ' +
     'and viewport size so you know how much more content exists.',
+  icon: 'arrow-down-up',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID of the page to interact with'),
     selector: z

@@ -15,6 +15,7 @@ const extensionGetState = defineBrowserTool({
     'Returns WebSocket connection status, all registered plugins with their tab states, ' +
     'active network captures, and offscreen document status. ' +
     'Use this tool to quickly understand the overall health of the extension without opening DevTools.',
+  icon: 'settings',
   input: z.object({}),
   handler: async (_args, state) => dispatchToExtension(state, 'extension.getState', {}),
 });

@@ -12,6 +12,7 @@ const getTabContent = defineBrowserTool({
     'Extract the visible text content of a web page or a specific element. Returns the page title, ' +
     'current URL, and text content. Use the selector parameter to scope extraction to a specific section. ' +
     'Useful for understanding page content without writing custom JavaScript.',
+  icon: 'file-text',
   input: z.object({
     tabId: z.number().int().positive().describe('Tab ID to extract content from'),
     selector: z.string().optional().describe('CSS selector to scope extraction — defaults to body'),
