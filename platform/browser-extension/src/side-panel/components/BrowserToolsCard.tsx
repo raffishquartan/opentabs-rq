@@ -36,6 +36,7 @@ const BrowserToolsCard = ({
   const [toggleError, setToggleError] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toggleCounter = useRef(0);
+  const preToggleRef = useRef<BrowserToolState[]>([]);
 
   useEffect(() => () => clearTimeout(errorTimerRef.current), []);
 
@@ -48,26 +49,30 @@ const BrowserToolsCard = ({
   const allEnabled = tools.length > 0 && tools.every(t => t.enabled);
 
   const handleToggleAll = (checked: boolean) => {
-    const originalTools = tools;
     const myVersion = ++toggleCounter.current;
-    onToolsChange(() => tools.map(t => ({ ...t, enabled: checked })));
+    onToolsChange(prev => {
+      preToggleRef.current = prev;
+      return prev.map(t => ({ ...t, enabled: checked }));
+    });
     const promises = tools.filter(t => t.enabled !== checked).map(t => setBrowserToolEnabled(t.name, checked));
     void Promise.all(promises).catch(() => {
       if (toggleCounter.current === myVersion) {
-        onToolsChange(() => originalTools);
+        onToolsChange(() => preToggleRef.current);
       }
       showToggleError('Failed to toggle all browser tools');
     });
   };
 
   const handleToggleTool = (toolName: string, currentEnabled: boolean) => {
-    const originalTools = tools;
     const myVersion = ++toggleCounter.current;
     const newEnabled = !currentEnabled;
-    onToolsChange(prev => prev.map(t => (t.name === toolName ? { ...t, enabled: newEnabled } : t)));
+    onToolsChange(prev => {
+      preToggleRef.current = prev;
+      return prev.map(t => (t.name === toolName ? { ...t, enabled: newEnabled } : t));
+    });
     void setBrowserToolEnabled(toolName, newEnabled).catch(() => {
       if (toggleCounter.current === myVersion) {
-        onToolsChange(() => originalTools);
+        onToolsChange(() => preToggleRef.current);
       }
       showToggleError(`Failed to toggle ${toolName}`);
     });

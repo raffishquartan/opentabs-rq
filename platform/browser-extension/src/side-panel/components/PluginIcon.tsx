@@ -69,6 +69,20 @@ const StatusIndicator = ({ tabState, hasUpdate, size }: { tabState: TabState; ha
   );
 };
 
+/**
+ * Sanitizes rawSvg for rendering, returning undefined and logging a warning if sanitizeSvg throws.
+ * Exported for unit testing.
+ */
+const tryGetSanitizedSvg = (rawSvg: string | undefined, pluginName: string): string | undefined => {
+  if (!rawSvg) return undefined;
+  try {
+    return sanitizeSvg(rawSvg);
+  } catch (err) {
+    console.warn(`[opentabs] sanitizeSvg failed for plugin "${pluginName}":`, err);
+    return undefined;
+  }
+};
+
 const PluginIcon = ({
   pluginName,
   displayName,
@@ -82,7 +96,7 @@ const PluginIcon = ({
   const isReady = tabState === 'ready';
   const hasSvg = !!iconSvg;
   const rawSvg = isReady ? iconSvg : iconInactiveSvg;
-  const svgToRender = rawSvg ? sanitizeSvg(rawSvg) : undefined;
+  const svgToRender = tryGetSanitizedSvg(rawSvg, pluginName);
   const innerSize = Math.round(size * 0.6);
 
   if (hasSvg && svgToRender) {
@@ -119,4 +133,4 @@ const PluginIcon = ({
   );
 };
 
-export { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, PluginIcon };
+export { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, tryGetSanitizedSvg, PluginIcon };

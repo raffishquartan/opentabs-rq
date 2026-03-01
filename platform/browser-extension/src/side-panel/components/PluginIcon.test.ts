@@ -1,5 +1,10 @@
-import { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString } from './PluginIcon.js';
-import { describe, expect, test } from 'vitest';
+import { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, tryGetSanitizedSvg } from './PluginIcon.js';
+import { sanitizeSvg } from '../../sanitize-svg.js';
+import { vi, describe, expect, test, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../sanitize-svg.js', () => ({
+  sanitizeSvg: vi.fn(),
+}));
 
 describe('hashString', () => {
   test('returns an unsigned 32-bit integer', () => {
@@ -130,5 +135,43 @@ describe('getAvatarLetter', () => {
 
   test('handles unicode display names', () => {
     expect(getAvatarLetter('日本語', 'japanese')).toBe('日');
+  });
+});
+
+describe('tryGetSanitizedSvg', () => {
+  beforeEach(() => {
+    vi.mocked(sanitizeSvg).mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('returns undefined when rawSvg is undefined', () => {
+    expect(tryGetSanitizedSvg(undefined, 'test-plugin')).toBeUndefined();
+    expect(sanitizeSvg).not.toHaveBeenCalled();
+  });
+
+  test('returns sanitized SVG string when sanitizeSvg succeeds', () => {
+    vi.mocked(sanitizeSvg).mockReturnValue('<svg></svg>');
+    expect(tryGetSanitizedSvg('<svg/>', 'test-plugin')).toBe('<svg></svg>');
+  });
+
+  test('returns undefined and logs a warning when sanitizeSvg throws', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = new Error('malformed SVG');
+    vi.mocked(sanitizeSvg).mockImplementation(() => {
+      throw error;
+    });
+    expect(tryGetSanitizedSvg('<bad/>', 'my-plugin')).toBeUndefined();
+    expect(warnSpy).toHaveBeenCalledWith('[opentabs] sanitizeSvg failed for plugin "my-plugin":', error);
+  });
+
+  test('does not propagate the error when sanitizeSvg throws', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.mocked(sanitizeSvg).mockImplementation(() => {
+      throw new Error('unexpected error');
+    });
+    expect(() => tryGetSanitizedSvg('<svg/>', 'my-plugin')).not.toThrow();
   });
 });
