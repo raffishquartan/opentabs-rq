@@ -55,10 +55,13 @@ interface PluginInstallResult {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// npm subprocess timeout
+// npm subprocess timeout and output size cap
 // ---------------------------------------------------------------------------
 
 const NPM_SUBPROCESS_TIMEOUT_MS = 60_000;
+
+/** Maximum combined stdout+stderr bytes collected from a subprocess before killing it. */
+const MAX_OUTPUT_SIZE = 10 * 1024 * 1024; // 10 MB
 
 /** Spawn a process asynchronously and return a result promise and a kill handle. */
 const spawnAsync = (
@@ -68,9 +71,26 @@ const spawnAsync = (
   const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
-  child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
-  child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+  let totalBytes = 0;
   const promise = new Promise<{ exitCode: number; stdout: string; stderr: string }>((resolve, reject) => {
+    child.stdout.on('data', (chunk: Buffer) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_OUTPUT_SIZE) {
+        child.kill();
+        reject(new Error(`Process output exceeded the ${MAX_OUTPUT_SIZE}-byte size limit`));
+        return;
+      }
+      stdoutChunks.push(chunk);
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_OUTPUT_SIZE) {
+        child.kill();
+        reject(new Error(`Process output exceeded the ${MAX_OUTPUT_SIZE}-byte size limit`));
+        return;
+      }
+      stderrChunks.push(chunk);
+    });
     child.on('error', reject);
     child.on('close', code => {
       resolve({
@@ -515,8 +535,10 @@ const checkPluginUpdates = async (state: ServerState): Promise<CheckUpdatesResul
 
 export type { PluginSearchResult, PluginInstallResult, PluginUpdateResult, CheckUpdatesResult };
 export {
+  MAX_OUTPUT_SIZE,
   normalizePluginName,
   isValidPluginPackageName,
+  spawnAsync,
   searchNpmPlugins,
   installPlugin,
   updatePlugin,
