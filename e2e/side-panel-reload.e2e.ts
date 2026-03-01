@@ -182,3 +182,57 @@ test.describe('Side panel auto-refresh — POST /reload', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Side panel recovery after dev proxy hot reload (process restart)
+// ---------------------------------------------------------------------------
+
+test.describe.serial('Side panel recovery after dev proxy hot reload', () => {
+  test('side panel shows plugin list before and after dev proxy hot reload', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const tools = buildToolsMap();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-hot-reload-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      // Open side panel and verify plugin is visible before the hot reload
+      const sidePanelPage = await openSidePanel(context);
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Trigger a dev proxy hot reload (SIGUSR1 → worker kill + restart).
+      // This is a full process-level restart, unlike POST /reload which is
+      // an in-process config rediscovery. Clear logs first so we detect the
+      // single 'Hot reload complete' from the new worker unambiguously.
+      server.logs.length = 0;
+      server.triggerHotReload();
+
+      // Wait for the new worker to be fully up and the extension to reconnect.
+      // The pipeline is: worker restart → new sync.full to extension →
+      // chrome.storage update → offscreen broadcasts ws:message →
+      // side panel App.tsx detects sync.full and re-renders.
+      await waitForLog(server, 'Hot reload complete', 20_000);
+      await waitForExtensionConnected(server, 30_000);
+
+      // After the hot reload pipeline completes, the side panel should still
+      // show the e2e-test plugin. Use a generous timeout to allow for the
+      // sync.full → chrome.storage → side panel re-render pipeline.
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      await sidePanelPage.close();
+    } finally {
+      await context.close();
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
