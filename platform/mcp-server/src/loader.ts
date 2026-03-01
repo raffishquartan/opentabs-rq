@@ -9,12 +9,12 @@
  * returns a Result. No side effects, no state mutation.
  */
 
-import { BROWSER_TOOL_NAMES } from './browser-tool-names.js';
 import { log } from './logger.js';
 import { sdkVersion as serverSdkVersion } from './sdk-version.js';
 import {
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
+  BROWSER_TOOLS_CATALOG,
   OFFICIAL_SCOPE,
   PLUGIN_PREFIX,
   TOOLS_FILENAME,
@@ -35,6 +35,9 @@ import type {
   Result,
   TrustTier,
 } from '@opentabs-dev/shared';
+
+/** Browser tool names derived from the static catalog — used for prompt injection detection. */
+const browserToolNames: readonly string[] = BROWSER_TOOLS_CATALOG.map(t => t.name);
 
 /** Maximum allowed size for the adapter IIFE (5 MB) */
 const MAX_IIFE_SIZE = 5 * 1024 * 1024;
@@ -101,7 +104,7 @@ const checkBrowserToolReferences = (
   const matches: Array<{ toolName: string; browserToolName: string }> = [];
   for (const tool of tools) {
     const descLower = tool.description.toLowerCase();
-    for (const btName of BROWSER_TOOL_NAMES) {
+    for (const btName of browserToolNames) {
       if (descLower.includes(btName)) {
         matches.push({ toolName: tool.name, browserToolName: btName });
       }
