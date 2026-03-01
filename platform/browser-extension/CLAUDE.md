@@ -82,12 +82,12 @@ The side panel runs inside a Chrome extension popup with limited viewport width.
 
 ## React Best Practices
 
-This project uses **React 19** (`^19.2.4`) with the automatic JSX runtime (`react-jsx`). Prefer modern React features and patterns, but **only when they fit the problem** — do not adopt a feature just because it is new. Every API choice should have a clear justification rooted in the current code, not in novelty.
+This project uses **React 19** (`^19.2.4`) with the automatic JSX runtime (`react-jsx`). The side panel build uses **React Compiler** (`babel-plugin-react-compiler`), which automatically memoizes all components and hooks at build time. Prefer modern React features and patterns, but **only when they fit the problem** — do not adopt a feature just because it is new. Every API choice should have a clear justification rooted in the current code, not in novelty.
 
 - **Lift state to the right level** — if state needs to persist across component mount/unmount cycles, lift it to the parent rather than introducing complex patterns.
 - **Minimize `useEffect`** — prefer derived state (inline computation) over effects that sync state. Effects are for external system synchronization (Chrome APIs, event listeners), not for state derivation.
 - **`useRef` for non-rendering values** — timers, previous values, and DOM references belong in refs, not state.
-- **`useMemo`/`useCallback` only when justified** — do not wrap trivial computations (array filters, string formatting) in `useMemo`. Reserve memoization for genuinely expensive calculations or when a stable reference is required (e.g., effect dependencies, context values).
+- **Do not use `useMemo`, `useCallback`, or `React.memo` for optimization** — React Compiler handles memoization automatically at build time. These can be used as escape hatches when precise control over a memoized value is needed (e.g., ensuring a value used as an effect dependency is stable), but this should be rare.
 
 ---
 
