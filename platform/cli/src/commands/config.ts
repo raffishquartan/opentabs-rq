@@ -13,7 +13,7 @@ import {
 } from '../config.js';
 import { notifyServer } from '../notify-server.js';
 import { resolvePort } from '../parse-port.js';
-import { atomicWrite, DEFAULT_PORT, generateSecret, toErrorMessage } from '@opentabs-dev/shared';
+import { atomicWrite, DEFAULT_HOST, DEFAULT_PORT, generateSecret, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { existsSync } from 'node:fs';
 import { access, mkdir, unlink } from 'node:fs/promises';
@@ -255,7 +255,7 @@ const fetchToolNames = async (port: number): Promise<string[] | null> => {
     const secret = await readAuthSecret();
     const headers: Record<string, string> = {};
     if (secret) headers['Authorization'] = `Bearer ${secret}`;
-    const res = await fetch(`http://localhost:${port}/health`, {
+    const res = await fetch(`http://${DEFAULT_HOST}:${port}/health`, {
       headers,
       signal: AbortSignal.timeout(3_000),
     });
@@ -273,7 +273,7 @@ const fetchBrowserToolNames = async (port: number): Promise<string[] | null> => 
     const secret = await readAuthSecret();
     const headers: Record<string, string> = {};
     if (secret) headers['Authorization'] = `Bearer ${secret}`;
-    const res = await fetch(`http://localhost:${port}/health`, {
+    const res = await fetch(`http://${DEFAULT_HOST}:${port}/health`, {
       headers,
       signal: AbortSignal.timeout(3_000),
     });
@@ -709,7 +709,7 @@ const handleRotateSecret = async (options: RotateSecretOptions): Promise<void> =
   // Notify the running server using the OLD secret so it reloads with the new one
   if (oldSecret) {
     try {
-      const res = await fetch(`http://localhost:${port}/reload`, {
+      const res = await fetch(`http://${DEFAULT_HOST}:${port}/reload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${oldSecret}` },
         signal: AbortSignal.timeout(3_000),

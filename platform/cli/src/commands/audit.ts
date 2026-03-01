@@ -9,7 +9,7 @@
 import { isTimeout } from './status.js';
 import { getConfigDir, isConnectionRefused, readAuthSecret } from '../config.js';
 import { resolvePort } from '../parse-port.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, toErrorMessage } from '@opentabs-dev/shared';
 import { InvalidArgumentError } from 'commander';
 import pc from 'picocolors';
 import { access, readFile, stat } from 'node:fs/promises';
@@ -233,7 +233,7 @@ const handleAudit = async (options: AuditOptions): Promise<void> => {
 
   // Build URL — request more entries from the server when --since is used
   // so we have enough to filter from
-  const url = new URL(`http://localhost:${port}/audit`);
+  const url = new URL(`http://${DEFAULT_HOST}:${port}/audit`);
   url.searchParams.set('limit', String(sinceMs !== null ? 500 : limit));
   if (options.plugin) url.searchParams.set('plugin', options.plugin);
   if (options.tool) url.searchParams.set('tool', options.tool);

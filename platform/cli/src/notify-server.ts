@@ -5,6 +5,7 @@
 
 import { readAuthSecret } from './config.js';
 import { resolvePort } from './parse-port.js';
+import { DEFAULT_HOST } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 
 interface NotifyOptions {
@@ -22,7 +23,7 @@ const notifyServer = async (options: NotifyOptions): Promise<void> => {
   const secret = await readAuthSecret();
 
   try {
-    const healthRes = await fetch(`http://localhost:${port}/health`, {
+    const healthRes = await fetch(`http://${DEFAULT_HOST}:${port}/health`, {
       signal: AbortSignal.timeout(3_000),
     });
     const isOpenTabs = healthRes.headers.get('x-opentabs-version') !== null;
@@ -43,7 +44,7 @@ const notifyServer = async (options: NotifyOptions): Promise<void> => {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (secret) headers['Authorization'] = `Bearer ${secret}`;
 
-    const res = await fetch(`http://localhost:${port}/reload`, {
+    const res = await fetch(`http://${DEFAULT_HOST}:${port}/reload`, {
       method: 'POST',
       headers,
       signal: AbortSignal.timeout(5_000),

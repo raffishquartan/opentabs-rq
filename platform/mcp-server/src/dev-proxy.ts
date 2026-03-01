@@ -9,7 +9,7 @@
  * drained once the new worker is ready (up to 5 seconds, then 503).
  */
 
-import { DEFAULT_PORT } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, DEFAULT_PORT } from '@opentabs-dev/shared';
 import { WebSocket, WebSocketServer } from 'ws';
 import { fork } from 'node:child_process';
 import { watch } from 'node:fs';
@@ -240,7 +240,7 @@ httpServer.on('error', (err: NodeJS.ErrnoException) => {
 
 httpServer.listen(PROXY_PORT, '127.0.0.1', () => {
   const actualPort = (httpServer.address() as { port: number }).port;
-  console.log(`[proxy] Dev proxy listening on http://localhost:${actualPort}`);
+  console.log(`[proxy] Dev proxy listening on http://${DEFAULT_HOST}:${actualPort}`);
   startWorker();
 });
 

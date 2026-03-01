@@ -16,6 +16,7 @@ import { notifyServer } from '../notify-server.js';
 import { parsePort, resolvePort } from '../parse-port.js';
 import { scaffoldPlugin, promptForMissingArgs, ScaffoldError } from '../scaffold.js';
 import {
+  DEFAULT_HOST,
   TOOLS_FILENAME,
   OFFICIAL_SCOPE,
   PLUGIN_PREFIX,
@@ -555,7 +556,7 @@ const handlePluginList = async (options: PluginListOptions): Promise<void> => {
     const headers: Record<string, string> = {};
     if (secret) headers['Authorization'] = `Bearer ${secret}`;
 
-    const res = await fetch(`http://localhost:${port}/health`, {
+    const res = await fetch(`http://${DEFAULT_HOST}:${port}/health`, {
       headers,
       signal: AbortSignal.timeout(3_000),
     });

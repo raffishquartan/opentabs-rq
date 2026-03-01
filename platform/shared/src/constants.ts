@@ -15,6 +15,10 @@ import { join } from 'node:path';
 /** Default port for the MCP server (HTTP + WebSocket) */
 export const DEFAULT_PORT = 9515;
 
+/** Default host for the MCP server — use 127.0.0.1 instead of 'localhost' to avoid
+ *  IPv6 resolution issues on systems where localhost resolves to ::1 first. */
+export const DEFAULT_HOST = '127.0.0.1';
+
 // ---------------------------------------------------------------------------
 // Plugin build artifacts
 // ---------------------------------------------------------------------------

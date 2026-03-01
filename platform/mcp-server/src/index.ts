@@ -45,7 +45,7 @@ import { createNodeServer } from './server-node.js';
 import { installShutdownHandlers } from './shutdown.js';
 import { createState } from './state.js';
 import { version } from './version.js';
-import { DEFAULT_PORT } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, DEFAULT_PORT } from '@opentabs-dev/shared';
 import type { HotHandlers } from './http-routes.js';
 import type { McpServerInstance } from './mcp-setup.js';
 import type { ReloadResult } from './reload.js';
@@ -224,7 +224,7 @@ const actualPort = server.port;
 
 if (!isHotReload) {
   const modeLabel = isDev() ? ' (dev mode)' : '';
-  log.info(`MCP server v${version} listening on http://localhost:${actualPort}${modeLabel}`);
+  log.info(`MCP server v${version} listening on http://${DEFAULT_HOST}:${actualPort}${modeLabel}`);
 }
 
 // When running under the dev proxy (forked with OPENTABS_PROXY=1), report

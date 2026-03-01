@@ -163,12 +163,12 @@ const waitForHealth = async (
 
 /**
  * Parse the actual port from a server's startup log line.
- * Matches patterns like "listening on http://localhost:12345" or
+ * Matches patterns like "listening on http://127.0.0.1:12345" or
  * "Listening on http://localhost:12345".
  */
 const parsePortFromLogs = (logs: string[]): number | null => {
   for (const line of logs) {
-    const m = line.match(/[Ll]istening on http:\/\/localhost:(\d+)/);
+    const m = line.match(/[Ll]istening on http:\/\/(?:127\.0\.0\.1|localhost):(\d+)/);
     if (m) return Number(m[1]);
   }
   return null;
@@ -549,7 +549,7 @@ const startMcpServer = (
         // worker is ready (proxy logs "Worker ready") before resolving — the
         // worker writes auth.json during startup, so auth is only available
         // after the worker is up.
-        if (proxyPort === null && text.includes('listening on http://localhost:')) {
+        if (proxyPort === null && text.includes('listening on http://127.0.0.1:')) {
           proxyPort = parsePortFromLogs(logs);
           if (!proxyPort) {
             resolved = true;
@@ -563,7 +563,7 @@ const startMcpServer = (
         }
       } else {
         // Non-hot mode: index.js logs "listening" when it is fully ready.
-        if (!resolved && text.includes('listening on http://localhost:')) {
+        if (!resolved && text.includes('listening on http://127.0.0.1:')) {
           const actualPort = parsePortFromLogs(logs);
           if (!actualPort) {
             resolved = true;

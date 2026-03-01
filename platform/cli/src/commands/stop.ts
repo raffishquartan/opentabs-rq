@@ -8,6 +8,7 @@
 
 import { isConnectionRefused, getPidFilePath, readAuthSecret } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
+import { DEFAULT_HOST } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { readFile, unlink } from 'node:fs/promises';
 import type { Command } from 'commander';
@@ -84,7 +85,7 @@ const handleStop = async (options: StopOptions): Promise<void> => {
 
   // No PID file — check if a server is running on the port via health endpoint
   const port = resolvePort(options);
-  const url = `http://localhost:${port}/health`;
+  const url = `http://${DEFAULT_HOST}:${port}/health`;
 
   const secret = await readAuthSecret();
   const headers: Record<string, string> = {};

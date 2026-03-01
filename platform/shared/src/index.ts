@@ -23,6 +23,7 @@ export { toErrorMessage } from './error.js';
 // ---------------------------------------------------------------------------
 
 export {
+  DEFAULT_HOST,
   DEFAULT_PORT,
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,

@@ -8,7 +8,7 @@
  */
 
 import { resolvePort } from '../parse-port.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
@@ -43,7 +43,7 @@ const getLatestVersion = (): string => {
 /** Check if the MCP server is running on the given port. */
 const isServerRunning = async (port: number): Promise<boolean> => {
   try {
-    const res = await fetch(`http://localhost:${port}/health`, {
+    const res = await fetch(`http://${DEFAULT_HOST}:${port}/health`, {
       signal: AbortSignal.timeout(2_000),
     });
     return res.ok;

@@ -12,7 +12,7 @@ import {
   resolvePluginPath,
 } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
-import { ADAPTER_FILENAME, TOOLS_FILENAME } from '@opentabs-dev/shared';
+import { ADAPTER_FILENAME, DEFAULT_HOST, TOOLS_FILENAME } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -78,7 +78,7 @@ const checkServerHealth = async (
   port: number,
   secret?: string | null,
 ): Promise<{ result: CheckResult; data: Record<string, unknown> | null }> => {
-  const url = `http://localhost:${port}/health`;
+  const url = `http://${DEFAULT_HOST}:${port}/health`;
   try {
     const headers: Record<string, string> = {};
     if (secret) headers['Authorization'] = `Bearer ${secret}`;

@@ -4,7 +4,7 @@
 
 import { getPidFilePath, isConnectionRefused, readAuthSecret } from '../config.js';
 import { parsePort, resolvePort } from '../parse-port.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, toErrorMessage } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 import { readFile, unlink } from 'node:fs/promises';
 import type { Command } from 'commander';
@@ -70,7 +70,7 @@ const isNonOpenTabsHttpError = (status: number, contentType: string | null): boo
 
 const handleStatus = async (options: StatusOptions): Promise<void> => {
   const port = resolvePort(options);
-  const url = `http://localhost:${port}/health`;
+  const url = `http://${DEFAULT_HOST}:${port}/health`;
 
   const secret = await readAuthSecret();
 
