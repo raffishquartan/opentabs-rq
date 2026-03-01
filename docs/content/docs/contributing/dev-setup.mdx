@@ -1,7 +1,7 @@
 ---
 title: Development Setup
 description: Clone the repo, install dependencies, and run the full OpenTabs platform locally with hot reload.
-lastUpdated: 2026-02-28
+lastUpdated: 2026-03-01
 ---
 
 This guide walks you through setting up the OpenTabs monorepo for local development. By the end, you'll have the MCP server, Chrome extension, and a test plugin running with hot reload.
@@ -35,6 +35,7 @@ This runs the full build pipeline:
 3. Side panel — builds the React side panel with Tailwind CSS
 4. Icon generation — creates extension icons from the SVG source
 5. Extension install — copies the built extension to `~/.opentabs/extension/`
+6. `npm rebuild` — rebuilds `@opentabs-dev/cli` and `@opentabs-dev/plugin-tools` to link their bin scripts after TypeScript compilation
 
 ## Load the Chrome Extension
 
