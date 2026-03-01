@@ -1255,16 +1255,14 @@ test.describe.serial('File watcher — tools.json rewrite preserves all tools', 
       expect(e2eToolsBefore.length).toBeGreaterThan(0);
       const countBefore = e2eToolsBefore.length;
 
-      // Wait for file watcher to be ready before modifying files
-      await waitForLog(server, 'File watcher: Watching', 10_000);
-
-      // Re-write tools.json (same content, triggers file watcher)
+      // Re-write tools.json to trigger the file watcher
       const toolsJsonPath = path.join(pluginDir, 'dist', 'tools.json');
       const toolsContent = fs.readFileSync(toolsJsonPath, 'utf-8');
-      fs.writeFileSync(toolsJsonPath, toolsContent, 'utf-8');
-
-      // Wait for file watcher to detect the tools.json change
-      await waitForLog(server, 'tools.json updated for', 10_000);
+      await writeAndWaitForWatcher(
+        server,
+        attempt => fs.writeFileSync(toolsJsonPath, attempt === 0 ? toolsContent : toolsContent + '\n', 'utf-8'),
+        'tools.json updated for',
+      );
 
       // All tools should still be present after the rewrite
       const toolsAfter = await client.listTools();
