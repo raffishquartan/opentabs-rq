@@ -32,7 +32,7 @@ const channelList = defineResource({
   description: 'Returns all Slack channels the user has access to',
   mimeType: 'application/json',
 
-  async read(uri: string): Promise<ResourceContent> {
+  async read(): Promise<ResourceContent> {
     const response = await fetch('/api/conversations.list', {
       credentials: 'include',
     });
@@ -46,6 +46,8 @@ const channelList = defineResource({
   },
 });
 ```
+
+The `uri` parameter can be omitted when the resource serves a single URI. Include it when your `read()` function needs to dispatch based on the URI value — for example, a resource template that matches multiple URIs and fetches different data depending on which one was requested.
 
 ### ResourceDefinition Properties
 
@@ -131,7 +133,7 @@ const channelList = defineResource({
     channels: z.array(z.object({ id: z.string(), name: z.string() })),
   }),
 
-  async read(uri: string): Promise<ResourceContent> {
+  async read(): Promise<ResourceContent> {
     const data = await fetchJSON<{ channels: { id: string; name: string }[] }>('/api/channels');
     return { uri: 'myapp://channels', text: JSON.stringify(data), mimeType: 'application/json' };
   },
@@ -429,7 +431,7 @@ const itemList = defineResource({
   name: 'Project Items',
   description: 'Returns all items in the current project',
   mimeType: 'application/json',
-  async read(uri: string) {
+  async read() {
     const data = await fetchJSON<{ items: { id: string; title: string; status: string }[] }>(
       '/api/items'
     );
