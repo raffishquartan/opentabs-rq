@@ -403,64 +403,68 @@ export const handleBrowserExecuteScript = async (
       // Promise settles. Poll until the result is available.
       let elapsed = 0;
 
-      while (elapsed <= EXEC_MAX_ASYNC_WAIT_MS) {
-        if (cancelled.value) return;
-        const results = await chrome.scripting.executeScript({
-          target: { tabId },
-          world: 'MAIN',
-          func: (truncLimit: number, rKey: string, aKey: string) => {
-            const ot = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
-            if (!ot) return { pending: false, result: { error: '__openTabs not found' } };
+      try {
+        while (elapsed <= EXEC_MAX_ASYNC_WAIT_MS) {
+          if (cancelled.value) return;
+          const results = await chrome.scripting.executeScript({
+            target: { tabId },
+            world: 'MAIN',
+            func: (truncLimit: number, rKey: string, aKey: string) => {
+              const ot = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
+              if (!ot) return { pending: false, result: { error: '__openTabs not found' } };
 
-            const result = ot[rKey] as { value?: unknown; error?: string } | undefined;
-            const isAsync = ot[aKey] === true;
+              const result = ot[rKey] as { value?: unknown; error?: string } | undefined;
+              const isAsync = ot[aKey] === true;
 
-            // Result available (sync or async resolved) — read and clean up
-            if (result && ('value' in result || 'error' in result)) {
-              const captured = { ...result };
-              // undefined is dropped by structured cloning — normalize to null
-              if (captured.value === undefined) captured.value = null;
-              // Serialize non-primitive values
-              if (captured.value !== null && typeof captured.value === 'object') {
-                try {
-                  const json = JSON.stringify(captured.value);
-                  captured.value =
-                    json.length > truncLimit ? json.slice(0, truncLimit) + '... (truncated)' : JSON.parse(json);
-                } catch {
-                  captured.value = String(captured.value);
+              // Result available (sync or async resolved) — read and clean up
+              if (result && ('value' in result || 'error' in result)) {
+                const captured = { ...result };
+                // undefined is dropped by structured cloning — normalize to null
+                if (captured.value === undefined) captured.value = null;
+                // Serialize non-primitive values
+                if (captured.value !== null && typeof captured.value === 'object') {
+                  try {
+                    const json = JSON.stringify(captured.value);
+                    captured.value =
+                      json.length > truncLimit ? json.slice(0, truncLimit) + '... (truncated)' : JSON.parse(json);
+                  } catch {
+                    captured.value = String(captured.value);
+                  }
                 }
+                // Clean up namespaced globals for this execution
+                Reflect.deleteProperty(ot, rKey);
+                Reflect.deleteProperty(ot, aKey);
+                return { pending: false, result: captured };
               }
-              // Clean up namespaced globals for this execution
-              Reflect.deleteProperty(ot, rKey);
-              Reflect.deleteProperty(ot, aKey);
-              return { pending: false, result: captured };
-            }
 
-            // Async code hasn't resolved yet — keep polling
-            if (isAsync) return { pending: true };
+              // Async code hasn't resolved yet — keep polling
+              if (isAsync) return { pending: true };
 
-            // Sync code produced no result (should not happen)
-            return { pending: false, result: { error: 'No result captured' } };
-          },
-          args: [EXEC_RESULT_TRUNCATION_LIMIT, resultKey, asyncKey],
-        });
+              // Sync code produced no result (should not happen)
+              return { pending: false, result: { error: 'No result captured' } };
+            },
+            args: [EXEC_RESULT_TRUNCATION_LIMIT, resultKey, asyncKey],
+          });
 
-        const first = results[0] as { result?: { pending: boolean; result?: unknown } } | undefined;
-        const data = first?.result;
+          const first = results[0] as { result?: { pending: boolean; result?: unknown } } | undefined;
+          const data = first?.result;
 
-        if (data && !data.pending) {
-          return { value: data.result };
+          if (data && !data.pending) {
+            return { value: data.result };
+          }
+
+          // Still pending — wait and retry
+          await new Promise(resolve => setTimeout(resolve, EXEC_POLL_INTERVAL_MS));
+          elapsed += EXEC_POLL_INTERVAL_MS;
         }
 
-        // Still pending — wait and retry
-        await new Promise(resolve => setTimeout(resolve, EXEC_POLL_INTERVAL_MS));
-        elapsed += EXEC_POLL_INTERVAL_MS;
-      }
-
-      // Async timed out — clean up namespaced globals only if the outer SCRIPT_TIMEOUT_MS
-      // did not fire. If cancelled, the outer timeout already sent the error response.
-      if (!cancelled.value) {
-        await chrome.scripting
+        return { value: { error: `Async code did not resolve within ${EXEC_MAX_ASYNC_WAIT_MS}ms` } };
+      } finally {
+        // Clean up namespaced globals. Runs unconditionally — whether the polling
+        // loop found a result, hit the inner timeout, or was cancelled by the outer
+        // SCRIPT_TIMEOUT_MS. On the success path the inline cleanup already ran, so
+        // this is a no-op. Fire-and-forget: the tab may have navigated away.
+        chrome.scripting
           .executeScript({
             target: { tabId },
             world: 'MAIN',
@@ -475,8 +479,6 @@ export const handleBrowserExecuteScript = async (
           })
           .catch(() => {});
       }
-
-      return { value: { error: `Async code did not resolve within ${EXEC_MAX_ASYNC_WAIT_MS}ms` } };
     })();
 
     const timeoutPromise = new Promise<never>((_resolve, reject) => {

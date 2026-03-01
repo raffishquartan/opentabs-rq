@@ -53,6 +53,32 @@ describe('sanitizeErrorMessage', () => {
     });
   });
 
+  describe('IPv6 addresses', () => {
+    test('replaces loopback ::1 with [IP]', () => {
+      expect(sanitizeErrorMessage('connect ECONNREFUSED ::1')).toBe('connect ECONNREFUSED [IP]');
+    });
+
+    test('replaces bracketed IPv6 with port [::1]:9515 with [IP]', () => {
+      expect(sanitizeErrorMessage('connect ECONNREFUSED [::1]:9515')).toBe('connect ECONNREFUSED [IP]');
+    });
+
+    test('replaces full IPv6 address 2001:db8::1 with [IP]', () => {
+      expect(sanitizeErrorMessage('Cannot reach 2001:db8::1')).toBe('Cannot reach [IP]');
+    });
+
+    test('replaces IPv6 with zone ID fe80::1%eth0 with [IP]', () => {
+      expect(sanitizeErrorMessage('link-local fe80::1%eth0 unreachable')).toBe('link-local [IP] unreachable');
+    });
+
+    test('replaces compressed IPv6 ::ffff:127.0.0.1 with [IP]', () => {
+      expect(sanitizeErrorMessage('mapped ::ffff:127.0.0.1 rejected')).toBe('mapped [IP] rejected');
+    });
+
+    test('replaces bracketed IPv6 without port [2001:db8::1] with [IP]', () => {
+      expect(sanitizeErrorMessage('target [2001:db8::1] unreachable')).toBe('target [IP] unreachable');
+    });
+  });
+
   describe('truncation', () => {
     test('truncates messages over 500 characters', () => {
       const longMessage = 'A'.repeat(600);

@@ -299,8 +299,8 @@ describe('handleBrowserExecuteScript', () => {
       await handlerPromise;
 
       expect(firstSentMessage()).toMatchObject({ result: { value: { value: 42 } } });
-      // Exactly 2 calls: file injection + 1 poll
-      expect(mockExecuteScript).toHaveBeenCalledTimes(2);
+      // 3 calls: file injection + 1 poll (with inline cleanup) + finally cleanup
+      expect(mockExecuteScript).toHaveBeenCalledTimes(3);
     });
 
     test('sends timeout error and skips cleanup when outer SCRIPT_TIMEOUT_MS fires during initial injection', async () => {
@@ -320,6 +320,57 @@ describe('handleBrowserExecuteScript', () => {
       });
       // Only the initial injection was attempted — no poll calls, no cleanup call
       expect(mockExecuteScript).toHaveBeenCalledTimes(1);
+    });
+
+    test('runs cleanup when outer SCRIPT_TIMEOUT_MS fires during injection and injection later completes', async () => {
+      // Simulates slow injection: the outer timeout fires while the file injection is still
+      // pending. When injection eventually resolves, the globals are set in the tab.
+      // injectPromise resumes, enters the polling loop, immediately sees cancelled.value = true,
+      // returns via the if-guard, and the try/finally ensures cleanup runs.
+      let resolveInjection!: (value: unknown[]) => void;
+      let callCount = 0;
+
+      mockExecuteScript.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // Injection hangs until manually resolved after the outer timeout fires
+          return new Promise<unknown[]>(resolve => {
+            resolveInjection = resolve;
+          });
+        }
+        // Any subsequent call (polling or cleanup) — return immediately
+        return Promise.resolve([{ result: { pending: false, result: { value: 1 } } }]);
+      });
+
+      const handlerPromise = handleBrowserExecuteScript(
+        { tabId: 1, execFile: '__exec-abc123.js' },
+        'req-cleanup-late-injection',
+      );
+
+      // Advance past SCRIPT_TIMEOUT_MS (30000ms) while injection is still pending
+      await vi.advanceTimersByTimeAsync(30001);
+      await handlerPromise; // handler settles: cancelled.value = true, error response sent
+
+      // Resolve injection late — in production, this means globals are now set in the tab
+      resolveInjection([]);
+      // Flush microtasks: injectPromise resumes → enters while loop → if (cancelled.value) return
+      // → finally block fires cleanup
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(firstSentMessage()).toMatchObject({
+        error: { message: 'Script execution timed out after 30000ms' },
+      });
+
+      // Cleanup must have been called (try/finally ensures this even after cancellation)
+      const calls = mockExecuteScript.mock.calls;
+      const cleanupCall = calls.find(call => {
+        const opts = (call as unknown[])[0] as Record<string, unknown>;
+        return Array.isArray(opts.args) && (opts.args as string[]).includes('__execResult_abc123');
+      });
+      expect(cleanupCall).toBeDefined();
+      const opts = (cleanupCall as unknown[])[0] as Record<string, unknown>;
+      expect(opts.args).toEqual(['__execResult_abc123', '__execAsync_abc123']);
     });
 
     test('runs cleanup script when inner EXEC_MAX_ASYNC_WAIT_MS fires before outer timeout', async () => {
