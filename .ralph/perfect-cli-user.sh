@@ -38,7 +38,13 @@ Then immediately proceed to Docker setup and testing.
 
 ## Step 1: Set up a clean Docker environment
 
-Launch a Docker container to simulate a brand-new user machine:
+First, kill any stale container from a previous run:
+
+```bash
+docker kill opentabs-ux-test 2>/dev/null; docker rm opentabs-ux-test 2>/dev/null; true
+```
+
+Then launch a fresh container:
 
 ```bash
 docker run --rm -d \
@@ -51,10 +57,19 @@ docker run --rm -d \
   "mkdir -p /home/testuser && cp /tmp/staging/.npmrc /home/testuser/.npmrc 2>/dev/null; sleep 86400"
 ```
 
+Verify the container is healthy and record the environment:
+
+```bash
+docker exec opentabs-ux-test bash -c 'echo "Node: $(node --version), npm: $(npm --version), HOME=$HOME" && ls -la $HOME/'
+```
+
+Record the Node.js version — it is critical context. If a command behaves differently than expected, the Node version may explain why.
+
 Key details:
 - Uses `ralph-worker:latest` image (has Node.js, npm, Chromium pre-installed)
 - Mounts `~/.npmrc` read-only for npm auth (required — @opentabs-dev packages are private on npm)
 - Sets a clean HOME at `/home/testuser` so there is no prior opentabs config
+- Uses `--network host` so the server binds to the host's loopback
 - All `docker exec` commands run as: `docker exec opentabs-ux-test <command>`
 
 IMPORTANT: Clean up the container when done (`docker kill opentabs-ux-test`).
@@ -62,6 +77,17 @@ IMPORTANT: Clean up the container when done (`docker kill opentabs-ux-test`).
 ## Step 2: Walk through the COMPLETE new-user journey
 
 Act as a new user. Exercise every command and workflow. Be thorough and methodical.
+
+### Debugging principle: always capture stdout and stderr separately
+
+When testing any command that might fail unexpectedly, capture stdout and stderr into separate files so silent failures surface:
+
+```bash
+docker exec opentabs-ux-test bash -c 'COMMAND 1>/tmp/cmd-stdout.txt 2>/tmp/cmd-stderr.txt; echo "EXIT=$?"'
+docker exec opentabs-ux-test bash -c 'echo "=== STDOUT ==="; cat /tmp/cmd-stdout.txt; echo "=== STDERR ==="; cat /tmp/cmd-stderr.txt'
+```
+
+Use this pattern for `opentabs start --background` and any other command that exits non-zero with no visible output. A command that exits non-zero with empty stdout AND empty stderr is a **silent failure** bug.
 
 ### Phase 1: Installation and first impression
 - Install: `npm install -g @opentabs-dev/cli`
@@ -73,10 +99,11 @@ Act as a new user. Exercise every command and workflow. Be thorough and methodic
 - `opentabs doctor` (before starting — what's the diagnostic?)
 - `opentabs status` (before starting)
 - `opentabs logs` (before starting)
-- Run `opentabs start` in the background:
+- `opentabs start --show-config` (before server has ever started — does it work or error?)
+- Run `opentabs start` in the foreground (capturing output):
   ```bash
   docker exec -d opentabs-ux-test bash -c 'opentabs start > /tmp/start-output.txt 2>&1'
-  sleep 3
+  sleep 5
   docker exec opentabs-ux-test cat /tmp/start-output.txt
   ```
 - Analyze the first-time output: Is it clear? Complete? Correct? Would the MCP config snippets actually work?
@@ -88,7 +115,10 @@ With the server running, test every command systematically:
 - `opentabs status` and `opentabs status --json`
 - `opentabs doctor`
 - `opentabs logs` and `opentabs logs --lines 5`
+- `opentabs logs --plugin nonexistent` (filter for a plugin that doesn't exist — feedback?)
 - `opentabs audit` and `opentabs audit --json` and `opentabs audit --file`
+- `opentabs audit --since 1h` and `opentabs audit --limit 5` (filter options with empty results)
+- `opentabs audit --since invalid` (invalid duration format)
 
 **Config management:**
 - `opentabs config show` and `opentabs config show --json`
@@ -99,11 +129,19 @@ With the server running, test every command systematically:
 - `opentabs config set invalidkey foo` (error handling)
 - `opentabs config set prot 9515` (typo — does it suggest "port"?)
 - `opentabs config set port notanumber` (validation)
+- `opentabs config set port 0` and `opentabs config set port 99999` (boundary values)
 - `opentabs config set browser-tool.browser_execute_script disabled` then re-enable
+- `opentabs config set browser-tool.nonexistent_tool disabled` (nonexistent tool name)
+- `opentabs config set browser-tool.browser_execute_script badvalue` (invalid value)
+- `opentabs config set browser-tool.` (list available browser tools)
 - `opentabs config set localPlugins.add /tmp/nonexistent` (warning?)
+- `opentabs config set localPlugins.add /tmp/nonexistent --force` (force flag)
 - `opentabs config set localPlugins.remove /tmp/nonexistent`
 - `opentabs config reset` (without --confirm)
 - `opentabs config rotate-secret` (without --confirm)
+- `opentabs config rotate-secret --confirm` (actually rotate — verify the secret changed by comparing `config show --show-secret` before and after)
+- `opentabs config set` with no args (missing key)
+- `opentabs config set port` with no value (missing value)
 
 **Plugin management:**
 - `opentabs plugin` and `opentabs plugin --help`
@@ -115,24 +153,58 @@ With the server running, test every command systematically:
 - `opentabs plugin list --verbose` (see tool names)
 - `opentabs plugin remove slack` (without --confirm)
 - `opentabs plugin remove slack --confirm`
+- `opentabs plugin install slack` again (reinstall after remove — does it work cleanly?)
 - `opentabs plugin install nonexistent-plugin` (error handling)
 - `opentabs plugin create test-plugin --domain .example.com` (scaffolding in a temp dir)
+- Verify the scaffolded plugin builds: `cd test-plugin && npm install && npm run build` (does it succeed?)
+
+**Server lifecycle:**
+- `opentabs start` again while server is running (port conflict error)
+- `opentabs stop` while foreground server is running (what message?)
+- Kill the foreground server, then test background mode:
+  ```bash
+  # Kill the foreground server
+  docker exec opentabs-ux-test bash -c 'pkill -f "opentabs" 2>/dev/null; sleep 2'
+  # Test --background (capture stdout/stderr separately!)
+  docker exec opentabs-ux-test bash -c 'opentabs start --background 1>/tmp/bg-stdout.txt 2>/tmp/bg-stderr.txt; echo "EXIT=$?"'
+  docker exec opentabs-ux-test bash -c 'cat /tmp/bg-stdout.txt; cat /tmp/bg-stderr.txt'
+  # If --background succeeded: test stop
+  docker exec opentabs-ux-test bash -c 'opentabs status'
+  docker exec opentabs-ux-test bash -c 'opentabs stop'
+  docker exec opentabs-ux-test bash -c 'opentabs status'
+  ```
+- `opentabs stop` when no server is running
+
+**Custom port end-to-end:**
+- Start server on a custom port: `opentabs start --port 8888` (foreground, in background via docker exec -d)
+- Verify: `opentabs status --port 8888`
+- Verify: `opentabs doctor --port 8888`
+- Kill it after testing
 
 **Other commands:**
 - `opentabs update`
-- `opentabs start` again while server is running (port conflict error)
+- `opentabs start --show-config` (after server has been initialized)
 - Every `--help` flag on every subcommand
 
-### Phase 4: Server stopped — test offline behavior
-Kill the server process and test:
+### Phase 4: Config reset and fresh re-start
+Test destructive config operations and recovery:
+- `opentabs config reset --confirm` (actually reset)
+- `opentabs config show` (what does it look like after reset?)
+- `opentabs doctor` (what's the diagnostic after reset?)
+- Start the server again — does it re-initialize cleanly?
+- Kill the server
+
+### Phase 5: Server stopped — test offline behavior
+With no server running, test every command for graceful degradation:
 - `opentabs status` — graceful "not running" message?
 - `opentabs doctor` — degrades gracefully?
 - `opentabs audit` — handles no server?
+- `opentabs audit --file` — reads from disk log?
 - `opentabs logs` — still works from file?
 - `opentabs plugin list` — offline mode?
 - `opentabs config show` — works without server?
 
-### Phase 5: Cleanup
+### Phase 6: Cleanup
 - `docker kill opentabs-ux-test`
 
 ## Step 3: Evaluate every interaction for friction
@@ -151,7 +223,7 @@ For each command, evaluate from a NORMAL USER's perspective (not a developer):
 - **Confusing output**: Messages that don't make sense without insider knowledge
 - **Missing information**: Important details not shown when needed
 - **Excessive information**: Output that overwhelms or buries the important stuff
-- **Silent failures**: Things that fail without telling the user
+- **Silent failures**: Things that fail without telling the user (exit non-zero with no output)
 - **Poor error messages**: Errors that don't tell you how to fix the problem
 - **Discoverability gaps**: Features that exist but users would never find
 
