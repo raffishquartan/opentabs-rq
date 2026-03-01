@@ -79,16 +79,32 @@ const docComponents = {
     );
   },
   pre: CodeBlock,
-  code: ({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) => (
-    <code
-      className={cn(
-        'bg-inline-code-bg text-inline-code-fg border-border/30 relative rounded-(--radius) border px-1.5 py-0.5 font-mono text-sm',
-        className,
-      )}
-      {...props}>
-      {children}
-    </code>
-  ),
+  code: ({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) => {
+    // Skip inline-code styling for code elements inside code blocks.
+    // Block code is identified by: (1) data-language/data-theme from rehype-pretty-code,
+    // or (2) children containing newlines (language-less code blocks).
+    const isBlock =
+      'data-language' in props || 'data-theme' in props || (typeof children === 'string' && children.includes('\n'));
+
+    if (isBlock) {
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      );
+    }
+
+    return (
+      <code
+        className={cn(
+          'bg-inline-code-bg text-inline-code-fg border-border/30 relative rounded-(--radius) border px-1.5 py-0.5 font-mono text-sm',
+          className,
+        )}
+        {...props}>
+        {children}
+      </code>
+    );
+  },
   TabGroup,
   TabList,
   Tab,
