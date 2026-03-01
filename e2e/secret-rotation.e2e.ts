@@ -162,15 +162,19 @@ test.describe('Secret rotation via POST /reload', () => {
 
       // MCP client with old secret is rejected
       const oldClient = createMcpClient(server.port, oldSecret);
+      let oldClientSucceeded = false;
       try {
         await oldClient.initialize();
-        throw new Error('Expected old-secret client to be rejected during initialize');
+        oldClientSucceeded = true;
       } catch (err: unknown) {
         // Expected: server rejects the old secret with 401 Unauthorized
         const message = err instanceof Error ? err.message : String(err);
         expect(message).toMatch(/401|Unauthorized/i);
       } finally {
         await oldClient.close();
+      }
+      if (oldClientSucceeded) {
+        throw new Error('Old secret should have been rejected but initialize() succeeded');
       }
     } finally {
       await server.kill();
