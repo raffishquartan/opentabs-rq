@@ -1174,6 +1174,10 @@ const handleBuild = async (options: { watch?: boolean }): Promise<void> => {
   let pendingRebuild = false;
 
   const rebuild = async () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
     if (building) {
       pendingRebuild = true;
       return;
