@@ -161,30 +161,59 @@ This lets users respond with "1A, 2B" for quick iteration.
 
 Before writing any stories, **read the actual code** and verify that each planned story addresses a genuine, demonstrable problem — not a matter of stylistic preference or an alternative approach to something that already works correctly.
 
-For each candidate story, ask:
+Every story you create will be implemented by an autonomous agent. If you create a story for a non-issue, the agent will make an unnecessary change to working code, potentially introducing a real bug. A false positive is worse than a missed issue.
 
-- **Is this a real problem or a different opinion?** If the existing code follows a recognized, industry-standard pattern and is correct, do not create a story to rewrite it in a different-but-equivalent style. Two valid approaches to the same problem do not make one of them a bug.
-- **Can you articulate the concrete harm?** Every story must identify a specific, observable issue: a bug, a maintainability hazard, a performance problem, dead code, a resource leak, a missing defensive guard, an architectural inconsistency with concrete consequences, a violation of the project's own documented conventions, or duplicated logic. "I would have written it differently" is not a valid justification. A valid justification names a concrete consequence — something that can happen at runtime or during maintenance: a resource that grows unboundedly, an unhandled error path that crashes, a missing cleanup that fires on stale state, a guard present in some code paths but absent in equivalent ones, data silently dropped or duplicated, a code path that is unreachable, etc.
+### What qualifies as a genuine issue
 
-**Do not create stories that:**
+A genuine issue has a **concrete, observable consequence**:
 
-- Rewrite working, idiomatic code into a stylistically different but equivalent form
-- Apply a "best practice" that the codebase intentionally and consistently does not follow (check if there's a documented reason)
-- Rename things that already have clear, descriptive names just because you'd prefer a different name
-- Restructure modules that are already well-organized just to match a different organizational preference
+- **Runtime crash or exception** — unhandled error, null dereference, type mismatch at runtime
+- **Data loss or corruption** — silent data drop, partial write, truncated output, incorrect calculation
+- **Resource leak** — unbounded map/set/array growth, uncleaned timer/interval, unreleased listener, orphaned connection
+- **Security vulnerability** — missing input validation, leaked secrets in errors, permission bypass
+- **Race condition** — concurrent operations producing incorrect state, lost updates, stale closures
+- **Silent wrong behavior** — function returns incorrect result without error, condition is always true/false
+- **Missing cleanup on equivalent path** — cleanup runs on success but not on error (or vice versa)
+- **Dead or unreachable code** — exports never imported, branches that can never execute, code after unconditional return
+- **Unhelpful error that causes user confusion** — error message that doesn't tell the user what went wrong or how to fix it
+- **Violation of the project's own documented conventions** (in CLAUDE.md, ESLint config, etc.)
+- **Real duplication** — identical logic copy-pasted (not just similar-looking code that handles different concerns)
 
-**Do create stories that:**
+Every story must name one of these consequences specifically.
 
-- Fix actual bugs or incorrect behavior
-- Remove genuinely dead or unreachable code
-- Eliminate real duplication (not just similar-looking code that handles different concerns)
-- Address violations of the project's own documented conventions (in CLAUDE.md, ESLint config, etc.)
-- Fix real maintainability hazards (e.g., a 500-line function, deeply nested logic, missing error handling)
-- Fix resource leaks or missing cleanup (uncleaned timers, event listeners, unbounded maps/caches)
-- Add missing defensive guards (e.g., API version checks, null checks that prevent crashes on edge cases)
-- Fix architectural inconsistencies with concrete consequences (e.g., shared state protected by locks in some code paths but not others, leading to potential race conditions or redundant work)
+### What does NOT qualify as an issue
 
-**Discard any candidate story that fails this validation.** Only exclude stories that are purely stylistic preferences — a different-but-equivalent way to write working code. If a story has a concrete consequence (leaked resource, potential crash, inconsistent behavior, data loss), it is a legitimate fix regardless of severity.
+- **Style preferences** — you would write it differently, but the current code is correct and clear
+- **Equivalent alternatives** — `for...of` vs `.forEach()`, `const` vs `let` when mutation doesn't occur, early return vs else block
+- **Naming preferences** — the current name is descriptive and unambiguous, you just prefer a different word
+- **Module organization preferences** — moving code between files without fixing a concrete problem
+- **Theoretical issues with no reachable execution path** — if no sequence of events can trigger it, skip it
+- **Issues already handled by existing code** — always read the full function, the caller, and the surrounding module before reporting. If a guard, catch, cleanup, fallback, or retry already addresses the concern, skip it
+- **Best practices the codebase intentionally does not follow** — check if there's a documented reason before reporting
+
+### Validation checklist (apply to every candidate story)
+
+Before including a story, verify ALL four:
+
+1. **Concrete consequence.** Can you name the specific observable harm from the list above? If you cannot name it, discard.
+2. **Not a style preference.** Is the existing code functionally incorrect or hazardous — not just a different-but-equivalent approach? If it works correctly using a recognized pattern, discard.
+3. **Not already handled.** Have you read the full function and its callers to check for existing guards, catches, cleanup, or fallback logic? If already handled, discard.
+4. **Reproducible trigger.** Does there exist a sequence of events (even if unlikely) that triggers the issue? If no path leads to the problem, discard.
+
+**Discard any candidate story that fails any of these four checks.** It is better to create 2 genuine stories than 2 genuine stories plus 1 false positive.
+
+**The bright-line test:** Before including any story, ask: _"Is the current code incorrect, or would I just write it differently?"_ If the answer is "I'd write it differently," discard it.
+
+If you find **zero genuine issues** after validation, that is a valid outcome. Do not manufacture stories to fill a quota.
+
+### Story notes for quality fixes
+
+Every story that fixes a quality issue must include notes that help the agent avoid introducing regressions:
+
+- **Describe the root cause**, not just the symptom. The agent needs to understand _why_ the current code is wrong.
+- **Identify related code paths.** If the same pattern exists in multiple places, mention all of them.
+- **Call out invariants.** If fixing this issue requires preserving a specific behavior, state it explicitly.
+- **Warn about traps.** If there is an obvious wrong fix that would seem correct but would break something, say so.
 
 ---
 
