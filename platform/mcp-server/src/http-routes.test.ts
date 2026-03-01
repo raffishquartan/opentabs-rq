@@ -489,6 +489,41 @@ describe('/health endpoint', () => {
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(200);
   });
+
+  test('unauthenticated response includes x-opentabs-version header', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+
+    const req = new Request('http://localhost:9876/health', { headers: { Host: 'localhost:9876' } });
+    const res = await handlers.fetch(req, mockServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).headers.get('x-opentabs-version')).toBe(version);
+  });
+
+  test('authenticated response includes x-opentabs-version header', async () => {
+    const secret = 'test-secret';
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = secret;
+
+    const req = new Request('http://localhost:9876/health', {
+      headers: { Host: 'localhost:9876', Authorization: `Bearer ${secret}` },
+    });
+    const res = await handlers.fetch(req, mockServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).headers.get('x-opentabs-version')).toBe(version);
+  });
+
+  test('response includes x-opentabs-version header when no secret configured', async () => {
+    const { handlers } = createTestHandlers();
+
+    const req = new Request('http://localhost:9876/health', { headers: { Host: 'localhost:9876' } });
+    const res = await handlers.fetch(req, mockServer);
+
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).headers.get('x-opentabs-version')).toBe(version);
+  });
 });
 
 describe('/ws-info endpoint', () => {

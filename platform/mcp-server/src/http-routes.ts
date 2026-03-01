@@ -265,7 +265,7 @@ const handleHealth = (
   const authenticated = checkBearerAuth(req, state.wsSecret) === null;
 
   if (!authenticated) {
-    return Response.json({ status: 'ok' });
+    return Response.json({ status: 'ok' }, { headers: { 'x-opentabs-version': version } });
   }
 
   const hs = getHotState();
@@ -302,36 +302,39 @@ const handleHealth = (
 
   const browserToolNames = state.cachedBrowserTools.map(c => c.name);
 
-  return Response.json({
-    status: 'ok',
-    version,
-    sdkVersion,
-    mode: isDev() ? 'dev' : 'production',
-    extensionConnected: state.extensionWs !== null,
-    mcpClients: transports.size,
-    plugins: state.registry.plugins.size,
-    pluginDetails,
-    failedPlugins: [...state.registry.failures],
-    discoveryErrors: [...state.discoveryErrors],
-    toolCount,
-    browserToolCount,
-    pluginToolCount,
-    browserToolNames,
-    disabledBrowserTools,
-    confirmationBypassed: state.skipConfirmation,
-    uptime: uptimeSeconds,
-    reloadCount: hs?.reloadCount ?? 0,
-    lastReloadTimestamp: hs?.lastReloadTimestamp ?? 0,
-    lastReloadDurationMs: hs?.lastReloadDurationMs ?? 0,
-    stateSchemaVersion: STATE_SCHEMA_VERSION,
-    fileWatcher: {
-      watchedPlugins,
-      pendingPlugins,
-      lastPollAt: state.fileWatching.mtimeLastPollAt,
-      pollDetections: state.fileWatching.mtimePollDetections,
+  return Response.json(
+    {
+      status: 'ok',
+      version,
+      sdkVersion,
+      mode: isDev() ? 'dev' : 'production',
+      extensionConnected: state.extensionWs !== null,
+      mcpClients: transports.size,
+      plugins: state.registry.plugins.size,
+      pluginDetails,
+      failedPlugins: [...state.registry.failures],
+      discoveryErrors: [...state.discoveryErrors],
+      toolCount,
+      browserToolCount,
+      pluginToolCount,
+      browserToolNames,
+      disabledBrowserTools,
+      confirmationBypassed: state.skipConfirmation,
+      uptime: uptimeSeconds,
+      reloadCount: hs?.reloadCount ?? 0,
+      lastReloadTimestamp: hs?.lastReloadTimestamp ?? 0,
+      lastReloadDurationMs: hs?.lastReloadDurationMs ?? 0,
+      stateSchemaVersion: STATE_SCHEMA_VERSION,
+      fileWatcher: {
+        watchedPlugins,
+        pendingPlugins,
+        lastPollAt: state.fileWatching.mtimeLastPollAt,
+        pollDetections: state.fileWatching.mtimePollDetections,
+      },
+      auditSummary,
     },
-    auditSummary,
-  });
+    { headers: { 'x-opentabs-version': version } },
+  );
 };
 
 /** Audit log endpoint (GET /audit) */

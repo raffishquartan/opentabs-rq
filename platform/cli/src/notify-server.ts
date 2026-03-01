@@ -25,7 +25,8 @@ const notifyServer = async (options: NotifyOptions): Promise<void> => {
     const healthRes = await fetch(`http://localhost:${port}/health`, {
       signal: AbortSignal.timeout(3_000),
     });
-    if (!healthRes.ok) {
+    const isOpenTabs = healthRes.headers.get('x-opentabs-version') !== null;
+    if (!healthRes.ok || !isOpenTabs) {
       if (options.warnIfNotRunning) {
         console.log(pc.dim('Server not running — changes will apply on next start.'));
       }
