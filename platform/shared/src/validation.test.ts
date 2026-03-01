@@ -207,6 +207,52 @@ describe('validateUrlPattern', () => {
     });
   });
 
+  describe('IPv4 validation', () => {
+    test('accepts valid IPv4 192.168.1.1', () => {
+      expect(validateUrlPattern('*://192.168.1.1/*')).toBeNull();
+    });
+
+    test('accepts valid IPv4 127.0.0.1', () => {
+      expect(validateUrlPattern('*://127.0.0.1/*')).toBeNull();
+    });
+
+    test('accepts valid IPv4 10.0.0.1', () => {
+      expect(validateUrlPattern('*://10.0.0.1/*')).toBeNull();
+    });
+
+    test('accepts edge case 0.0.0.0', () => {
+      expect(validateUrlPattern('*://0.0.0.0/*')).toBeNull();
+    });
+
+    test('accepts edge case 255.255.255.255', () => {
+      expect(validateUrlPattern('*://255.255.255.255/*')).toBeNull();
+    });
+
+    test('accepts valid IPv4 with port', () => {
+      expect(validateUrlPattern('https://192.168.1.1:8080/*')).toBeNull();
+    });
+
+    test('rejects 256.0.0.1 (first octet out of range)', () => {
+      const error = validateUrlPattern('*://256.0.0.1/*');
+      expect(error).not.toBeNull();
+      expect(error).toContain('octets must be 0-255');
+      expect(error).toContain('256.0.0.1');
+    });
+
+    test('rejects 999.999.999.999 (all octets out of range)', () => {
+      const error = validateUrlPattern('*://999.999.999.999/*');
+      expect(error).not.toBeNull();
+      expect(error).toContain('octets must be 0-255');
+      expect(error).toContain('999.999.999.999');
+    });
+
+    test('rejects 192.168.1.256 (last octet out of range)', () => {
+      const error = validateUrlPattern('*://192.168.1.256/*');
+      expect(error).not.toBeNull();
+      expect(error).toContain('octets must be 0-255');
+    });
+  });
+
   describe('ftp scheme', () => {
     test('rejects ftp scheme (Chrome removed FTP support)', () => {
       const error = validateUrlPattern('ftp://example.com/*');

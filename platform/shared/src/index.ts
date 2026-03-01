@@ -470,5 +470,14 @@ export const validateUrlPattern = (pattern: string): string | null => {
     return `URL pattern "${pattern}" has an invalid host "${host}"`;
   }
 
+  // Validate IPv4 octet ranges (0-255) to reject addresses like 999.999.999.999.
+  if (/^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host)) {
+    const hostWithoutPort = host.replace(/:\d+$/, '');
+    const octets = hostWithoutPort.split('.').map(Number);
+    if (octets.some(o => o > 255)) {
+      return `Invalid IPv4 address in URL pattern: octets must be 0-255, got '${hostWithoutPort}'`;
+    }
+  }
+
   return null;
 };
