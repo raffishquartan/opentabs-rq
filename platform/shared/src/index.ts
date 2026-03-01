@@ -299,6 +299,7 @@ export interface ConfigStateResult {
   plugins: ConfigStatePlugin[];
   failedPlugins: ConfigStateFailedPlugin[];
   browserTools: ConfigStateBrowserTool[];
+  serverVersion?: string;
 }
 
 /** config.setToolEnabled request params */

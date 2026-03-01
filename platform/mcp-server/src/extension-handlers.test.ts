@@ -675,6 +675,21 @@ describe('handleConfigGetState', () => {
     };
     expect(response.result.browserTools).toEqual([]);
   });
+
+  test('includes serverVersion in the result', () => {
+    const state = createState();
+    const { ws, messages } = createMockWs();
+    state.extensionWs = ws;
+
+    handleConfigGetState(state, 'req-5');
+
+    expect(messages).toHaveLength(1);
+    const response = JSON.parse(messages[0] as string) as {
+      result: { serverVersion: unknown };
+    };
+    expect(typeof response.result.serverVersion).toBe('string');
+    expect(response.result.serverVersion).toMatch(/^\d+\.\d+\.\d+/);
+  });
 });
 
 describe('handleConfigSetBrowserToolEnabled', () => {

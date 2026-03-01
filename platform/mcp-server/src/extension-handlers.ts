@@ -21,6 +21,7 @@ import {
   DISPATCH_TIMEOUT_MS,
   MAX_DISPATCH_TIMEOUT_MS,
 } from './state.js';
+import { version } from './version.js';
 import type { PluginLogEntry } from './log-buffer.js';
 import type { RegisteredPlugin, ServerState, TabMapping, ConfirmationScope, SessionPermissionRule } from './state.js';
 import type {
@@ -276,6 +277,7 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
       plugins,
       failedPlugins: state.discoveryErrors.map(e => ({ specifier: e.specifier, error: e.error })),
       browserTools,
+      serverVersion: version,
     },
     id,
   });
