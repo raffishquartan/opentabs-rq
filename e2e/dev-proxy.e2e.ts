@@ -546,6 +546,95 @@ test.describe.serial('Dev proxy SSE mid-stream worker restart', () => {
       await page.close();
     }
   });
+
+  test('rapid successive hot reloads during active SSE stream resolve without deadlock', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    test.slow();
+
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    try {
+      // Baseline: verify the slow_with_progress tool works normally
+      const baseline = await mcpClient.callToolWithProgress(
+        'e2e-test_slow_with_progress',
+        { durationMs: 500, steps: 2 },
+        { timeout: 15_000 },
+      );
+      expect(baseline.isError).toBe(false);
+      const baselineOutput = parseToolResult(baseline.content);
+      expect(baselineOutput.completed).toBe(true);
+
+      // Start a slow tool call that produces an SSE stream with progress
+      // notifications over 5 seconds. This exercises the proxy's piped SSE
+      // connection path, which breaks when the worker is killed mid-stream.
+      const slowCallPromise = mcpClient.callToolWithProgress(
+        'e2e-test_slow_with_progress',
+        { durationMs: 5_000, steps: 10 },
+        { timeout: 30_000 },
+      );
+
+      // Wait for the request to reach the worker and start producing
+      // progress events before triggering the rapid reloads.
+      await new Promise(r => setTimeout(r, 500));
+
+      // Fire 3 hot reloads in rapid succession without awaiting between them.
+      // Each reload kills the current worker and forks a new one — the last
+      // worker becomes the final worker. The proxy must not deadlock or corrupt
+      // state even when multiple restarts overlap with an active SSE stream.
+      mcpServer.logs.length = 0;
+      mcpServer.triggerHotReload();
+      mcpServer.triggerHotReload();
+      mcpServer.triggerHotReload();
+
+      // The slow SSE call may complete, error cleanly with 502/connection reset,
+      // or time out — all outcomes are acceptable. The proxy must not hang.
+      try {
+        const slowResult = await slowCallPromise;
+        if (!slowResult.isError) {
+          const output = parseToolResult(slowResult.content);
+          expect(output.completed).toBe(true);
+        }
+      } catch {
+        // 502 Bad Gateway, connection reset, or partial SSE stream — expected
+        // when the worker is killed mid-stream by rapid successive reloads.
+      }
+
+      // Wait for the final hot reload to complete (the last worker reports ready)
+      await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+
+      // Wait for the extension to reconnect to the new worker
+      await waitForExtensionConnected(mcpServer, 30_000);
+
+      // Wait for the extension to resync plugin/tool state with the new worker
+      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+
+      // Poll until the tool is callable end-to-end through the extension
+      await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
+
+      // Verify end-to-end tool dispatch works after all rapid hot reloads.
+      // This confirms the proxy's full relay path is functional after multiple
+      // overlapping worker restarts during an active SSE stream.
+      const afterResult = await mcpClient.callTool('e2e-test_echo', { message: 'after-rapid-reload' });
+      expect(afterResult.isError).toBe(false);
+      expect(parseToolResult(afterResult.content).message).toBe('after-rapid-reload');
+
+      // Verify no deadlock, state corruption, or uncaught exceptions in logs.
+      // ECONNREFUSED is intentionally excluded — it may appear legitimately
+      // when the proxy tries to forward to a worker that was already killed by
+      // a subsequent rapid reload.
+      const errorPatterns = ['deadlock', 'state corruption', 'uncaughtException'];
+      const joinedLogs = mcpServer.logs.join('\n');
+      for (const pattern of errorPatterns) {
+        expect(joinedLogs).not.toContain(pattern);
+      }
+    } finally {
+      await page.close();
+    }
+  });
 });
 
 test.describe('Dev proxy WebSocket upgrade during worker restart', () => {
