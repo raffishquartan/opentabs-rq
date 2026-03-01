@@ -424,11 +424,12 @@ handle: async (params) => {
 Use `log` from the SDK to send structured logs through the platform:
 
 ```typescript
-import { log } from "@opentabs-dev/plugin-sdk";
+import { log, fetchJSON, ToolError } from "@opentabs-dev/plugin-sdk";
 
 handle: async (params) => {
   log.info("Fetching items", { limit: params.limit });
-  const data = await fetchJSON("/api/items");
+  const data = await fetchJSON<{ items: { id: string; name: string }[] }>("/api/items");
+  if (!data) throw ToolError.internal("No data returned");
   log.debug("Got response", { count: data.items.length });
   return { items: data.items };
 };

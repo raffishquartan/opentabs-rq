@@ -79,7 +79,8 @@ async function handle({ query }: { query: string }) {
   await waitForSelector('.search-loaded');
   log.debug('Search page is ready');
 
-  const results = await fetchJSON(`/api/search?q=${encodeURIComponent(query)}`);
+  const results = await fetchJSON<{ items: { id: string; title: string }[] }>(`/api/search?q=${encodeURIComponent(query)}`);
+  if (!results) throw ToolError.internal('No results returned');
   log.info('Search complete', { resultCount: results.items.length });
 
   if (results.items.length === 0) {
