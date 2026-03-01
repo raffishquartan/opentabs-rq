@@ -142,5 +142,80 @@ const MultiplePlugins: Story = {
   render: () => <MultiplePluginsDemo />,
 };
 
+const WithMenuDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin({ source: 'npm', trustTier: 'community', tabState: 'ready' })]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return (
+    <PluginCard
+      plugin={plugin}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      onUpdate={() => undefined}
+      onRemove={() => undefined}
+    />
+  );
+};
+
+const WithMenu: Story = {
+  render: () => <WithMenuDemo />,
+};
+
+const WithMenuAndUpdateDemo = () => {
+  const [plugins, setPlugins] = useState([
+    mockPlugin({
+      source: 'npm',
+      trustTier: 'community',
+      tabState: 'ready',
+      update: { latestVersion: '0.2.0', updateCommand: 'npm update -g opentabs-plugin-slack@latest' },
+    }),
+  ]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return (
+    <PluginCard
+      plugin={plugin}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      onUpdate={() => undefined}
+      onRemove={() => undefined}
+    />
+  );
+};
+
+const WithMenuAndUpdate: Story = {
+  render: () => <WithMenuAndUpdateDemo />,
+};
+
+const RemovingStateDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin({ source: 'npm', trustTier: 'community', tabState: 'ready' })]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return (
+    <PluginCard
+      plugin={plugin}
+      activeTools={new Set()}
+      setPlugins={setPlugins}
+      onUpdate={() => undefined}
+      onRemove={() => undefined}
+      removingPlugin={true}
+    />
+  );
+};
+
+const RemovingState: Story = {
+  render: () => <RemovingStateDemo />,
+};
+
 export default meta;
-export { Ready, TabClosed, TabUnavailable, ReadyWithUpdate, WithActiveTool, MultiplePlugins };
+export {
+  Ready,
+  TabClosed,
+  TabUnavailable,
+  ReadyWithUpdate,
+  WithActiveTool,
+  MultiplePlugins,
+  WithMenu,
+  WithMenuAndUpdate,
+  RemovingState,
+};

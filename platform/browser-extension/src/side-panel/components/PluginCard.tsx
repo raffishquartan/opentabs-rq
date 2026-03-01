@@ -1,4 +1,5 @@
 import { PluginIcon } from './PluginIcon.js';
+import { PluginMenu } from './PluginMenu.js';
 import { Accordion } from './retro/Accordion.js';
 import { Alert } from './retro/Alert.js';
 import { Badge } from './retro/Badge.js';
@@ -19,11 +20,19 @@ const PluginCard = ({
   activeTools,
   setPlugins,
   toolFilter,
+  onUpdate,
+  onRemove,
+  updatingPlugin,
+  removingPlugin,
 }: {
   plugin: PluginState;
   activeTools: Set<string>;
   setPlugins: Dispatch<SetStateAction<PluginState[]>>;
   toolFilter?: string;
+  onUpdate?: () => void;
+  onRemove?: () => void;
+  updatingPlugin?: boolean;
+  removingPlugin?: boolean;
 }) => {
   const [toggleError, setToggleError] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -71,7 +80,9 @@ const PluginCard = ({
   const visibleTools = filterLower ? plugin.tools.filter(t => matchesTool(t, filterLower)) : plugin.tools;
 
   return (
-    <Accordion.Item value={plugin.name}>
+    <Accordion.Item
+      value={plugin.name}
+      className={removingPlugin ? 'pointer-events-none opacity-60 transition-opacity' : undefined}>
       <AccordionPrimitive.Header className="flex">
         <AccordionPrimitive.Trigger className="font-head flex flex-1 cursor-pointer items-center gap-2 px-3 py-2 focus:outline-hidden [&[data-state=open]>svg]:rotate-180">
           <Tooltip>
@@ -116,6 +127,14 @@ const PluginCard = ({
           </div>
           <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
         </AccordionPrimitive.Trigger>
+        <PluginMenu
+          plugin={plugin}
+          onUpdate={onUpdate ?? (() => undefined)}
+          onRemove={onRemove ?? (() => undefined)}
+          updating={updatingPlugin ?? false}
+          removing={removingPlugin ?? false}
+          className="flex shrink-0 items-center px-1"
+        />
         <div
           className="flex shrink-0 items-center px-3"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}

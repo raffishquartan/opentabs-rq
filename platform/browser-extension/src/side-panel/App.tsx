@@ -4,6 +4,10 @@ import {
   handleServerResponse,
   rejectAllPending,
   sendConfirmationResponse,
+  searchPlugins,
+  installPlugin,
+  removePlugin,
+  updatePlugin,
 } from './bridge.js';
 import { ConfirmationDialog } from './components/ConfirmationDialog.js';
 import { DisconnectedState, NoPluginsState, LoadingState } from './components/EmptyStates.js';
@@ -11,10 +15,11 @@ import { Footer } from './components/Footer.js';
 import { PluginList } from './components/PluginList.js';
 import { Input } from './components/retro/Input.js';
 import { Tooltip } from './components/retro/Tooltip.js';
+import { SearchResults } from './components/SearchResults.js';
 import { useServerNotifications } from './hooks/useServerNotifications.js';
 import { Search, X } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { FailedPluginState, PluginState } from './bridge.js';
+import type { FailedPluginState, PluginSearchResult, PluginState } from './bridge.js';
 import type { DisconnectReason, InternalMessage } from '../extension-messages.js';
 import type { ConfirmationData } from './components/ConfirmationDialog.js';
 import type { TabState } from '@opentabs-dev/shared';
@@ -26,11 +31,17 @@ const App = () => {
   const [failedPlugins, setFailedPlugins] = useState<FailedPluginState[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTools, setActiveTools] = useState<Set<string>>(new Set());
-  const [toolFilter, setToolFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [pendingConfirmations, setPendingConfirmations] = useState<ConfirmationData[]>([]);
+  const [npmResults, setNpmResults] = useState<PluginSearchResult[]>([]);
+  const [npmSearching, setNpmSearching] = useState(false);
+  const [installingPlugins, setInstallingPlugins] = useState<Set<string>>(new Set());
+  const [removingPlugins, setRemovingPlugins] = useState<Set<string>>(new Set());
+  const [installErrors, setInstallErrors] = useState<Map<string, string>>(new Map());
 
   const lastFetchRef = useRef(0);
   const pendingTabStates = useRef<Map<string, TabState>>(new Map());
+  const npmSearchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const connectedRef = useRef(connected);
   const loadingRef = useRef(loading);
@@ -80,6 +91,83 @@ const App = () => {
     pendingTabStates,
   });
 
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+    clearTimeout(npmSearchTimer.current);
+    if (!query.trim()) {
+      setNpmResults([]);
+      setNpmSearching(false);
+      return;
+    }
+    setNpmSearching(true);
+    npmSearchTimer.current = setTimeout(() => {
+      searchPlugins(query)
+        .then(result => {
+          setNpmResults(result.results);
+        })
+        .catch(() => {
+          setNpmResults([]);
+        })
+        .finally(() => {
+          setNpmSearching(false);
+        });
+    }, 400);
+  }, []);
+
+  const handleInstall = useCallback(
+    (name: string) => {
+      setInstallingPlugins(prev => new Set(prev).add(name));
+      setInstallErrors(prev => {
+        const next = new Map(prev);
+        next.delete(name);
+        return next;
+      });
+      installPlugin(name)
+        .then(() => {
+          setInstallingPlugins(prev => {
+            const next = new Set(prev);
+            next.delete(name);
+            return next;
+          });
+          handleSearchChange('');
+        })
+        .catch((err: unknown) => {
+          setInstallingPlugins(prev => {
+            const next = new Set(prev);
+            next.delete(name);
+            return next;
+          });
+          setInstallErrors(prev => new Map(prev).set(name, err instanceof Error ? err.message : String(err)));
+        });
+    },
+    [handleSearchChange],
+  );
+
+  const handleRemove = useCallback((pluginName: string) => {
+    setRemovingPlugins(prev => new Set(prev).add(pluginName));
+    removePlugin(pluginName)
+      .then(() => {
+        setRemovingPlugins(prev => {
+          const next = new Set(prev);
+          next.delete(pluginName);
+          return next;
+        });
+      })
+      .catch(() => {
+        setRemovingPlugins(prev => {
+          const next = new Set(prev);
+          next.delete(pluginName);
+          return next;
+        });
+      });
+  }, []);
+
+  const handleUpdate = useCallback((pluginName: string) => {
+    updatePlugin(pluginName).catch(() => {
+      // plugins.changed notification will refresh the list on success
+    });
+  }, []);
+
   useEffect(() => {
     void getConnectionState()
       .then(result => {
@@ -126,7 +214,7 @@ const App = () => {
           setFailedPlugins([]);
           setActiveTools(new Set());
           setPendingConfirmations([]);
-          setToolFilter('');
+          handleSearchChange('');
           rejectAllPending();
         }
         sendResponse({ ok: true });
@@ -165,7 +253,7 @@ const App = () => {
 
     chrome.runtime.onMessage.addListener(listener);
     return () => chrome.runtime.onMessage.removeListener(listener);
-  }, [loadPlugins, handleNotification]);
+  }, [loadPlugins, handleNotification, handleSearchChange]);
 
   const handleConfirmationRespond = useCallback(
     (
@@ -188,10 +276,9 @@ const App = () => {
     setPendingConfirmations([]);
   }, [pendingConfirmations, clearConfirmationTimeout]);
 
-  const totalTools = plugins.reduce((sum, p) => sum + p.tools.length, 0);
   const hasContent = plugins.length > 0 || failedPlugins.length > 0;
-  const showPlugins = !loading && connected && hasContent;
-  const showSearchBar = connected && !loading && totalTools > 5;
+  const showPlugins = !loading && connected && (hasContent || !!searchQuery);
+  const showSearchBar = connected && !loading;
 
   return (
     <Tooltip.Provider>
@@ -208,15 +295,15 @@ const App = () => {
             <div className="relative">
               <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 h-4 w-4 -translate-y-1/2" />
               <Input
-                value={toolFilter}
-                onChange={e => setToolFilter(e.target.value)}
-                placeholder="Filter tools..."
+                value={searchQuery}
+                onChange={e => handleSearchChange(e.target.value)}
+                placeholder="Search plugins and tools..."
                 className="pr-8 pl-9"
               />
-              {toolFilter && (
+              {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setToolFilter('')}
+                  onClick={() => handleSearchChange('')}
                   className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 cursor-pointer">
                   <X className="h-4 w-4" />
                 </button>
@@ -230,15 +317,34 @@ const App = () => {
             <LoadingState />
           ) : !connected ? (
             <DisconnectedState reason={disconnectReason} />
-          ) : !hasContent ? (
+          ) : !hasContent && !searchQuery ? (
             <NoPluginsState />
+          ) : searchQuery ? (
+            <SearchResults
+              plugins={plugins}
+              failedPlugins={failedPlugins}
+              activeTools={activeTools}
+              setPlugins={setPlugins}
+              toolFilter={searchQuery}
+              npmResults={npmResults}
+              npmSearching={npmSearching}
+              installingPlugins={installingPlugins}
+              onInstall={handleInstall}
+              installErrors={installErrors}
+              onUpdate={handleUpdate}
+              onRemove={handleRemove}
+              removingPlugins={removingPlugins}
+            />
           ) : (
             <PluginList
               plugins={plugins}
               failedPlugins={failedPlugins}
               activeTools={activeTools}
               setPlugins={setPlugins}
-              toolFilter={toolFilter}
+              toolFilter=""
+              onUpdate={handleUpdate}
+              onRemove={handleRemove}
+              removingPlugins={removingPlugins}
             />
           )}
         </main>

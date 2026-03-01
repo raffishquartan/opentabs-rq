@@ -11,12 +11,18 @@ const PluginList = ({
   activeTools,
   setPlugins,
   toolFilter,
+  onUpdate,
+  onRemove,
+  removingPlugins,
 }: {
   plugins: PluginState[];
   failedPlugins: FailedPluginState[];
   activeTools: Set<string>;
   setPlugins: Dispatch<SetStateAction<PluginState[]>>;
   toolFilter: string;
+  onUpdate?: (pluginName: string) => void;
+  onRemove?: (pluginName: string) => void;
+  removingPlugins?: Set<string>;
 }) => {
   const filterLower = toolFilter.toLowerCase();
 
@@ -48,6 +54,9 @@ const PluginList = ({
             activeTools={activeTools}
             setPlugins={setPlugins}
             toolFilter={toolFilter}
+            onUpdate={onUpdate ? () => onUpdate(plugin.name) : undefined}
+            onRemove={onRemove ? () => onRemove(plugin.name) : undefined}
+            removingPlugin={removingPlugins?.has(plugin.name)}
           />
         ))}
       </Accordion>

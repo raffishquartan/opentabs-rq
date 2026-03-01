@@ -1,10 +1,13 @@
 import { DisconnectedState, NoPluginsState, LoadingState } from './EmptyStates';
 import { Footer } from './Footer';
+import { PluginCard } from './PluginCard';
 import { PluginList } from './PluginList';
+import { Accordion } from './retro/Accordion';
 import { Input } from './retro/Input';
+import { SearchResults } from './SearchResults';
 import { Search, X } from 'lucide-react';
 import { useState } from 'react';
-import type { FailedPluginState, PluginState } from '../bridge';
+import type { FailedPluginState, PluginSearchResult, PluginState } from '../bridge';
 import type { Meta, StoryObj } from '@storybook/react';
 
 // ---------------------------------------------------------------------------
@@ -214,7 +217,7 @@ const SearchBar = ({
       <Input
         value={value}
         onChange={e => onChange(e.target.value)}
-        placeholder="Filter tools..."
+        placeholder="Search plugins and tools..."
         className="pr-8 pl-9"
       />
       {value && (
@@ -450,6 +453,324 @@ const ToolFilterActiveDemo = () => {
 const ToolFilterActive: Story = { render: () => <ToolFilterActiveDemo /> };
 
 // ---------------------------------------------------------------------------
+// 14: Mock npm search results
+// ---------------------------------------------------------------------------
+
+const mockNpmResults: PluginSearchResult[] = [
+  {
+    name: '@opentabs-dev/opentabs-plugin-notion',
+    description: 'OpenTabs plugin for Notion — manage pages, databases, and content blocks',
+    version: '1.0.0',
+    author: 'opentabs-dev',
+    isOfficial: true,
+  },
+  {
+    name: '@opentabs-dev/opentabs-plugin-confluence',
+    description: 'OpenTabs plugin for Confluence — search and edit wiki pages',
+    version: '0.3.2',
+    author: 'opentabs-dev',
+    isOfficial: true,
+  },
+  {
+    name: 'opentabs-plugin-asana',
+    description: 'Community plugin for Asana task management with full CRUD operations',
+    version: '0.1.4',
+    author: 'community-dev',
+    isOfficial: false,
+  },
+];
+
+// ---------------------------------------------------------------------------
+// 15–18: Omnisearch stories
+// ---------------------------------------------------------------------------
+
+const OmnisearchEmptyDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin(), githubPlugin()]);
+  const [searchQuery, setSearchQuery] = useState('');
+  return (
+    <SidePanelShell
+      searchBar={<SearchBar value={searchQuery} onChange={setSearchQuery} onClear={() => setSearchQuery('')} />}>
+      <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchEmpty: Story = { render: () => <OmnisearchEmptyDemo /> };
+
+const OmnisearchWithResultsDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="notion" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="notion"
+        npmResults={mockNpmResults.slice(0, 1)}
+        npmSearching={false}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchWithResults: Story = { render: () => <OmnisearchWithResultsDemo /> };
+
+const OmnisearchNpmLoadingDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="notion" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="notion"
+        npmResults={[]}
+        npmSearching={true}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchNpmLoading: Story = { render: () => <OmnisearchNpmLoadingDemo /> };
+
+const OmnisearchInstallingDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="notion" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="notion"
+        npmResults={mockNpmResults}
+        npmSearching={false}
+        installingPlugins={new Set(['@opentabs-dev/opentabs-plugin-notion'])}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchInstalling: Story = { render: () => <OmnisearchInstallingDemo /> };
+
+// ---------------------------------------------------------------------------
+// Plugin with update available (for PluginUpdating story)
+// ---------------------------------------------------------------------------
+
+const pluginWithUpdate = (): PluginState =>
+  mockPlugin({
+    name: 'datadog',
+    displayName: 'Datadog',
+    source: 'npm',
+    trustTier: 'community',
+    tabState: 'unavailable',
+    urlPatterns: ['*://*.datadoghq.com/*'],
+    update: { latestVersion: '0.2.0', updateCommand: 'npm install @opentabs-dev/opentabs-plugin-datadog@0.2.0' },
+    tools: [
+      {
+        name: 'query_metrics',
+        displayName: 'Query Metrics',
+        description: 'Query time-series metrics',
+        icon: 'bar-chart',
+        enabled: true,
+      },
+      {
+        name: 'list_monitors',
+        displayName: 'List Monitors',
+        description: 'List active monitors',
+        icon: 'activity',
+        enabled: true,
+      },
+    ],
+  });
+
+// ---------------------------------------------------------------------------
+// 19: Omnisearch — only installed results
+// ---------------------------------------------------------------------------
+
+const OmnisearchInstalledResultsDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="slack" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="slack"
+        npmResults={[]}
+        npmSearching={false}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchInstalledResults: Story = { render: () => <OmnisearchInstalledResultsDemo /> };
+
+// ---------------------------------------------------------------------------
+// 20: Omnisearch — only npm results
+// ---------------------------------------------------------------------------
+
+const OmnisearchNpmResultsDemo = () => {
+  const plugins: PluginState[] = [];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="notion" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="notion"
+        npmResults={mockNpmResults}
+        npmSearching={false}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchNpmResults: Story = { render: () => <OmnisearchNpmResultsDemo /> };
+
+// ---------------------------------------------------------------------------
+// 21: Omnisearch — mixed (installed + npm results simultaneously)
+// ---------------------------------------------------------------------------
+
+const OmnisearchMixedDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="github" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="github"
+        npmResults={mockNpmResults}
+        npmSearching={false}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchMixed: Story = { render: () => <OmnisearchMixedDemo /> };
+
+// ---------------------------------------------------------------------------
+// 22: Omnisearch — no results
+// ---------------------------------------------------------------------------
+
+const OmnisearchNoResultsDemo = () => {
+  const plugins = [mockPlugin(), githubPlugin()];
+  return (
+    <SidePanelShell searchBar={<SearchBar value="xyzzy" onChange={() => undefined} onClear={() => undefined} />}>
+      <SearchResults
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={() => undefined}
+        toolFilter="xyzzy"
+        npmResults={[]}
+        npmSearching={false}
+        installingPlugins={new Set()}
+        onInstall={() => undefined}
+        installErrors={new Map()}
+      />
+    </SidePanelShell>
+  );
+};
+
+const OmnisearchNoResults: Story = { render: () => <OmnisearchNoResultsDemo /> };
+
+// ---------------------------------------------------------------------------
+// 23: Plugin with context menu visible (npm plugin, three-dot icon always shown)
+// ---------------------------------------------------------------------------
+
+const PluginWithContextMenuDemo = () => {
+  const [plugins, setPlugins] = useState([datadogPlugin()]);
+  return (
+    <SidePanelShell>
+      <PluginList
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={setPlugins}
+        toolFilter=""
+        onUpdate={() => undefined}
+        onRemove={() => undefined}
+      />
+    </SidePanelShell>
+  );
+};
+
+const PluginWithContextMenu: Story = { render: () => <PluginWithContextMenuDemo /> };
+
+// ---------------------------------------------------------------------------
+// 24: Plugin removing — card shows opacity-60 while uninstall is in progress
+// ---------------------------------------------------------------------------
+
+const PluginRemovingDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin(), datadogPlugin()]);
+  return (
+    <SidePanelShell>
+      <PluginList
+        plugins={plugins}
+        failedPlugins={[]}
+        activeTools={new Set()}
+        setPlugins={setPlugins}
+        toolFilter=""
+        onUpdate={() => undefined}
+        onRemove={() => undefined}
+        removingPlugins={new Set(['datadog'])}
+      />
+    </SidePanelShell>
+  );
+};
+
+const PluginRemoving: Story = { render: () => <PluginRemovingDemo /> };
+
+// ---------------------------------------------------------------------------
+// 25: Plugin updating — card shows loader in context menu while update runs
+// ---------------------------------------------------------------------------
+
+const PluginUpdatingDemo = () => {
+  const plugin = pluginWithUpdate();
+  return (
+    <SidePanelShell>
+      <Accordion type="multiple" className="space-y-2">
+        <PluginCard
+          plugin={plugin}
+          activeTools={new Set()}
+          setPlugins={() => undefined}
+          toolFilter=""
+          onUpdate={() => undefined}
+          onRemove={() => undefined}
+          updatingPlugin={true}
+        />
+      </Accordion>
+    </SidePanelShell>
+  );
+};
+
+const PluginUpdating: Story = { render: () => <PluginUpdatingDemo /> };
+
+// ---------------------------------------------------------------------------
 // Exports
 // ---------------------------------------------------------------------------
 
@@ -467,4 +788,15 @@ export {
   ActiveToolExecution,
   AllToolsDisabled,
   ToolFilterActive,
+  OmnisearchEmpty,
+  OmnisearchWithResults,
+  OmnisearchNpmLoading,
+  OmnisearchInstalling,
+  OmnisearchInstalledResults,
+  OmnisearchNpmResults,
+  OmnisearchMixed,
+  OmnisearchNoResults,
+  PluginWithContextMenu,
+  PluginRemoving,
+  PluginUpdating,
 };
