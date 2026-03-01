@@ -184,7 +184,7 @@ class SlackPlugin extends OpenTabsPlugin {
   readonly name = 'slack';
   readonly version = '1.0.0';
   readonly description = 'Interact with Slack through the browser';
-  readonly displayName = 'Slack';
+  override readonly displayName = 'Slack';
   readonly urlPatterns = ['*://*.slack.com/*'];
   readonly tools: ToolDefinition[] = [listChannels, sendMessage];
 

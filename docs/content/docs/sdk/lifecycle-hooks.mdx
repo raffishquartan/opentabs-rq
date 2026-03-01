@@ -235,7 +235,7 @@ class AnalyticsPlugin extends OpenTabsPlugin {
   readonly name = 'analytics';
   readonly version = '1.0.0';
   readonly description = 'Analytics dashboard tools';
-  readonly displayName = 'Analytics';
+  override readonly displayName = 'Analytics';
   readonly urlPatterns = ['*://analytics.example.com/*'];
   readonly tools: ToolDefinition[] = [/* ... */];
 

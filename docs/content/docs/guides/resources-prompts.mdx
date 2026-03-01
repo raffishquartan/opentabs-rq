@@ -496,7 +496,7 @@ const createItem = defineTool({
 export default class TrackerPlugin extends OpenTabsPlugin {
   readonly name = 'tracker';
   readonly version = '1.0.0';
-  readonly displayName = 'Project Tracker';
+  override readonly displayName = 'Project Tracker';
   readonly description = 'Manage project items';
   readonly urlPatterns = ['*://tracker.example.com/*'];
   readonly tools: ToolDefinition[] = [createItem];
