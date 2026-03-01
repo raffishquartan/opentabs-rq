@@ -22,6 +22,16 @@ Or use the `opentabs` CLI:
 opentabs plugin create my-app --domain .example.com --display "My App"
 ```
 
+Or use the npm create convention:
+
+```bash
+npm create @opentabs-dev/plugin my-app -- --domain .example.com --display "My App"
+```
+
+<Alert status="warning">
+  `npx create-opentabs-plugin` does **not** work — the package is scoped under `@opentabs-dev`, so npm cannot resolve the unscoped name. Use `npx @opentabs-dev/create-plugin` instead.
+</Alert>
+
 <Table>
   <Table.Header>
     <Table.Row>
