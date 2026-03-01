@@ -263,16 +263,18 @@ The plugin SDK provides utility functions that reduce boilerplate for common ope
 Use `fetchJSON` and `postJSON` instead of raw `fetch` — they include credentials automatically, handle timeouts, and throw structured `ToolError` on failure:
 
 ```typescript
-import { fetchJSON, postJSON } from "@opentabs-dev/plugin-sdk";
+import { fetchJSON, postJSON, ToolError } from "@opentabs-dev/plugin-sdk";
 
 // GET request — returns parsed JSON
 const data = await fetchJSON<{ items: Item[] }>("/api/items?limit=20");
+if (!data) throw ToolError.internal("No data returned");
 
 // POST request — stringifies body, sets Content-Type
 const result = await postJSON<{ id: string }>("/api/items", {
   title: "New item",
   status: "active",
 });
+if (!result) throw ToolError.internal("No data returned");
 ```
 
 The SDK also provides `putJSON`, `patchJSON`, and `deleteJSON` for other HTTP methods. `putJSON` and `patchJSON` follow the same signature as `postJSON` — `deleteJSON` omits the body parameter:
