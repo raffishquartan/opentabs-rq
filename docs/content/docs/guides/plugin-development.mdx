@@ -175,10 +175,14 @@ export const getItems = defineTool({
     ),
   }),
   handle: async params => {
-    const response = await fetch('/api/items?' + new URLSearchParams({
-      limit: String(params.limit ?? 20),
-      ...(params.status && { status: params.status }),
-    }), { credentials: 'include' });
+    const response = await fetch(
+      '/api/items?' +
+        new URLSearchParams({
+          limit: String(params.limit ?? 20),
+          ...(params.status && { status: params.status }),
+        }),
+      { credentials: 'include' },
+    );
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
