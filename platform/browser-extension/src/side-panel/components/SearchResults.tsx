@@ -16,6 +16,9 @@ interface SearchResultsProps {
   installingPlugins: Set<string>;
   onInstall: (name: string) => void;
   installErrors: Map<string, string>;
+  onUpdate?: (pluginName: string) => void;
+  onRemove?: (pluginName: string) => void;
+  removingPlugins?: Set<string>;
 }
 
 /**
@@ -40,6 +43,9 @@ const SearchResults = ({
   installingPlugins,
   onInstall,
   installErrors,
+  onUpdate,
+  onRemove,
+  removingPlugins,
 }: SearchResultsProps) => {
   const filterLower = toolFilter.toLowerCase();
 
@@ -65,6 +71,9 @@ const SearchResults = ({
             activeTools={activeTools}
             setPlugins={setPlugins}
             toolFilter=""
+            onUpdate={onUpdate}
+            onRemove={onRemove}
+            removingPlugins={removingPlugins}
           />
         </div>
       )}
