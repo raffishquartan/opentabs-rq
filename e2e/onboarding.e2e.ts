@@ -65,7 +65,7 @@ test.describe('Empty states', () => {
       const sidePanelPage = await openSidePanel(context);
 
       // Browser tools section is always visible when connected (no NoPluginsState)
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 10_000 });
 
       await sidePanelPage.close();
     } finally {
@@ -96,7 +96,7 @@ test.describe('Empty states', () => {
 
       // Open the side panel and verify browser tools section is visible (no plugins installed)
       const sidePanelPage = await openSidePanel(context);
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 10_000 });
 
       // Add a plugin via config.json modification
       const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
@@ -143,7 +143,7 @@ test.describe('Empty states', () => {
 
       // Open the side panel and verify browser tools section is visible (no plugins installed)
       const sidePanelPage = await openSidePanel(context);
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 10_000 });
 
       // Kill the MCP server
       await server.kill();
@@ -199,7 +199,7 @@ test.describe('Empty states', () => {
 
       // Verify the plugin list is gone and browser tools section is still visible
       await expect(sidePanelPage.locator('text=E2E Test')).toBeHidden({ timeout: 30_000 });
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 5_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 5_000 });
 
       await sidePanelPage.close();
     } finally {

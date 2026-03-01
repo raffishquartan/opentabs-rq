@@ -88,7 +88,7 @@ test.describe('Side panel auto-refresh — POST /reload', () => {
 
       // Verify the plugin is gone and browser tools section remains visible
       await expect(sidePanelPage.locator('text=E2E Test')).toBeHidden({ timeout: 30_000 });
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 5_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 5_000 });
 
       await sidePanelPage.close();
     } finally {
@@ -114,7 +114,7 @@ test.describe('Side panel auto-refresh — POST /reload', () => {
 
       // Open side panel and verify browser tools section is visible (no plugins installed)
       const sidePanelPage = await openSidePanel(context);
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 10_000 });
 
       // Add plugin to config
       const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);

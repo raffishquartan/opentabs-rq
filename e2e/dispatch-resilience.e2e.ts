@@ -521,77 +521,85 @@ test.describe('Server-side dispatch timeout', () => {
     // 30s dispatch timeout, so we use a 45s timeout via the options parameter.
     const timeoutClient = createMcpClient(mcpServer.port, mcpServer.secret);
     await timeoutClient.initialize();
-
-    // Get the authenticated WS URL and secret
-    const { wsUrl, wsSecret: timeoutWsSecret } = await fetchWsInfo(mcpServer.port, mcpServer.secret);
-
-    // Set the test server to a 60s delay so the adapter is blocked waiting for
-    // the HTTP response when we replace the WebSocket. Without this, the echo
-    // tool returns instantly and the extension sends the response before we can
-    // disconnect it.
-    await testServer.setSlow(60_000);
-
-    // Fire the tool call (non-blocking) with a 45s timeout, then immediately
-    // steal the extension's WS so the response can never reach the server.
-    const start = Date.now();
-    const toolCallPromise = timeoutClient.callTool('e2e-test_echo', { message: 'should-timeout' }, { timeout: 45_000 });
-
-    // Poll the test server until the in-flight request arrives
-    await waitFor(
-      async () => {
-        const invocations = await testServer.invocations();
-        return invocations.some(
-          i => i.path === '/api/echo' && (i.body as Record<string, unknown>).message === 'should-timeout',
-        );
-      },
-      10_000,
-      200,
-      'in-flight echo tool call to reach test server',
-    );
-
-    // Replace the extension's WebSocket with a fake client.
-    // The server closes the old WS (triggering a close event), but since
-    // state.extensionWs is now the fake WS, the close handler doesn't reject
-    // pending dispatches. The extension's response has nowhere to go.
-    mcpServer.logs.length = 0;
-    const timeoutProtocols = ['opentabs'];
-    if (timeoutWsSecret) timeoutProtocols.push(timeoutWsSecret);
-    const fakeWs = timeoutProtocols.length > 1 ? new WebSocket(wsUrl, timeoutProtocols) : new WebSocket(wsUrl);
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('Fake WebSocket connect timeout')), 5_000);
-      fakeWs.onopen = () => {
-        clearTimeout(timer);
-        resolve();
-      };
-      fakeWs.onerror = () => {
-        clearTimeout(timer);
-        reject(new Error('Fake WebSocket connect failed'));
-      };
-    });
-
     try {
-      await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
+      // Get the authenticated WS URL and secret
+      const { wsUrl, wsSecret: timeoutWsSecret } = await fetchWsInfo(mcpServer.port, mcpServer.secret);
 
-      // Wait for the server's DISPATCH_TIMEOUT_MS (30s) to fire
-      const response = await toolCallPromise;
-      const elapsed = Date.now() - start;
+      // Set the test server to a 60s delay so the adapter is blocked waiting for
+      // the HTTP response when we replace the WebSocket. Without this, the echo
+      // tool returns instantly and the extension sends the response before we can
+      // disconnect it.
+      await testServer.setSlow(60_000);
 
-      // Verify the server returned a dispatch timeout error
-      expect(response.isError).toBe(true);
-      expect(response.content.toLowerCase()).toContain('timed out');
+      // Fire the tool call (non-blocking) with a 45s timeout, then immediately
+      // steal the extension's WS so the response can never reach the server.
+      const start = Date.now();
+      const toolCallPromise = timeoutClient.callTool(
+        'e2e-test_echo',
+        { message: 'should-timeout' },
+        { timeout: 45_000 },
+      );
 
-      // The timeout should take approximately 30s (DISPATCH_TIMEOUT_MS)
-      expect(elapsed).toBeGreaterThan(25_000);
-      expect(elapsed).toBeLessThan(40_000);
+      // Poll the test server until the in-flight request arrives
+      await waitFor(
+        async () => {
+          const invocations = await testServer.invocations();
+          return invocations.some(
+            i => i.path === '/api/echo' && (i.body as Record<string, unknown>).message === 'should-timeout',
+          );
+        },
+        10_000,
+        200,
+        'in-flight echo tool call to reach test server',
+      );
+
+      // Replace the extension's WebSocket with a fake client.
+      // The server closes the old WS (triggering a close event), but since
+      // state.extensionWs is now the fake WS, the close handler doesn't reject
+      // pending dispatches. The extension's response has nowhere to go.
+      mcpServer.logs.length = 0;
+      const timeoutProtocols = ['opentabs'];
+      if (timeoutWsSecret) timeoutProtocols.push(timeoutWsSecret);
+      const fakeWs = timeoutProtocols.length > 1 ? new WebSocket(wsUrl, timeoutProtocols) : new WebSocket(wsUrl);
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Fake WebSocket connect timeout')), 5_000);
+        fakeWs.onopen = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        fakeWs.onerror = () => {
+          clearTimeout(timer);
+          reject(new Error('Fake WebSocket connect failed'));
+        };
+      });
+
+      try {
+        await waitForLog(mcpServer, 'Closing previous extension WebSocket', 5_000);
+
+        // Wait for the server's DISPATCH_TIMEOUT_MS (30s) to fire
+        const response = await toolCallPromise;
+        const elapsed = Date.now() - start;
+
+        // Verify the server returned a dispatch timeout error
+        expect(response.isError).toBe(true);
+        expect(response.content.toLowerCase()).toContain('timed out');
+
+        // The timeout should take approximately 30s (DISPATCH_TIMEOUT_MS)
+        expect(elapsed).toBeGreaterThan(25_000);
+        expect(elapsed).toBeLessThan(40_000);
+      } finally {
+        // Always close the fake WS so orphaned connections don't accumulate on failure
+        fakeWs.close();
+      }
     } finally {
-      // Always close the fake WS so orphaned connections don't accumulate on failure
-      fakeWs.close();
+      // Always reset slow mode and close the MCP client regardless of test outcome
+      // so that leaked sessions and slow-mode state don't affect subsequent tests.
+      await testServer.setSlow(0);
+      await timeoutClient.close();
     }
 
-    // Clean up: reset slow mode, wait for the real extension to reconnect,
-    // then verify subsequent tool calls work.
-    await testServer.setSlow(0);
-    await timeoutClient.close();
+    // Verify recovery: wait for the real extension to reconnect, then confirm
+    // subsequent tool calls work normally.
     await waitForExtensionConnected(mcpServer, 45_000);
     await waitForLog(mcpServer, 'tab.syncAll received');
 

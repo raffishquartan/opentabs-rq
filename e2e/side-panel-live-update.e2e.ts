@@ -68,7 +68,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
       const sidePanelPage = await openSidePanel(context);
 
       // 3. Verify side panel shows browser tools section (no plugins installed)
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 10_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 10_000 });
 
       // 4. Add a plugin by modifying config.json
       const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
@@ -133,7 +133,7 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
 
       // Verify the plugin is gone and browser tools section remains visible
       await expect(sidePanelPage.locator('text=E2E Test')).toBeHidden({ timeout: 30_000 });
-      await expect(sidePanelPage.locator('text=Browser Tools')).toBeVisible({ timeout: 5_000 });
+      await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 5_000 });
 
       await sidePanelPage.close();
     } finally {
