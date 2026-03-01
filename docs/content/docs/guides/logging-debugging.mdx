@@ -1,7 +1,7 @@
 ---
 title: Logging & Debugging
 description: Add structured logging to your plugin and use the CLI tools to diagnose issues when things go wrong.
-lastUpdated: 2026-02-28
+lastUpdated: 2026-03-01
 ---
 
 When a tool fails or behaves unexpectedly, you need visibility into what happened. OpenTabs provides a structured logging pipeline that routes messages from your plugin code all the way to the MCP server, and a set of CLI tools to inspect the system's health, recent activity, and plugin logs.
@@ -178,7 +178,7 @@ The server log captures everything — plugin log entries, server events, errors
 opentabs logs
 ```
 
-This tails `~/.opentabs/server.log`, showing the last 50 lines and following new output. Filter to a specific plugin:
+This prints the last 50 lines of `~/.opentabs/server.log` and exits. Filter to a specific plugin:
 
 ```bash
 opentabs logs --plugin slack
@@ -195,7 +195,8 @@ Other useful flags:
 
 ```bash
 opentabs logs --lines 100      # show last 100 lines instead of 50
-opentabs logs --no-follow      # print recent lines and exit
+opentabs logs --follow         # continuously tail new output
+opentabs logs -f               # shorthand for --follow
 ```
 
 ### Step 4: Run Diagnostics with `opentabs doctor`
@@ -282,7 +283,7 @@ The plugin's tab exists but `isReady()` returned `false`. This usually means:
 Check your `isReady()` implementation:
 
 ```typescript
-isReady() {
+async isReady(): Promise<boolean> {
   return !!document.querySelector('.authenticated-container');
 }
 ```
