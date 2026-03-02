@@ -44,7 +44,7 @@ import { forwardToSidePanel, sendTabStateNotification, sendToServer } from './me
 import { getAllPluginMeta, removePlugin, removePluginsBatch, storePluginsBatch } from './plugin-storage.js';
 import { checkRateLimit } from './rate-limiter.js';
 import { handleResourceRead, handlePromptGet } from './resource-prompt-dispatch.js';
-import { updateServerStateCache } from './server-state-cache.js';
+import { getServerStateCache, updateServerStateCache } from './server-state-cache.js';
 import {
   clearPluginTabState,
   computePluginTabState,
@@ -54,7 +54,14 @@ import {
 } from './tab-state.js';
 import { handleToolDispatch } from './tool-dispatch.js';
 import type { PluginMeta } from './extension-messages.js';
-import type { ConfigStatePlugin, ConfigStateResult, TrustTier, WireToolDef } from '@opentabs-dev/shared';
+import type {
+  ConfigStateBrowserTool,
+  ConfigStateFailedPlugin,
+  ConfigStatePlugin,
+  ConfigStateResult,
+  TrustTier,
+  WireToolDef,
+} from '@opentabs-dev/shared';
 
 type MessageHandler = (params: Record<string, unknown>, id?: string | number) => void;
 
@@ -309,24 +316,52 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
     }
   }
 
-  // Populate the server state cache with plugin data from sync.full so the
-  // side panel can read it locally via bg:getFullState without a round-trip.
-  // Only the plugins field is available from sync.full — server-only fields
-  // (failedPlugins, browserTools, serverVersion) come from config.getState or
-  // push notifications and are not populated here.
-  const cachePlugins: ConfigStatePlugin[] = uniquePlugins.map(p => ({
-    name: p.name,
-    displayName: p.displayName,
-    version: p.version,
-    trustTier: p.trustTier,
-    source: 'local' as const,
-    tabState: 'closed' as const,
-    urlPatterns: p.urlPatterns,
-    tools: p.tools,
-    iconSvg: p.iconSvg,
-    iconInactiveSvg: p.iconInactiveSvg,
-  }));
-  updateServerStateCache({ plugins: cachePlugins });
+  // Populate the server state cache with the full state payload from sync.full
+  // so the side panel can read it locally via bg:getFullState without a round-trip.
+  // Build a map from plugin name to raw object for extracting config-specific
+  // fields (source, sdkVersion, update) that the server now includes in sync.full.
+  const rawPluginMap = new Map<string, Record<string, unknown>>();
+  for (const raw of rawPlugins) {
+    if (typeof raw === 'object' && raw !== null && typeof (raw as Record<string, unknown>).name === 'string') {
+      rawPluginMap.set((raw as Record<string, unknown>).name as string, raw as Record<string, unknown>);
+    }
+  }
+
+  const cachePlugins: ConfigStatePlugin[] = uniquePlugins.map(p => {
+    const raw = rawPluginMap.get(p.name);
+    return {
+      name: p.name,
+      displayName: p.displayName,
+      version: p.version,
+      trustTier: p.trustTier,
+      source: raw?.source === 'npm' || raw?.source === 'local' ? raw.source : 'local',
+      tabState: 'closed' as const,
+      urlPatterns: p.urlPatterns,
+      tools: p.tools,
+      iconSvg: p.iconSvg,
+      iconInactiveSvg: p.iconInactiveSvg,
+      ...(typeof raw?.sdkVersion === 'string' ? { sdkVersion: raw.sdkVersion } : {}),
+      ...(raw?.update && typeof raw.update === 'object'
+        ? { update: raw.update as { latestVersion: string; updateCommand: string } }
+        : {}),
+    };
+  });
+
+  // Extract server-owned fields from the enriched sync.full payload
+  const rawFailedPlugins = Array.isArray(params.failedPlugins)
+    ? (params.failedPlugins as ConfigStateFailedPlugin[])
+    : undefined;
+  const rawBrowserTools = Array.isArray(params.browserTools)
+    ? (params.browserTools as ConfigStateBrowserTool[])
+    : undefined;
+  const rawServerVersion = typeof params.serverVersion === 'string' ? params.serverVersion : undefined;
+
+  updateServerStateCache({
+    plugins: cachePlugins,
+    ...(rawFailedPlugins ? { failedPlugins: rawFailedPlugins } : {}),
+    ...(rawBrowserTools ? { browserTools: rawBrowserTools } : {}),
+    ...(rawServerVersion !== undefined ? { serverVersion: rawServerVersion } : {}),
+  });
 
   // Send tab.syncAll AFTER all plugins are stored and injected to avoid the
   // race condition where tab.syncAll runs before plugins are in storage.
@@ -362,6 +397,29 @@ const handlePluginUpdate = async (params: Record<string, unknown>): Promise<void
   const newState = await computePluginTabState(meta);
   await updateLastKnownState(meta.name, newState);
   sendTabStateNotification(meta.name, newState);
+
+  // Update the server state cache with the updated plugin's data so the
+  // side panel reads fresh tool enabled states and metadata from bg:getFullState.
+  // Merge the updated plugin into the existing cache's plugin list.
+  const existingCache = getServerStateCache();
+  const updatedPlugin: ConfigStatePlugin = {
+    name: validated.name,
+    displayName: validated.displayName,
+    version: validated.version,
+    trustTier: validated.trustTier,
+    source: params.source === 'npm' || params.source === 'local' ? params.source : 'local',
+    tabState: newState.state,
+    urlPatterns: validated.urlPatterns,
+    tools: validated.tools,
+    iconSvg: validated.iconSvg,
+    iconInactiveSvg: validated.iconInactiveSvg,
+    ...(typeof params.sdkVersion === 'string' ? { sdkVersion: params.sdkVersion } : {}),
+    ...(params.update && typeof params.update === 'object'
+      ? { update: params.update as { latestVersion: string; updateCommand: string } }
+      : {}),
+  };
+  const otherPlugins = existingCache.plugins.filter(p => p.name !== validated.name);
+  updateServerStateCache({ plugins: [...otherPlugins, updatedPlugin] });
 
   // Notify the side panel so it refreshes its plugin list without user interaction
   forwardToSidePanel({

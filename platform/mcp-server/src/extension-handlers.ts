@@ -782,6 +782,7 @@ const handlePluginCheckUpdates = async (state: ServerState, id: string | number)
 
 export type { McpCallbacks, WireTabMapping, WirePluginTabInfo };
 export {
+  buildConfigStatePayload,
   sendToExtension,
   sendJsonRpcError,
   sendPluginManagementError,

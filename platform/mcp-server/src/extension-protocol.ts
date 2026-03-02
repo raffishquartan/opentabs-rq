@@ -16,6 +16,7 @@ import {
   ADAPTER_WRITE_TIMEOUT_MS,
 } from './adapter-files.js';
 import {
+  buildConfigStatePayload,
   sendToExtension,
   sendJsonRpcError,
   serializePluginForExtension,
@@ -84,17 +85,34 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
     }
   }
 
-  const plugins = pluginList.map(p => ({
-    ...serializePluginForExtension(p, state),
-    sourcePath: p.sourcePath,
-    adapterHash: p.adapterHash,
-    adapterFile: adapterFileMap.get(p.name),
-  }));
+  // Build the full config state payload to include server-owned fields
+  // (failedPlugins, browserTools, serverVersion, per-plugin source/sdkVersion/update)
+  // alongside the sync-specific fields (sourcePath, adapterHash, adapterFile).
+  const configState = buildConfigStatePayload(state);
+  const configPluginMap = new Map(configState.plugins.map(p => [p.name, p]));
+
+  const plugins = pluginList.map(p => {
+    const configPlugin = configPluginMap.get(p.name);
+    return {
+      ...serializePluginForExtension(p, state),
+      sourcePath: p.sourcePath,
+      adapterHash: p.adapterHash,
+      adapterFile: adapterFileMap.get(p.name),
+      source: configPlugin?.source ?? p.source,
+      ...(configPlugin?.sdkVersion ? { sdkVersion: configPlugin.sdkVersion } : {}),
+      ...(configPlugin?.update ? { update: configPlugin.update } : {}),
+    };
+  });
 
   const sent = sendToExtension(state, {
     jsonrpc: '2.0',
     method: 'sync.full',
-    params: { plugins },
+    params: {
+      plugins,
+      failedPlugins: configState.failedPlugins,
+      browserTools: configState.browserTools,
+      serverVersion: configState.serverVersion,
+    },
   });
   if (sent) {
     log.info(`Sent sync.full to extension with ${plugins.length} plugin(s)`);

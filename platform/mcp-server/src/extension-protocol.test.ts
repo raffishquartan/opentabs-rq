@@ -659,14 +659,23 @@ describe('sendSyncFull', () => {
           displayName: string;
           sourcePath: string | undefined;
           adapterHash: string | undefined;
+          source: string;
           tools: { name: string; displayName: string; description: string; icon: string; enabled: boolean }[];
         }[];
+        failedPlugins: { specifier: string; error: string }[];
+        browserTools: { name: string; description: string; enabled: boolean }[];
+        serverVersion: string;
       };
     };
 
     expect(msg.jsonrpc).toBe('2.0');
     expect(msg.method).toBe('sync.full');
     expect(msg.params.plugins).toHaveLength(2);
+
+    // Verify server-owned top-level fields are present
+    expect(msg.params.failedPlugins).toEqual([]);
+    expect(Array.isArray(msg.params.browserTools)).toBe(true);
+    expect(typeof msg.params.serverVersion).toBe('string');
 
     // Sort by name for deterministic assertions (Map iteration order matches insertion order,
     // but sorting makes the test resilient to refactoring)
@@ -680,6 +689,7 @@ describe('sendSyncFull', () => {
       urlPatterns: ['http://alpha.com/*'],
       trustTier: 'community',
       displayName: 'alpha',
+      source: 'local',
       tools: [{ name: 'ping', displayName: 'Ping', description: 'Ping', icon: 'wrench', enabled: true }],
     });
     // adapterFile is now included with content-hashed path
@@ -693,6 +703,7 @@ describe('sendSyncFull', () => {
       urlPatterns: ['http://beta.com/*'],
       trustTier: 'local',
       displayName: 'beta',
+      source: 'local',
       tools: [{ name: 'pong', displayName: 'Pong', description: 'Pong', icon: 'wrench', enabled: false }],
     });
     expect(typeof (secondPlugin as Record<string, unknown>).adapterFile).toBe('string');
@@ -765,8 +776,13 @@ describe('sendSyncFull', () => {
     expect(ws.sent).toHaveLength(1);
     const rawEmpty = ws.sent[0];
     expect(rawEmpty).toBeDefined();
-    const msg = JSON.parse(rawEmpty as string) as { params: { plugins: unknown[] } };
+    const msg = JSON.parse(rawEmpty as string) as {
+      params: { plugins: unknown[]; failedPlugins: unknown[]; browserTools: unknown[]; serverVersion: string };
+    };
     expect(msg.params.plugins).toEqual([]);
+    expect(msg.params.failedPlugins).toEqual([]);
+    expect(Array.isArray(msg.params.browserTools)).toBe(true);
+    expect(typeof msg.params.serverVersion).toBe('string');
   });
 
   test('includes iconSvg and iconInactiveSvg in sync.full payload when present', async () => {
@@ -865,6 +881,61 @@ describe('sendSyncFull', () => {
     expect(plugin).toBeDefined();
     expect('iconSvg' in (plugin as Record<string, unknown>)).toBe(false);
     expect('iconInactiveSvg' in (plugin as Record<string, unknown>)).toBe(false);
+  });
+
+  test('includes per-plugin source, sdkVersion, and update in sync.full payload', async () => {
+    setupTmpConfigDir();
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    state.registry = buildRegistry(
+      [
+        makePlugin({
+          name: 'npm-plugin',
+          source: 'npm',
+          sdkVersion: '1.2.3',
+          npmPackageName: 'opentabs-plugin-npm-plugin',
+        }),
+        makePlugin({
+          name: 'local-plugin',
+          source: 'local',
+        }),
+      ],
+      [],
+    );
+
+    // Simulate an outdated npm plugin
+    state.outdatedPlugins = [
+      {
+        name: 'opentabs-plugin-npm-plugin',
+        currentVersion: '1.0.0',
+        latestVersion: '2.0.0',
+        updateCommand: 'npm install -g ...',
+      },
+    ];
+
+    await sendSyncFull(state);
+
+    expect(ws.sent).toHaveLength(1);
+    const msg = JSON.parse(ws.sent[0] as string) as {
+      params: { plugins: Record<string, unknown>[] };
+    };
+    const sorted = [...msg.params.plugins].sort((a, b) => (a.name as string).localeCompare(b.name as string));
+
+    // local-plugin: source=local, no sdkVersion, no update
+    const local = sorted[0];
+    expect(local).toBeDefined();
+    expect(local?.source).toBe('local');
+    expect('sdkVersion' in (local as Record<string, unknown>)).toBe(false);
+    expect('update' in (local as Record<string, unknown>)).toBe(false);
+
+    // npm-plugin: source=npm, sdkVersion present, update present
+    const npm = sorted[1];
+    expect(npm).toBeDefined();
+    expect(npm?.source).toBe('npm');
+    expect(npm?.sdkVersion).toBe('1.2.3');
+    expect(npm?.update).toEqual({ latestVersion: '2.0.0', updateCommand: 'npm install -g ...' });
   });
 });
 

@@ -55,6 +55,8 @@ const {
   mockHandleResourceRead,
   mockHandlePromptGet,
   mockNotifyConfirmationRequest,
+  mockUpdateServerStateCache,
+  mockGetServerStateCache,
 } = vi.hoisted(() => {
   const asyncNoop = () => Promise.resolve();
   const syncNoop = (() => {}) as (params: Record<string, unknown>, id: string | number) => void;
@@ -159,8 +161,28 @@ const {
     mockHandleResourceRead: vi.fn(asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>),
     mockHandlePromptGet: vi.fn(asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>),
     mockNotifyConfirmationRequest: vi.fn<(params: Record<string, unknown>) => void>(),
+    mockUpdateServerStateCache: vi.fn<(partial: Record<string, unknown>) => void>(),
+    mockGetServerStateCache: vi.fn(
+      () =>
+        ({
+          plugins: [],
+          failedPlugins: [],
+          browserTools: [],
+          serverVersion: undefined,
+        }) as {
+          plugins: Record<string, unknown>[];
+          failedPlugins: Record<string, unknown>[];
+          browserTools: Record<string, unknown>[];
+          serverVersion: string | undefined;
+        },
+    ),
   };
 });
+
+vi.mock('./server-state-cache.js', () => ({
+  updateServerStateCache: mockUpdateServerStateCache,
+  getServerStateCache: mockGetServerStateCache,
+}));
 
 vi.mock('./confirmation-badge.js', () => ({
   notifyConfirmationRequest: mockNotifyConfirmationRequest,
@@ -658,6 +680,14 @@ const resetRoutingMocks = (): void => {
   mockHandleExtensionForceReconnect.mockReset();
   mockHandleResourceRead.mockReset();
   mockHandlePromptGet.mockReset();
+  mockUpdateServerStateCache.mockReset();
+  mockGetServerStateCache.mockReset();
+  mockGetServerStateCache.mockReturnValue({
+    plugins: [],
+    failedPlugins: [],
+    browserTools: [],
+    serverVersion: undefined,
+  });
 };
 
 describe('handleServerMessage', () => {
@@ -737,6 +767,55 @@ describe('handleServerMessage', () => {
       // sync.full is NOT in SIDE_PANEL_METHODS
       expect(mockForwardToSidePanel).not.toHaveBeenCalled();
     });
+
+    test('handleSyncFull populates server state cache with enriched payload', async () => {
+      handleServerMessage({
+        method: 'sync.full',
+        params: {
+          plugins: [
+            {
+              name: 'test-plugin',
+              version: '1.0.0',
+              urlPatterns: ['*://example.com/*'],
+              source: 'npm',
+              sdkVersion: '0.5.0',
+              update: { latestVersion: '2.0.0', updateCommand: 'npm install -g ...' },
+              tools: [
+                {
+                  name: 'do-thing',
+                  displayName: 'Do Thing',
+                  description: 'Does a thing',
+                  icon: 'wrench',
+                  enabled: true,
+                },
+              ],
+            },
+          ],
+          failedPlugins: [{ specifier: 'bad-plugin', error: 'failed' }],
+          browserTools: [{ name: 'browser_list_tabs', description: 'List tabs', enabled: true }],
+          serverVersion: '3.0.0',
+        },
+      });
+
+      // handleSyncFull is async — flush microtasks
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockUpdateServerStateCache).toHaveBeenCalledTimes(1);
+      const cacheArg = mockUpdateServerStateCache.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(cacheArg).toBeDefined();
+
+      // Verify plugins include enriched fields
+      const plugins = cacheArg.plugins as { name: string; source: string; sdkVersion?: string; update?: unknown }[];
+      expect(plugins).toHaveLength(1);
+      expect(plugins[0]?.source).toBe('npm');
+      expect(plugins[0]?.sdkVersion).toBe('0.5.0');
+      expect(plugins[0]?.update).toEqual({ latestVersion: '2.0.0', updateCommand: 'npm install -g ...' });
+
+      // Verify server-owned top-level fields
+      expect(cacheArg.failedPlugins).toEqual([{ specifier: 'bad-plugin', error: 'failed' }]);
+      expect(cacheArg.browserTools).toEqual([{ name: 'browser_list_tabs', description: 'List tabs', enabled: true }]);
+      expect(cacheArg.serverVersion).toBe('3.0.0');
+    });
   });
 
   describe('plugin.update routing', () => {
@@ -768,6 +847,58 @@ describe('handleServerMessage', () => {
       });
 
       expect(mockForwardToSidePanel).not.toHaveBeenCalled();
+    });
+
+    test('handlePluginUpdate updates server state cache with plugin data', async () => {
+      mockGetServerStateCache.mockReturnValue({
+        plugins: [
+          {
+            name: 'existing-plugin',
+            displayName: 'Existing',
+            version: '1.0.0',
+            trustTier: 'local',
+            source: 'local',
+            tabState: 'closed',
+            urlPatterns: [],
+            tools: [],
+          },
+        ],
+        failedPlugins: [],
+        browserTools: [],
+        serverVersion: '1.0.0',
+      });
+
+      handleServerMessage({
+        method: 'plugin.update',
+        params: {
+          name: 'test-plugin',
+          version: '2.0.0',
+          urlPatterns: ['*://example.com/*'],
+          source: 'npm',
+          sdkVersion: '0.5.0',
+          tools: [
+            { name: 'do-thing', displayName: 'Do Thing', description: 'Does a thing', icon: 'wrench', enabled: true },
+          ],
+        },
+      });
+
+      // handlePluginUpdate is async — flush microtasks
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockUpdateServerStateCache).toHaveBeenCalledTimes(1);
+      const cacheArg = mockUpdateServerStateCache.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(cacheArg).toBeDefined();
+
+      // Verify the updated plugin list contains both existing and new plugin
+      const plugins = cacheArg.plugins as { name: string; source: string }[];
+      expect(plugins).toHaveLength(2);
+      const names = plugins.map(p => p.name).sort();
+      expect(names).toEqual(['existing-plugin', 'test-plugin']);
+
+      // Verify the updated plugin has enriched fields
+      const updatedPlugin = plugins.find(p => p.name === 'test-plugin');
+      expect(updatedPlugin).toBeDefined();
+      expect(updatedPlugin?.source).toBe('npm');
     });
   });
 
@@ -1382,6 +1513,54 @@ describe('handleServerMessage', () => {
         type: 'sp:serverMessage',
         data: message,
       });
+    });
+
+    test('plugins.changed updates server state cache before forwarding to side panel', () => {
+      const message = {
+        method: 'plugins.changed',
+        params: {
+          plugins: [
+            {
+              name: 'test-plugin',
+              displayName: 'Test Plugin',
+              version: '1.0.0',
+              trustTier: 'local',
+              source: 'local',
+              tabState: 'closed',
+              urlPatterns: [],
+              tools: [
+                {
+                  name: 'do-thing',
+                  displayName: 'Do Thing',
+                  description: 'Does a thing',
+                  icon: 'wrench',
+                  enabled: true,
+                },
+              ],
+            },
+          ],
+          failedPlugins: [{ specifier: 'bad-plugin', error: 'load failed' }],
+          browserTools: [{ name: 'browser_list_tabs', description: 'List tabs', enabled: true }],
+          serverVersion: '1.2.3',
+        },
+      };
+
+      handleServerMessage(message);
+
+      expect(mockUpdateServerStateCache).toHaveBeenCalledTimes(1);
+      const cacheArg = mockUpdateServerStateCache.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(cacheArg).toBeDefined();
+      expect(cacheArg.plugins).toHaveLength(1);
+      expect(cacheArg.failedPlugins).toEqual([{ specifier: 'bad-plugin', error: 'load failed' }]);
+      expect(cacheArg.browserTools).toEqual([{ name: 'browser_list_tabs', description: 'List tabs', enabled: true }]);
+      expect(cacheArg.serverVersion).toBe('1.2.3');
+
+      // Verify cache update happens BEFORE side panel forwarding
+      const cacheCallOrder = mockUpdateServerStateCache.mock.invocationCallOrder[0];
+      const forwardCallOrder = mockForwardToSidePanel.mock.invocationCallOrder[0];
+      expect(cacheCallOrder).toBeDefined();
+      expect(forwardCallOrder).toBeDefined();
+      expect(cacheCallOrder).toBeLessThan(forwardCallOrder as number);
     });
 
     test('does not forward sync.full to side panel', () => {
