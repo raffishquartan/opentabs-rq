@@ -180,6 +180,8 @@ export interface PluginMeta {
   sourcePath?: string;
   adapterHash?: string;
   adapterFile?: string;
+  /** Relative path to the early-inject script (e.g., "adapters/discord-early-a1b2c3d4.js") */
+  earlyInjectFile?: string;
   iconSvg?: string;
   iconInactiveSvg?: string;
   tools: WireToolDef[];

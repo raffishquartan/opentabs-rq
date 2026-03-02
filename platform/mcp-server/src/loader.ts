@@ -15,6 +15,7 @@ import {
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
   BROWSER_TOOLS_CATALOG,
+  EARLY_INJECT_FILENAME,
   OFFICIAL_SCOPE,
   PLUGIN_PREFIX,
   TOOLS_FILENAME,
@@ -42,6 +43,9 @@ const browserToolNames: readonly string[] = BROWSER_TOOLS_CATALOG.map(t => t.nam
 /** Maximum allowed size for the adapter IIFE (5 MB) */
 const MAX_IIFE_SIZE = 5 * 1024 * 1024;
 
+/** Maximum allowed size for the early-inject script (4 KB) */
+const MAX_EARLY_INJECT_SIZE = 4 * 1024;
+
 /** A fully loaded plugin ready for registration */
 interface LoadedPlugin {
   readonly name: string;
@@ -66,6 +70,8 @@ interface LoadedPlugin {
   readonly iconSvg: string | undefined;
   /** Optional SVG icon for the inactive state (from tools.json) */
   readonly iconInactiveSvg: string | undefined;
+  /** Early-inject script content (from dist/early.iife.js). Runs at document_start before page JS. */
+  readonly earlyInject: string | undefined;
 }
 
 /**
@@ -531,6 +537,41 @@ const loadPlugin = async (
   const iconInactiveSvg =
     manifestObj && typeof manifestObj.iconInactiveSvg === 'string' ? manifestObj.iconInactiveSvg : undefined;
 
+  // Read early-inject script if the plugin declares earlyInject in package.json
+  let earlyInject: string | undefined;
+  if (pkg.opentabs.earlyInject) {
+    const earlyInjectPath = join(dir, pkg.opentabs.earlyInject);
+    const earlyExists = await access(earlyInjectPath).then(
+      () => true,
+      () => false,
+    );
+    if (!earlyExists) {
+      // Also check for the default build artifact location
+      const defaultPath = join(dir, 'dist', EARLY_INJECT_FILENAME);
+      const defaultExists = await access(defaultPath).then(
+        () => true,
+        () => false,
+      );
+      if (defaultExists) {
+        earlyInject = await readFile(defaultPath, 'utf-8');
+      } else {
+        return err(
+          `Early-inject script not found at "${earlyInjectPath}" — rebuild the plugin or remove earlyInject from package.json`,
+        );
+      }
+    } else {
+      earlyInject = await readFile(earlyInjectPath, 'utf-8');
+    }
+    if (earlyInject && earlyInject.length > MAX_EARLY_INJECT_SIZE) {
+      return err(
+        `Early-inject script for "${pluginName}" is ${earlyInject.length} bytes, exceeding the ${MAX_EARLY_INJECT_SIZE} byte limit. Keep it minimal — only cache volatile state.`,
+      );
+    }
+    if (earlyInject && earlyInject.length === 0) {
+      return err(`Early-inject script at "${earlyInjectPath}" is empty — rebuild the plugin`);
+    }
+  }
+
   return ok({
     name: pluginName,
     version: pkg.version,
@@ -550,6 +591,7 @@ const loadPlugin = async (
     iifeSourceMap,
     iconSvg,
     iconInactiveSvg,
+    earlyInject,
   });
 };
 

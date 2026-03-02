@@ -8,6 +8,7 @@
 import {
   ensureAdaptersDir,
   writeAdapterFile,
+  writeEarlyInjectFile,
   cleanupStaleAdapterFiles,
   writeExecFile,
   deleteExecFile,
@@ -62,13 +63,21 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
   const currentPluginNames = new Set(pluginList.map(p => p.name));
   await cleanupStaleAdapterFiles(currentPluginNames);
 
-  const writePromise = Promise.allSettled(pluginList.map(p => writeAdapterFile(p.name, p.iife, p.iifeSourceMap)));
+  // Write adapter IIFEs and early-inject scripts in parallel
+  const writePromise = Promise.allSettled(
+    pluginList.map(async p => {
+      const adapterFile = await writeAdapterFile(p.name, p.iife, p.iifeSourceMap);
+      const earlyInjectFile = p.earlyInject ? await writeEarlyInjectFile(p.name, p.earlyInject) : undefined;
+      return { adapterFile, earlyInjectFile };
+    }),
+  );
   const timeout = timeoutRace<null>(null, ADAPTER_WRITE_TIMEOUT_MS);
   const writeResults = await Promise.race([writePromise, timeout.promise]);
   timeout.cancel();
 
-  // Collect adapterFile paths from successful writes
+  // Collect file paths from successful writes
   const adapterFileMap = new Map<string, string>();
+  const earlyInjectFileMap = new Map<string, string>();
   if (writeResults === null) {
     log.warn(
       `Adapter file writes did not complete within ${ADAPTER_WRITE_TIMEOUT_MS}ms — sending sync.full with available adapters. Pending plugins: ${pluginList.map(p => p.name).join(', ')}`,
@@ -79,7 +88,10 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
       if (result.status === 'rejected') {
         log.warn(`Failed to write adapter file for ${plugin?.name ?? 'unknown'}:`, result.reason);
       } else if (plugin) {
-        adapterFileMap.set(plugin.name, result.value);
+        adapterFileMap.set(plugin.name, result.value.adapterFile);
+        if (result.value.earlyInjectFile) {
+          earlyInjectFileMap.set(plugin.name, result.value.earlyInjectFile);
+        }
       }
     }
   }
@@ -89,6 +101,7 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
     sourcePath: p.sourcePath,
     adapterHash: p.adapterHash,
     adapterFile: adapterFileMap.get(p.name),
+    earlyInjectFile: earlyInjectFileMap.get(p.name),
   }));
 
   const sent = sendToExtension(state, {
@@ -283,6 +296,7 @@ const sendPluginUpdate = async (
 
   await ensureAdaptersDir(state);
   const adapterFile = await writeAdapterFile(pluginName, iife, sourceMap);
+  const earlyInjectFile = plugin.earlyInject ? await writeEarlyInjectFile(pluginName, plugin.earlyInject) : undefined;
 
   const sent = sendToExtension(state, {
     jsonrpc: '2.0',
@@ -292,6 +306,7 @@ const sendPluginUpdate = async (
       sourcePath: plugin.sourcePath,
       adapterHash: plugin.adapterHash,
       adapterFile,
+      earlyInjectFile,
     },
   });
   if (!sent) log.warn('Failed to send plugin.update — extension not connected');

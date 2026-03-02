@@ -106,6 +106,8 @@ export interface RegisteredPlugin {
   iconSvg?: string;
   /** Optional SVG icon for the inactive state */
   iconInactiveSvg?: string;
+  /** Early-inject script content (runs at document_start before page JS) */
+  earlyInject?: string;
 }
 
 /** Tab mapping entry for a plugin — tracks aggregate state and all matching tabs */

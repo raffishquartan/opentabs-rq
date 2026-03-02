@@ -10,6 +10,7 @@ import { validatePluginName, validateUrlPattern, LUCIDE_ICON_NAMES } from '@open
 import {
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
+  EARLY_INJECT_FILENAME,
   TOOLS_FILENAME,
   atomicWrite,
   DEFAULT_HOST,
@@ -1132,6 +1133,33 @@ const runBuild = async (projectDir: string): Promise<void> => {
     console.log(pc.dim('  Source map not generated'));
   }
 
+  // Step 4b: Bundle early-inject script (if declared in package.json)
+  if (pkgJson.opentabs.earlyInject) {
+    const earlyInjectSource = resolve(projectDir, pkgJson.opentabs.earlyInject);
+    const earlyExists = await access(earlyInjectSource).then(
+      () => true,
+      () => false,
+    );
+    if (!earlyExists) {
+      throw new Error(
+        `Early-inject source not found at "${earlyInjectSource}" (from opentabs.earlyInject in package.json)`,
+      );
+    }
+    console.log(pc.dim('Bundling early-inject script...'));
+    const earlyOutPath = join(distDir, EARLY_INJECT_FILENAME);
+    await esbuild({
+      entryPoints: [earlyInjectSource],
+      outfile: earlyOutPath,
+      format: 'iife',
+      platform: 'browser',
+      bundle: true,
+      minify: true,
+      plugins: [stripNodeBuiltins],
+    });
+    const earlySize = (await stat(earlyOutPath)).size;
+    console.log(`  Written: ${pc.bold(`dist/${EARLY_INJECT_FILENAME}`)} (${formatBytes(earlySize)})`);
+  }
+
   // Step 5: Resolve installed SDK version
   console.log(pc.dim('Resolving SDK version...'));
   const sdkVersion = await resolveSdkVersion(projectDir);
@@ -1229,6 +1257,7 @@ const handleBuild = async (options: { watch?: boolean }): Promise<void> => {
         !filename ||
         !filename.endsWith('.js') ||
         filename === ADAPTER_FILENAME ||
+        filename === EARLY_INJECT_FILENAME ||
         filename.startsWith('_adapter_entry_')
       )
         return;

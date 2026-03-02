@@ -144,6 +144,36 @@ const cleanupStaleAdapterFiles = async (currentPluginNames: Set<string>): Promis
   log.info(`Cleaned up ${deleted} stale adapter file(s)`);
 };
 
+/** Suffix appended to early-inject filenames for pattern matching during cleanup */
+const EARLY_INJECT_SUFFIX = '-early';
+
+/**
+ * Write a plugin's early-inject script to the extension's adapters/ directory.
+ * Uses content-hashed filenames ({pluginName}-early-{hash8}.js) following the
+ * same pattern as writeAdapterFile. Returns the relative path for the extension
+ * to register as a content script.
+ */
+const writeEarlyInjectFile = async (pluginName: string, earlyInject: string): Promise<string> => {
+  const adaptersDir = getAdaptersDir();
+  const contentHash = createHash('sha256').update(earlyInject).digest('hex').slice(0, 8);
+  const baseName = `${pluginName}${EARLY_INJECT_SUFFIX}-${contentHash}`;
+
+  await atomicWrite(join(adaptersDir, `${baseName}.js`), earlyInject);
+
+  // Clean up old hashed versions of this plugin's early-inject file
+  let entries: string[];
+  try {
+    entries = await readdir(adaptersDir);
+  } catch {
+    entries = [];
+  }
+  const earlyFileRegex = new RegExp(`^${escapeRegex(pluginName)}${escapeRegex(EARLY_INJECT_SUFFIX)}-[0-9a-f]{8}\\.js$`);
+  const oldFiles = entries.filter(f => earlyFileRegex.test(f) && f !== `${baseName}.js`);
+  await Promise.allSettled(oldFiles.map(f => unlink(join(adaptersDir, f))));
+
+  return `adapters/${baseName}.js`;
+};
+
 // ---------------------------------------------------------------------------
 // Dynamic exec file helpers — write/delete/cleanup for browser_execute_script
 // ---------------------------------------------------------------------------
@@ -234,6 +264,7 @@ const cleanupStaleExecFiles = async (): Promise<void> => {
 export {
   ensureAdaptersDir,
   writeAdapterFile,
+  writeEarlyInjectFile,
   cleanupStaleAdapterFiles,
   writeExecFile,
   deleteExecFile,

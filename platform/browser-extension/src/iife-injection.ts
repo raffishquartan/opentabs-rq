@@ -483,11 +483,136 @@ const reinjectStoredPlugins = async (): Promise<void> => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Early-inject content script management
+// ---------------------------------------------------------------------------
+
+/** Prefix for dynamically registered early-inject content script IDs */
+const EARLY_INJECT_SCRIPT_ID_PREFIX = 'opentabs-early-';
+
+/**
+ * Build the deterministic content script ID for a plugin's early-inject script.
+ * Using a stable ID allows idempotent re-registration (update if exists).
+ */
+const earlyInjectScriptId = (pluginName: string): string => `${EARLY_INJECT_SCRIPT_ID_PREFIX}${pluginName}`;
+
+/**
+ * Register (or update) a plugin's early-inject script as a dynamically
+ * registered content script that runs at `document_start` in the MAIN world.
+ *
+ * Uses `chrome.scripting.registerContentScripts` with `runAt: 'document_start'`
+ * so the script executes before page JavaScript, enabling plugins to intercept
+ * volatile auth tokens or cache DOM state that pages clear on load.
+ *
+ * Content scripts registered this way persist across service worker restarts
+ * and are injected automatically by Chrome without requiring the background
+ * script to be active.
+ */
+const registerEarlyInjectScript = async (
+  pluginName: string,
+  urlPatterns: string[],
+  earlyInjectFile: string,
+): Promise<void> => {
+  if (!isSafePluginName(pluginName)) {
+    console.warn(`[opentabs] Skipping early-inject registration for unsafe plugin name: ${pluginName}`);
+    return;
+  }
+
+  const scriptId = earlyInjectScriptId(pluginName);
+
+  // Unregister existing script first (if any) to ensure clean re-registration.
+  // updateContentScripts only updates existing scripts; registerContentScripts
+  // fails if the ID already exists. Unregister-then-register is the safest approach.
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [scriptId] });
+  } catch {
+    // Script may not exist yet — expected on first registration
+  }
+
+  try {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: scriptId,
+        matches: urlPatterns,
+        js: [earlyInjectFile],
+        runAt: 'document_start',
+        world: 'MAIN',
+        allFrames: false,
+      },
+    ]);
+  } catch (err) {
+    console.warn(`[opentabs] Failed to register early-inject script for ${pluginName}:`, err);
+  }
+};
+
+/**
+ * Unregister a plugin's early-inject content script.
+ * Called when a plugin is removed or no longer declares earlyInject.
+ */
+const unregisterEarlyInjectScript = async (pluginName: string): Promise<void> => {
+  const scriptId = earlyInjectScriptId(pluginName);
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [scriptId] });
+  } catch {
+    // Script may not be registered — not an error
+  }
+};
+
+/**
+ * Synchronize early-inject content script registrations with the current
+ * set of plugins. Registers scripts for plugins that have earlyInjectFile,
+ * and unregisters scripts for plugins that no longer have one.
+ *
+ * Called from handleSyncFull to bring content script registrations in sync
+ * with the server's plugin set after reconnection.
+ */
+const syncEarlyInjectScripts = async (
+  plugins: ReadonlyArray<{ name: string; urlPatterns: string[]; earlyInjectFile?: string }>,
+): Promise<void> => {
+  // Get all currently registered early-inject scripts
+  let registered: chrome.scripting.RegisteredContentScript[];
+  try {
+    registered = await chrome.scripting.getRegisteredContentScripts();
+  } catch {
+    registered = [];
+  }
+  const registeredEarlyIds = new Set(
+    registered.filter(s => s.id.startsWith(EARLY_INJECT_SCRIPT_ID_PREFIX)).map(s => s.id),
+  );
+
+  // Determine which scripts to register and which to unregister
+  const desiredIds = new Set<string>();
+  const registrations: Array<Promise<void>> = [];
+
+  for (const plugin of plugins) {
+    if (plugin.earlyInjectFile && isSafePluginName(plugin.name)) {
+      const id = earlyInjectScriptId(plugin.name);
+      desiredIds.add(id);
+      registrations.push(registerEarlyInjectScript(plugin.name, plugin.urlPatterns, plugin.earlyInjectFile));
+    }
+  }
+
+  // Unregister scripts for plugins no longer in the set
+  const staleIds = [...registeredEarlyIds].filter(id => !desiredIds.has(id));
+  if (staleIds.length > 0) {
+    registrations.push(
+      chrome.scripting.unregisterContentScripts({ ids: staleIds }).catch((err: unknown) => {
+        console.warn('[opentabs] Failed to unregister stale early-inject scripts:', err);
+      }),
+    );
+  }
+
+  await Promise.allSettled(registrations);
+};
+
 export {
   cleanupAdaptersInMatchingTabs,
   injectPluginIntoMatchingTabs,
   injectPluginsIntoTab,
   isSafePluginName,
   queryMatchingTabIds,
+  registerEarlyInjectScript,
   reinjectStoredPlugins,
+  syncEarlyInjectScripts,
+  unregisterEarlyInjectScript,
 };

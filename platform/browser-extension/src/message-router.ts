@@ -38,7 +38,13 @@ import {
 } from './browser-commands/index.js';
 import { notifyConfirmationRequest } from './confirmation-badge.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
-import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs } from './iife-injection.js';
+import {
+  cleanupAdaptersInMatchingTabs,
+  injectPluginIntoMatchingTabs,
+  registerEarlyInjectScript,
+  syncEarlyInjectScripts,
+  unregisterEarlyInjectScript,
+} from './iife-injection.js';
 import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_METHOD_NOT_FOUND } from './json-rpc-errors.js';
 import { forwardToSidePanel, sendTabStateNotification, sendToServer } from './messaging.js';
 import { getAllPluginMeta, removePlugin, removePluginsBatch, storePluginsBatch } from './plugin-storage.js';
@@ -109,6 +115,7 @@ interface ValidatedPluginPayload {
   sourcePath?: string;
   adapterHash?: string;
   adapterFile?: string;
+  earlyInjectFile?: string;
   iconSvg?: string;
   iconInactiveSvg?: string;
   tools: WireToolDef[];
@@ -124,6 +131,7 @@ const toPluginMeta = (p: ValidatedPluginPayload): PluginMeta => ({
   sourcePath: p.sourcePath,
   adapterHash: p.adapterHash,
   adapterFile: p.adapterFile,
+  earlyInjectFile: p.earlyInjectFile,
   iconSvg: p.iconSvg,
   iconInactiveSvg: p.iconInactiveSvg,
   tools: p.tools,
@@ -193,6 +201,7 @@ const validatePluginPayload = (raw: unknown): ValidatedPluginPayload | null => {
     sourcePath: typeof obj.sourcePath === 'string' ? obj.sourcePath : undefined,
     adapterHash: typeof obj.adapterHash === 'string' ? obj.adapterHash : undefined,
     adapterFile: typeof obj.adapterFile === 'string' ? obj.adapterFile : undefined,
+    earlyInjectFile: typeof obj.earlyInjectFile === 'string' ? obj.earlyInjectFile : undefined,
     iconSvg: typeof obj.iconSvg === 'string' ? obj.iconSvg : undefined,
     iconInactiveSvg: typeof obj.iconInactiveSvg === 'string' ? obj.iconInactiveSvg : undefined,
     tools,
@@ -302,6 +311,11 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
     }
   }
 
+  // Register early-inject content scripts for plugins that declare earlyInjectFile.
+  // Runs in parallel with tab state sync since content script registration and
+  // tab state are independent.
+  await syncEarlyInjectScripts(metas);
+
   // Send tab.syncAll AFTER all plugins are stored and injected to avoid the
   // race condition where tab.syncAll runs before plugins are in storage.
   await sendTabSyncAll();
@@ -324,6 +338,13 @@ const handlePluginUpdate = async (params: Record<string, unknown>): Promise<void
   // already present in matching tabs. Without this, injectPluginIntoMatchingTabs
   // skips tabs where the adapter is already injected, leaving old code running.
   await injectPluginIntoMatchingTabs(meta.name, meta.urlPatterns, true, meta.adapterHash, meta.adapterFile);
+
+  // Update early-inject content script registration
+  if (meta.earlyInjectFile) {
+    await registerEarlyInjectScript(meta.name, meta.urlPatterns, meta.earlyInjectFile);
+  } else {
+    await unregisterEarlyInjectScript(meta.name);
+  }
 
   // Report updated tab state to the server after re-injection so the MCP
   // server's tabMapping reflects the new adapter's readiness immediately.
@@ -375,6 +396,7 @@ const handlePluginUninstall = async (params: Record<string, unknown>, id: string
   }
 
   await removePlugin(pluginName);
+  await unregisterEarlyInjectScript(pluginName);
   clearPluginTabState(pluginName);
   sendToServer({
     jsonrpc: '2.0',

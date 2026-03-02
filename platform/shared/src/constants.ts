@@ -29,6 +29,9 @@ export const ADAPTER_FILENAME = 'adapter.iife.js';
 /** Filename of the source map for the adapter IIFE */
 export const ADAPTER_SOURCE_MAP_FILENAME = 'adapter.iife.js.map';
 
+/** Filename of the early-inject IIFE produced by `opentabs-plugin build` (when earlyInject is declared) */
+export const EARLY_INJECT_FILENAME = 'early.iife.js';
+
 /** Filename of the tool/resource/prompt manifest produced by `opentabs-plugin build` */
 export const TOOLS_FILENAME = 'tools.json';
 

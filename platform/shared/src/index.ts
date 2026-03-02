@@ -33,6 +33,7 @@ export {
   DEFAULT_PORT,
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
+  EARLY_INJECT_FILENAME,
   TOOLS_FILENAME,
   getConfigDir,
   getConfigPath,
@@ -203,6 +204,8 @@ export interface WirePluginPayload {
   iconSvg?: string;
   /** Optional SVG icon for the inactive state */
   iconInactiveSvg?: string;
+  /** Relative path to the early-inject script file (e.g., "adapters/discord-early-a1b2c3d4.js") */
+  earlyInjectFile?: string;
 }
 
 /** sync.full notification: server → extension (all plugins on connect) */
