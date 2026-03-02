@@ -33,14 +33,13 @@ const writeTestFile = async (path: string, content: string): Promise<void> => {
 
 /**
  * Creates a minimal valid plugin for testing. Override fields as needed.
- * validatePlugin only reads: name, version, description, urlPatterns, tools
+ * validatePlugin only reads: name, description, urlPatterns, tools
  * (and on each tool: name, description). The Zod schemas (input/output) and
  * methods (handle/isReady) are never inspected, so they can be stubs.
  */
 const makePlugin = (overrides: Partial<OpenTabsPlugin> = {}): OpenTabsPlugin =>
   ({
     name: 'test-plugin',
-    version: '1.0.0',
     displayName: 'Test Plugin',
     description: 'A test plugin',
     urlPatterns: ['https://example.com/*'],
@@ -89,34 +88,6 @@ describe('validatePlugin', () => {
 
     test('accepts valid hyphenated name', () => {
       expect(validatePlugin(makePlugin({ name: 'my-plugin' }))).toEqual([]);
-    });
-  });
-
-  // -- Version validation --
-  describe('version', () => {
-    test('rejects empty version', () => {
-      const errors = validatePlugin(makePlugin({ version: '' }));
-      expect(errors.some(e => e.toLowerCase().includes('version'))).toBe(true);
-    });
-
-    test('rejects non-semver version', () => {
-      const errors = validatePlugin(makePlugin({ version: 'v1' }));
-      expect(errors.some(e => e.includes('semver'))).toBe(true);
-    });
-
-    test('rejects version with only major.minor', () => {
-      const errors = validatePlugin(makePlugin({ version: '1.0' }));
-      expect(errors.some(e => e.includes('semver'))).toBe(true);
-    });
-
-    test('accepts valid semver', () => {
-      expect(validatePlugin(makePlugin({ version: '1.0.0' }))).toEqual([]);
-      expect(validatePlugin(makePlugin({ version: '0.1.0' }))).toEqual([]);
-    });
-
-    test('accepts semver with prerelease tag', () => {
-      expect(validatePlugin(makePlugin({ version: '1.0.0-beta.1' }))).toEqual([]);
-      expect(validatePlugin(makePlugin({ version: '0.0.1-alpha' }))).toEqual([]);
     });
   });
 
@@ -275,14 +246,13 @@ describe('validatePlugin', () => {
     const errors = validatePlugin(
       makePlugin({
         name: '',
-        version: '',
         description: '',
         urlPatterns: [],
         tools: [],
       }),
     );
     // Should have at least one error for each invalid field
-    expect(errors.length).toBeGreaterThanOrEqual(4);
+    expect(errors.length).toBeGreaterThanOrEqual(3);
   });
 });
 

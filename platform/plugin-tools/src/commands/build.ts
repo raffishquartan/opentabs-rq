@@ -317,15 +317,6 @@ const validatePlugin = (plugin: OpenTabsPlugin): string[] => {
   const nameError = validatePluginName(plugin.name);
   if (nameError) errors.push(nameError);
 
-  // Version — must be valid semver (e.g., "1.0.0", "0.1.0-beta.1")
-  if (plugin.version.length === 0) {
-    errors.push('Plugin version is required');
-  } else if (
-    !/^\d+\.\d+\.\d+(-[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?(\+[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)?$/.test(plugin.version)
-  ) {
-    errors.push(`Plugin version "${plugin.version}" is not valid semver (expected: MAJOR.MINOR.PATCH)`);
-  }
-
   // Display name
   if (plugin.displayName.length === 0) errors.push('Plugin displayName is required');
 

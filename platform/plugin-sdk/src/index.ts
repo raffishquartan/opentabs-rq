@@ -190,8 +190,6 @@ export const defineTool = <TInput extends z.ZodObject<z.ZodRawShape>, TOutput ex
 export abstract class OpenTabsPlugin {
   /** Unique identifier (lowercase alphanumeric + hyphens) */
   abstract readonly name: string;
-  /** Semver version string */
-  abstract readonly version: string;
   /** Brief description of the plugin's purpose */
   abstract readonly description: string;
   /**

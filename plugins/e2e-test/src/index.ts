@@ -71,7 +71,6 @@ const typedGreetPrompt = definePrompt({
 
 class E2eTestPlugin extends OpenTabsPlugin {
   readonly name = 'e2e-test';
-  readonly version = '0.0.1';
   readonly description = 'Dead-simple plugin for E2E testing — relays to a local test web server';
   override readonly displayName = 'E2E Test';
   readonly urlPatterns = ['http://localhost/*'];

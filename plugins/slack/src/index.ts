@@ -26,7 +26,6 @@ import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
 
 class SlackPlugin extends OpenTabsPlugin {
   readonly name = 'slack';
-  readonly version = '0.0.1';
   readonly description = 'OpenTabs plugin for Slack';
   override readonly displayName = 'Slack';
   readonly urlPatterns = ['*://*.slack.com/*'];

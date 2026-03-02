@@ -354,7 +354,6 @@ import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
 
 class ${toPascalCase(args.name)}Plugin extends OpenTabsPlugin {
   readonly name = ${singleQuote(args.name)};
-  readonly version = '0.0.1';
   readonly description = ${singleQuote(desc)};
   override readonly displayName = ${singleQuote(displayName)};
   readonly urlPatterns = [${singleQuote(urlPattern)}];
