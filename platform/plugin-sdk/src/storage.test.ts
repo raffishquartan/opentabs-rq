@@ -9,7 +9,7 @@ import {
   setSessionStorage,
 } from './storage.js';
 import { GlobalWindow } from 'happy-dom';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { LogEntry } from './log.js';
 
 let win: GlobalWindow;
@@ -59,6 +59,100 @@ describe('getLocalStorage', () => {
       value: win.localStorage as unknown as Storage,
       configurable: true,
       writable: true,
+    });
+  });
+
+  describe('iframe fallback', () => {
+    test('returns value from iframe localStorage when localStorage is undefined', () => {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      const mockIframe = {
+        style: {} as CSSStyleDeclaration,
+        contentWindow: {
+          localStorage: {
+            getItem: (k: string) => (k === 'fallback-key' ? 'fallback-value' : null),
+          },
+        },
+      };
+      const createElementSpy = vi
+        .spyOn(document, 'createElement')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      const appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      const removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      try {
+        expect(getLocalStorage('fallback-key')).toBe('fallback-value');
+        expect(getLocalStorage('missing-key')).toBeNull();
+      } finally {
+        createElementSpy.mockRestore();
+        appendChildSpy.mockRestore();
+        removeChildSpy.mockRestore();
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: win.localStorage as unknown as Storage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
+    test('returns null when iframe contentWindow is null (sandboxed context)', () => {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      const mockIframe = {
+        style: {} as CSSStyleDeclaration,
+        contentWindow: null,
+      };
+      const createElementSpy = vi
+        .spyOn(document, 'createElement')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      const appendChildSpy = vi
+        .spyOn(document.body, 'appendChild')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      const removeChildSpy = vi
+        .spyOn(document.body, 'removeChild')
+        .mockImplementation(() => mockIframe as unknown as HTMLIFrameElement);
+      try {
+        expect(getLocalStorage('key')).toBeNull();
+      } finally {
+        createElementSpy.mockRestore();
+        appendChildSpy.mockRestore();
+        removeChildSpy.mockRestore();
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: win.localStorage as unknown as Storage,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+
+    test('returns null when iframe creation throws SecurityError', () => {
+      Object.defineProperty(globalThis, 'localStorage', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      const createElementSpy = vi.spyOn(document, 'createElement').mockImplementation(() => {
+        throw new DOMException('Not allowed', 'SecurityError');
+      });
+      try {
+        expect(getLocalStorage('key')).toBeNull();
+      } finally {
+        createElementSpy.mockRestore();
+        Object.defineProperty(globalThis, 'localStorage', {
+          value: win.localStorage as unknown as Storage,
+          configurable: true,
+          writable: true,
+        });
+      }
     });
   });
 });
