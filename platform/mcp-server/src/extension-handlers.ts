@@ -30,12 +30,14 @@ import type {
   ConfigSetAllToolsEnabledParams,
   ConfigSetBrowserToolEnabledParams,
   ConfigSetToolEnabledParams,
+  ConfigStateResult,
   JsonRpcError,
   JsonRpcNotification,
   JsonRpcRequest,
   JsonRpcResult,
   PluginTabInfo,
   TabSyncAllParams,
+  TrustTier,
 } from '@opentabs-dev/shared';
 
 /** Callbacks the extension protocol can invoke on the MCP side */
@@ -110,7 +112,7 @@ const serializePluginForExtension = (
   version: string;
   displayName: string;
   urlPatterns: string[];
-  trustTier: string;
+  trustTier: TrustTier;
   iconSvg?: string;
   iconInactiveSvg?: string;
   tools: {
@@ -270,7 +272,11 @@ const handleTabStateChanged = (
 
 // --- Config handlers ---
 
-const handleConfigGetState = (state: ServerState, id: string | number): void => {
+/**
+ * Build the full ConfigStateResult payload from current server state.
+ * Shared between config.getState responses and plugins.changed notifications.
+ */
+const buildConfigStatePayload = (state: ServerState): ConfigStateResult => {
   const outdatedByPkg = new Map(
     state.outdatedPlugins.map(o => [o.name, { latestVersion: o.latestVersion, updateCommand: o.updateCommand }]),
   );
@@ -299,14 +305,18 @@ const handleConfigGetState = (state: ServerState, id: string | number): void => 
       ...(ct.icon ? { icon: ct.icon } : {}),
     }));
 
+  return {
+    plugins,
+    failedPlugins: state.discoveryErrors.map(e => ({ specifier: e.specifier, error: e.error })),
+    browserTools,
+    serverVersion: version,
+  };
+};
+
+const handleConfigGetState = (state: ServerState, id: string | number): void => {
   sendToExtension(state, {
     jsonrpc: '2.0',
-    result: {
-      plugins,
-      failedPlugins: state.discoveryErrors.map(e => ({ specifier: e.specifier, error: e.error })),
-      browserTools,
-      serverVersion: version,
-    },
+    result: buildConfigStatePayload(state),
     id,
   });
 };
@@ -424,7 +434,7 @@ const handleConfigSetBrowserToolEnabled = (
   callbacks.onToolConfigChanged();
   callbacks.onBrowserToolPolicyPersist();
 
-  sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: {} });
+  sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: { ...buildConfigStatePayload(state) } });
 
   sendToExtension(state, {
     jsonrpc: '2.0',
@@ -458,7 +468,7 @@ const handleConfigSetAllBrowserToolsEnabled = (
   callbacks.onToolConfigChanged();
   callbacks.onBrowserToolPolicyPersist();
 
-  sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: {} });
+  sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: { ...buildConfigStatePayload(state) } });
 
   sendToExtension(state, {
     jsonrpc: '2.0',
@@ -671,7 +681,11 @@ const handlePluginInstall = async (
     const result = await installPlugin(params.name, state, callbacks.onReload);
 
     // Notify the side panel so the UI refreshes with the new plugin
-    sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: {} });
+    sendToExtension(state, {
+      jsonrpc: '2.0',
+      method: 'plugins.changed',
+      params: { ...buildConfigStatePayload(state) },
+    });
 
     sendToExtension(state, {
       jsonrpc: '2.0',
@@ -698,7 +712,11 @@ const handlePluginUpdateFromRegistry = async (
     const result = await updatePlugin(params.name, state, callbacks.onReload);
 
     // Notify the side panel so the UI refreshes
-    sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: {} });
+    sendToExtension(state, {
+      jsonrpc: '2.0',
+      method: 'plugins.changed',
+      params: { ...buildConfigStatePayload(state) },
+    });
 
     sendToExtension(state, {
       jsonrpc: '2.0',
@@ -733,7 +751,11 @@ const handlePluginRemove = async (
     });
 
     // Notify the side panel so the UI refreshes
-    sendToExtension(state, { jsonrpc: '2.0', method: 'plugins.changed', params: {} });
+    sendToExtension(state, {
+      jsonrpc: '2.0',
+      method: 'plugins.changed',
+      params: { ...buildConfigStatePayload(state) },
+    });
 
     sendToExtension(state, {
       jsonrpc: '2.0',

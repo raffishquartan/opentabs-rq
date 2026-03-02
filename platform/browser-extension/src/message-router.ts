@@ -54,7 +54,7 @@ import {
 } from './tab-state.js';
 import { handleToolDispatch } from './tool-dispatch.js';
 import type { PluginMeta } from './extension-messages.js';
-import type { ConfigStatePlugin, TrustTier, WireToolDef } from '@opentabs-dev/shared';
+import type { ConfigStatePlugin, ConfigStateResult, TrustTier, WireToolDef } from '@opentabs-dev/shared';
 
 type MessageHandler = (params: Record<string, unknown>, id?: string | number) => void;
 
@@ -472,6 +472,18 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
   const method = message.method as string | undefined;
   const id = message.id as string | number | undefined;
   const params = (message.params ?? {}) as Record<string, unknown>;
+
+  // Update the server state cache from plugins.changed push notifications
+  // BEFORE forwarding to the side panel so the side panel reads fresh data.
+  if (method === 'plugins.changed') {
+    const payload = params as Partial<ConfigStateResult>;
+    updateServerStateCache({
+      ...(payload.plugins ? { plugins: payload.plugins } : {}),
+      ...(payload.failedPlugins ? { failedPlugins: payload.failedPlugins } : {}),
+      ...(payload.browserTools ? { browserTools: payload.browserTools } : {}),
+      ...(payload.serverVersion !== undefined ? { serverVersion: payload.serverVersion } : {}),
+    });
+  }
 
   // Forward to the side panel only if useful: responses (matched by id in the
   // bridge's pending-request map) and the small set of notification methods the
