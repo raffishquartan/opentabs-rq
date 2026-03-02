@@ -51,6 +51,7 @@ export const DISPATCH_METHODS = [
   'extension.getSidePanel',
   'extension.checkAdapter',
   'extension.forceReconnect',
+  'extension.getTabState',
 ] as const;
 
 /**

@@ -49,6 +49,7 @@ import { getServerStateCache, updateServerStateCache } from './server-state-cach
 import {
   clearPluginTabState,
   computePluginTabState,
+  getLastKnownStates,
   sendTabSyncAll,
   startReadinessPoll,
   updateLastKnownState,
@@ -475,6 +476,23 @@ const handlePluginUninstall = async (params: Record<string, unknown>, id: string
   });
 };
 
+/**
+ * Handle extension.getTabState: return the last-known tab state for all plugins.
+ * The MCP server sends this request to get live tab state for the /health endpoint.
+ */
+const handleExtensionGetTabState = (_params: Record<string, unknown>, id: string | number): void => {
+  const states = getLastKnownStates();
+  const tabStates: Record<string, { state: string; tabs: unknown[] }> = {};
+  for (const [pluginName, serialized] of states) {
+    try {
+      tabStates[pluginName] = JSON.parse(serialized) as { state: string; tabs: unknown[] };
+    } catch {
+      tabStates[pluginName] = { state: 'closed', tabs: [] };
+    }
+  }
+  sendToServer({ jsonrpc: '2.0', result: { tabStates }, id });
+};
+
 // ---------------------------------------------------------------------------
 // Dispatch table
 // ---------------------------------------------------------------------------
@@ -527,6 +545,7 @@ const methodHandlers = new Map<string, MessageHandler>([
     'extension.forceReconnect',
     wrapAsync('extension.forceReconnect', (_params, id) => handleExtensionForceReconnect(id)),
   ],
+  ['extension.getTabState', wrapSync('extension.getTabState', handleExtensionGetTabState)],
 ]);
 
 /** Handle a JSON-RPC message received from the MCP server */

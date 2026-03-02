@@ -92,6 +92,41 @@ test.describe('Health endpoint — plugin details', () => {
 });
 
 // ---------------------------------------------------------------------------
+// US-012: Live tab state query from extension
+// ---------------------------------------------------------------------------
+
+test.describe('Health endpoint — live tab state query', () => {
+  test('/health returns live tab state with per-tab details when extension connected', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // Poll /health until the e2e-test plugin has live tab details
+    const health = await mcpServer.waitForHealth(h => {
+      const plugin = h.pluginDetails?.find(p => p.name === 'e2e-test');
+      return plugin?.tabState === 'ready' && Array.isArray(plugin.tabs) && plugin.tabs.length > 0;
+    });
+
+    const e2ePlugin = health.pluginDetails?.find(p => p.name === 'e2e-test');
+    expect(e2ePlugin).toBeDefined();
+    expect(e2ePlugin?.tabState).toBe('ready');
+    expect(e2ePlugin?.tabs?.length).toBeGreaterThan(0);
+
+    // Verify per-tab details are present (comes from extension's live state)
+    const tab = e2ePlugin?.tabs?.[0] as { tabId?: number; url?: string; ready?: boolean } | undefined;
+    expect(tab).toBeDefined();
+    expect(typeof tab?.tabId).toBe('number');
+    expect(typeof tab?.url).toBe('string');
+    expect(tab?.ready).toBe(true);
+
+    await page.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // US-009: Failed plugins in health endpoint
 // ---------------------------------------------------------------------------
 

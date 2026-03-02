@@ -92,6 +92,8 @@ interface PluginDetail {
   sdkVersion: string | null;
   /** Number of log entries currently in the plugin's circular log buffer. */
   logBufferSize: number;
+  /** Per-tab details: tabId, url, title, ready status. */
+  tabs?: Array<{ tabId: number; url: string; title: string; ready: boolean }>;
   /** Optional SVG icon from the plugin's package.json opentabs field. */
   iconSvg?: string;
 }

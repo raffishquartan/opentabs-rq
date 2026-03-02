@@ -16,6 +16,7 @@ import { saveBrowserToolPolicy, saveToolConfig } from './config.js';
 import { isDev } from './dev-mode.js';
 import {
   handleExtensionMessage,
+  queryExtension,
   sendSyncFull,
   sendExtensionReload,
   rejectAllPendingConfirmations,
@@ -256,12 +257,12 @@ const handleWsInfo = (req: Request, url: URL, state: ServerState): Response => {
 };
 
 /** Health endpoint (GET /health) */
-const handleHealth = (
+const handleHealth = async (
   req: Request,
   state: ServerState,
   transports: Map<string, WebStandardStreamableHTTPServerTransport>,
   getHotState: GetHotState,
-): Response => {
+): Promise<Response> => {
   const authenticated = checkBearerAuth(req, state.wsSecret) === null;
 
   if (!authenticated) {
@@ -270,8 +271,25 @@ const handleHealth = (
 
   const hs = getHotState();
 
+  // Query the extension for live tab state when connected. Falls back to the
+  // server's stale tabMapping cache on timeout (1s) or error.
+  let liveTabStates: Record<string, { state: string; tabs: unknown[] }> | null = null;
+  if (state.extensionWs) {
+    try {
+      const result = (await queryExtension(state, 'extension.getTabState', {}, 1000)) as {
+        tabStates?: Record<string, { state: string; tabs: unknown[] }>;
+      };
+      if (result.tabStates && typeof result.tabStates === 'object') {
+        liveTabStates = result.tabStates;
+      }
+    } catch {
+      // Timeout or error — fall back to tabMapping cache
+    }
+  }
+
   const pluginDetails = [...state.registry.plugins.values()].map(p => {
-    const tabInfo = state.tabMapping.get(p.name);
+    const liveInfo = liveTabStates?.[p.name];
+    const tabInfo = liveInfo ?? state.tabMapping.get(p.name);
     return {
       name: p.name,
       displayName: p.displayName,

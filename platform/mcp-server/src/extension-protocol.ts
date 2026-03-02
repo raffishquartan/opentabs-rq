@@ -528,6 +528,18 @@ const isDispatchError = (
   (err as { name: unknown }).name === 'DispatchError';
 
 /**
+ * Query the extension with a JSON-RPC request and return the response.
+ * Uses the standard dispatch mechanism (pendingDispatches) with a configurable timeout.
+ * Falls back cleanly on timeout or error — callers should catch and use cached data.
+ */
+const queryExtension = (
+  state: ServerState,
+  method: string,
+  params: Record<string, unknown> = {},
+  timeoutMs = 2000,
+): Promise<unknown> => dispatchToExtension(state, method, params, { timeoutMs, label: method });
+
+/**
  * Send extension.reload JSON-RPC notification to trigger chrome.runtime.reload()
  * in the connected extension. Used when the server detects that the managed
  * extension files were updated (version change).
@@ -542,6 +554,7 @@ export type { McpCallbacks };
 export {
   sendSyncFull,
   dispatchToExtension,
+  queryExtension,
   sendInvocationStart,
   sendInvocationEnd,
   sendConfirmationRequest,

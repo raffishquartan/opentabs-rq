@@ -59,6 +59,7 @@ const {
   mockGetServerStateCache,
   mockSendTabSyncAll,
   mockStartReadinessPoll,
+  mockGetLastKnownStates,
 } = vi.hoisted(() => {
   const asyncNoop = () => Promise.resolve();
   const syncNoop = (() => {}) as (params: Record<string, unknown>, id: string | number) => void;
@@ -180,6 +181,7 @@ const {
     ),
     mockSendTabSyncAll: vi.fn(() => Promise.resolve()),
     mockStartReadinessPoll: vi.fn(),
+    mockGetLastKnownStates: vi.fn(() => new Map<string, string>()),
   };
 });
 
@@ -231,7 +233,7 @@ vi.mock('./tab-state.js', () => ({
   clearTabStateCache: vi.fn(),
   clearPluginTabState: vi.fn(),
   updateLastKnownState: vi.fn(() => Promise.resolve()),
-  getLastKnownStates: vi.fn(() => new Map()),
+  getLastKnownStates: mockGetLastKnownStates,
   getAggregateState: vi.fn(() => 'closed'),
   checkTabRemoved: vi.fn(() => Promise.resolve()),
   checkTabChanged: vi.fn(() => Promise.resolve()),
@@ -1423,6 +1425,47 @@ describe('handleServerMessage', () => {
 
       expect(mockHandleExtensionForceReconnect).toHaveBeenCalledTimes(1);
       expect(mockHandleExtensionForceReconnect).toHaveBeenCalledWith(53);
+    });
+
+    test('extension.getTabState returns last-known tab states via sendToServer', () => {
+      const states = new Map<string, string>([
+        [
+          'slack',
+          JSON.stringify({
+            state: 'ready',
+            tabs: [{ tabId: 1, url: 'https://slack.com', title: 'Slack', ready: true }],
+          }),
+        ],
+        ['github', JSON.stringify({ state: 'closed', tabs: [] })],
+      ]);
+      mockGetLastKnownStates.mockReturnValueOnce(states);
+
+      handleServerMessage({ method: 'extension.getTabState', id: 54 });
+
+      expect(mockSendToServer).toHaveBeenCalledTimes(1);
+      expect(mockSendToServer).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        result: {
+          tabStates: {
+            slack: { state: 'ready', tabs: [{ tabId: 1, url: 'https://slack.com', title: 'Slack', ready: true }] },
+            github: { state: 'closed', tabs: [] },
+          },
+        },
+        id: 54,
+      });
+    });
+
+    test('extension.getTabState handles empty states map', () => {
+      mockGetLastKnownStates.mockReturnValueOnce(new Map());
+
+      handleServerMessage({ method: 'extension.getTabState', id: 55 });
+
+      expect(mockSendToServer).toHaveBeenCalledTimes(1);
+      expect(mockSendToServer).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        result: { tabStates: {} },
+        id: 55,
+      });
     });
   });
 

@@ -2,6 +2,7 @@ import {
   dispatchToExtension,
   handleExtensionMessage,
   isDispatchError,
+  queryExtension,
   sendSyncFull,
   writeAdapterFile,
 } from './extension-protocol.js';
@@ -2421,5 +2422,38 @@ describe('writeAdapterFile', () => {
     const fileName = adapterFile.replace('adapters/', '');
     const written = await readFile(join(adaptersDir, fileName), 'utf-8');
     expect(written).toBe(largeContent);
+  });
+});
+
+describe('queryExtension', () => {
+  test('sends a request and resolves with the response result', async () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    const resultPromise = queryExtension(state, 'extension.getTabState', {}, 5000);
+
+    // Extract the id from the sent message
+    expect(ws.sent).toHaveLength(1);
+    const sent = JSON.parse(ws.sent[0] ?? '{}') as { id: string; method: string };
+    expect(sent.method).toBe('extension.getTabState');
+
+    // Simulate the extension responding
+    const responseResult = { tabStates: { slack: { state: 'ready', tabs: [] } } };
+    handleExtensionMessage(
+      state,
+      JSON.stringify({ jsonrpc: '2.0', result: responseResult, id: sent.id }),
+      noopCallbacks,
+    );
+
+    const result = await resultPromise;
+    expect(result).toEqual(responseResult);
+  });
+
+  test('rejects when extension is not connected', async () => {
+    const state = createState();
+    state.extensionWs = null;
+
+    await expect(queryExtension(state, 'extension.getTabState')).rejects.toThrow();
   });
 });
