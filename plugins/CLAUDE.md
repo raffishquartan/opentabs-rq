@@ -16,6 +16,8 @@ Each plugin:
 
 The root tooling (`npm run build`, `npm run lint`, etc.) does NOT cover plugins. When changing platform packages that plugins depend on (`shared`, `plugin-sdk`, `plugin-tools`), publish new versions to npm and update plugin dependencies.
 
+**All plugins must use `^x.y.z` semver ranges for `@opentabs-dev/*` dependencies — never `file:` or `workspace:` links.** During version bumps, verify that no plugin `package.json` contains `file:` references. Plugins depend on published npm packages, not local filesystem paths.
+
 ## Adding a New Plugin
 
 Each plugin follows the same pattern:

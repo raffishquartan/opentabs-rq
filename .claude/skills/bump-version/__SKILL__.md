@@ -59,6 +59,14 @@ For each plugin in `plugins/*/package.json`, update:
 2. `"@opentabs-dev/plugin-sdk": "^<old>"` → `"@opentabs-dev/plugin-sdk": "^<new>"` (in `dependencies`)
 3. `"@opentabs-dev/plugin-tools": "^<old>"` → `"@opentabs-dev/plugin-tools": "^<new>"` (in `devDependencies`)
 
+**After editing, verify no `file:` or `workspace:` references exist in any plugin:**
+
+```bash
+grep -r '"file:\|"workspace:' plugins/*/package.json
+```
+
+This must produce no output. Plugins must use `^x.y.z` semver ranges for `@opentabs-dev/*` dependencies — never local filesystem paths.
+
 ### Dependency Graph (for reference)
 
 Platform packages use `"*"` for intra-workspace dependencies (resolved by npm workspaces), so those do NOT need version updates. Only plugin `^x.y.z` references need updating.
