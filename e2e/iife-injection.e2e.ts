@@ -29,6 +29,7 @@ import {
   setupIsolatedIifeTest,
   getExtensionId,
   replaceIifeClosing,
+  writeAndWaitForWatcher,
 } from './helpers.js';
 import { test } from '@playwright/test';
 import fs from 'node:fs';
@@ -76,10 +77,11 @@ test.describe('IIFE injection — plugin.update re-injection', () => {
       // Append the marker code just before the closing `})();`
       // The IIFE ends with `})();` — insert the marker before the last line
       const modifiedIife = replaceIifeClosing(originalIife, markerCode);
-      fs.writeFileSync(iifePath, modifiedIife, 'utf-8');
-
-      // Wait for the file watcher to detect the IIFE change and send plugin.update
-      await waitForLog(ctx.server, 'IIFE updated for', 15_000);
+      await writeAndWaitForWatcher(
+        ctx.server,
+        () => fs.writeFileSync(iifePath, modifiedIife, 'utf-8'),
+        'IIFE updated for',
+      );
 
       // Wait for the marker to appear in the page (proves re-injection happened)
       await waitFor(

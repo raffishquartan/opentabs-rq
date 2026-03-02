@@ -40,6 +40,7 @@ import {
   callToolExpectSuccess,
   replaceIifeClosing,
   setupAdapterSymlink,
+  writeAndWaitForWatcher,
 } from './helpers.js';
 import { test } from '@playwright/test';
 import fs from 'node:fs';
@@ -534,10 +535,7 @@ test.describe('Strict CSP — file watcher IIFE re-injection', () => {
         'globalThis.__e2eReinjectMarker = true;',
       ].join('\n');
       const modifiedIife = replaceIifeClosing(originalIife, markerCode);
-      fs.writeFileSync(iifePath, modifiedIife, 'utf-8');
-
-      // Wait for the file watcher to detect the IIFE change and send plugin.update
-      await waitForLog(server, 'IIFE updated for', 15_000);
+      await writeAndWaitForWatcher(server, () => fs.writeFileSync(iifePath, modifiedIife, 'utf-8'), 'IIFE updated for');
 
       // Wait for the marker to appear in the page (proves re-injection happened
       // on the strict-CSP page despite script-src 'none')
