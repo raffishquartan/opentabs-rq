@@ -45,10 +45,11 @@ import { getAllPluginMeta, removePlugin, removePluginsBatch, storePluginsBatch }
 import { checkRateLimit } from './rate-limiter.js';
 import { handleResourceRead, handlePromptGet } from './resource-prompt-dispatch.js';
 import { consumeServerResponse } from './server-request.js';
-import { getServerStateCache, updateServerStateCache } from './server-state-cache.js';
+import { flushServerStateCacheToSession, getServerStateCache, updateServerStateCache } from './server-state-cache.js';
 import {
   clearPluginTabState,
   computePluginTabState,
+  flushLastKnownStateToSession,
   getLastKnownStates,
   sendTabSyncAll,
   startReadinessPoll,
@@ -365,6 +366,10 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
     ...(rawServerVersion !== undefined ? { serverVersion: rawServerVersion } : {}),
   });
 
+  // Flush server state to session storage immediately so critical state
+  // survives MV3 service worker suspension during the sendTabSyncAll window.
+  flushServerStateCacheToSession();
+
   // Notify the side panel immediately so it renders plugin cards from the
   // background cache (metaCache + serverStateCache) without waiting for
   // sendTabSyncAll to probe every plugin's isReady(). Tab states stream
@@ -375,10 +380,12 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
   });
 
   // Fire-and-forget: send tab.syncAll after all plugins are stored and
-  // injected, then start the readiness poll once probes complete. This
-  // runs after the side panel notification so the UI is not blocked by
-  // the O(N × round-trip) latency of probing every matching tab.
+  // injected, then flush the populated tab state cache immediately so it
+  // survives any service worker suspension during the probing window, then
+  // start the readiness poll. Runs after the side panel notification so
+  // the UI is not blocked by the O(N × round-trip) latency of probing.
   void sendTabSyncAll().then(() => {
+    flushLastKnownStateToSession();
     startReadinessPoll();
   });
 };

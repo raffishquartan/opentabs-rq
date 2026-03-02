@@ -226,6 +226,20 @@ const sendTabSyncAll = async (): Promise<void> => {
 };
 
 /**
+ * Write the current lastKnownState Map to chrome.storage.session immediately,
+ * cancelling any pending debounced write. Called after sync.full populates
+ * the cache to ensure critical state survives MV3 service worker suspension
+ * without waiting for the 500ms debounce window.
+ */
+const flushLastKnownStateToSession = (): void => {
+  if (lastKnownStatePersistTimer !== undefined) {
+    clearTimeout(lastKnownStatePersistTimer);
+    lastKnownStatePersistTimer = undefined;
+  }
+  persistLastKnownStateToSession();
+};
+
+/**
  * Clear the last-known state cache. Called on WebSocket disconnect so the
  * next connect triggers a full sync without stale cache interference.
  */
@@ -478,6 +492,7 @@ export {
   clearPluginTabState,
   clearTabStateCache,
   computePluginTabState,
+  flushLastKnownStateToSession,
   getAggregateState,
   getLastKnownStates,
   loadLastKnownStateFromSession,

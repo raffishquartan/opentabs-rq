@@ -62,6 +62,20 @@ const updateServerStateCache = (partial: Partial<ServerStateCache>): void => {
 };
 
 /**
+ * Write the current in-memory cache to chrome.storage.session immediately,
+ * cancelling any pending debounced write. Called after sync.full populates
+ * the cache to ensure critical state survives MV3 service worker suspension
+ * without waiting for the 500ms debounce window.
+ */
+const flushServerStateCacheToSession = (): void => {
+  if (persistTimer !== undefined) {
+    clearTimeout(persistTimer);
+    persistTimer = undefined;
+  }
+  persistToSession();
+};
+
+/**
  * Clear the server state cache. Called on WebSocket disconnect so the
  * next connection rebuilds state from sync.full without stale data.
  * Clears both in-memory cache and chrome.storage.session.
@@ -99,5 +113,11 @@ const loadServerStateCacheFromSession = async (): Promise<void> => {
   }
 };
 
-export { clearServerStateCache, getServerStateCache, loadServerStateCacheFromSession, updateServerStateCache };
+export {
+  clearServerStateCache,
+  flushServerStateCacheToSession,
+  getServerStateCache,
+  loadServerStateCacheFromSession,
+  updateServerStateCache,
+};
 export type { ServerStateCache };

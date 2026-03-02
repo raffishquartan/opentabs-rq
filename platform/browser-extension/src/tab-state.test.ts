@@ -78,6 +78,7 @@ const {
   computePluginTabState,
   clearTabStateCache,
   clearPluginTabState,
+  flushLastKnownStateToSession,
   updateLastKnownState,
   getLastKnownStates,
   getAggregateState,
@@ -905,5 +906,52 @@ describe('loadLastKnownStateFromSession', () => {
     await loadLastKnownStateFromSession();
 
     expect(getLastKnownStates().size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// flushLastKnownStateToSession
+// ---------------------------------------------------------------------------
+
+describe('flushLastKnownStateToSession', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    clearTabStateCache();
+    mockStorageSessionSet.mockClear();
+    mockStorageSessionRemove.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('writes to session storage immediately without waiting for debounce', async () => {
+    const plugin = makePlugin({ name: 'alpha' });
+    await updateLastKnownState(plugin.name, makeStateInfo('ready'));
+
+    // updateLastKnownState schedules a debounce write — not fired yet
+    expect(mockStorageSessionSet).not.toHaveBeenCalled();
+
+    flushLastKnownStateToSession();
+
+    // Written immediately — no need to advance timers
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
+    const written = mockStorageSessionSet.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(written).toHaveProperty('lastKnownState');
+    expect(written.lastKnownState).toHaveProperty('alpha');
+  });
+
+  test('cancels pending debounce timer so it does not fire a second write', async () => {
+    const plugin = makePlugin({ name: 'beta' });
+    await updateLastKnownState(plugin.name, makeStateInfo('closed'));
+
+    flushLastKnownStateToSession();
+
+    // One write from the flush
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
+
+    // Advance past the debounce window — no second write should fire
+    vi.advanceTimersByTime(500);
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
   });
 });

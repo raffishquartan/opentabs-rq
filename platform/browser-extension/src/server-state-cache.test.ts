@@ -21,8 +21,13 @@ const mockStorageSessionRemove = vi.fn<(keys: string | string[]) => Promise<void
 };
 
 // Import after mocking
-const { getServerStateCache, updateServerStateCache, clearServerStateCache, loadServerStateCacheFromSession } =
-  await import('./server-state-cache.js');
+const {
+  getServerStateCache,
+  updateServerStateCache,
+  clearServerStateCache,
+  flushServerStateCacheToSession,
+  loadServerStateCacheFromSession,
+} = await import('./server-state-cache.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -214,5 +219,48 @@ describe('loadServerStateCacheFromSession', () => {
     await loadServerStateCacheFromSession();
 
     expect(getServerStateCache().serverVersion).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Immediate flush
+// ---------------------------------------------------------------------------
+
+describe('flushServerStateCacheToSession', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    clearServerStateCache();
+    mockStorageSessionSet.mockClear();
+    mockStorageSessionRemove.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('writes to session storage immediately without waiting for debounce', () => {
+    updateServerStateCache({ serverVersion: '1.0.0' });
+    // No debounce timer has fired yet
+    expect(mockStorageSessionSet).not.toHaveBeenCalled();
+
+    flushServerStateCacheToSession();
+
+    // Written immediately — no need to advance timers
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
+    const written = mockStorageSessionSet.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(written).toHaveProperty('serverStateCache');
+    expect((written.serverStateCache as { serverVersion: string }).serverVersion).toBe('1.0.0');
+  });
+
+  test('cancels pending debounce timer so it does not fire a second write', () => {
+    updateServerStateCache({ serverVersion: '2.0.0' });
+    flushServerStateCacheToSession();
+
+    // One write from the flush
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
+
+    // Advance past the debounce window — no second write should fire
+    vi.advanceTimersByTime(500);
+    expect(mockStorageSessionSet).toHaveBeenCalledTimes(1);
   });
 });

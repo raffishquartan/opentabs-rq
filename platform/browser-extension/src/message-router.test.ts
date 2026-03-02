@@ -188,6 +188,7 @@ const {
 vi.mock('./server-state-cache.js', () => ({
   updateServerStateCache: mockUpdateServerStateCache,
   getServerStateCache: mockGetServerStateCache,
+  flushServerStateCacheToSession: vi.fn(),
 }));
 
 vi.mock('./confirmation-badge.js', () => ({
@@ -232,6 +233,7 @@ vi.mock('./tab-state.js', () => ({
   computePluginTabState: vi.fn(() => Promise.resolve({ state: 'closed', tabs: [] })),
   clearTabStateCache: vi.fn(),
   clearPluginTabState: vi.fn(),
+  flushLastKnownStateToSession: vi.fn(),
   updateLastKnownState: vi.fn(() => Promise.resolve()),
   getLastKnownStates: mockGetLastKnownStates,
   getAggregateState: vi.fn(() => 'closed'),
