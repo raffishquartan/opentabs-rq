@@ -61,6 +61,8 @@ const tailFile = async (
     await fh.close();
   }
   let lines = chunk.split('\n');
+  // Remove the trailing empty string produced when the file ends with \n
+  if (lines.at(-1) === '') lines.pop();
   // If we didn't read from the start, the first line may be partial — skip it
   if (readStart > 0) lines.shift();
   if (filter) {
