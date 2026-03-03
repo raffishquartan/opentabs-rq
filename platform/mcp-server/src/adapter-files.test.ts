@@ -64,7 +64,7 @@ describe('writeExecFile', () => {
     await ensureAdaptersDir(state);
   });
 
-  test('wraps user code in an IIFE with Function constructor', async () => {
+  test('wraps user code inline in an IIFE without eval', async () => {
     const state = createState();
     const filename = await writeExecFile(state, 'test-1', 'return 42');
 
@@ -74,20 +74,24 @@ describe('writeExecFile', () => {
     // Starts with IIFE wrapper
     expect(content.startsWith('(function() {')).toBe(true);
     expect(content.endsWith('})();')).toBe(true);
-    // User code is JSON-escaped inside new Function()
-    expect(content).toContain(`new Function(${JSON.stringify('return 42')})`);
+    // User code is placed inline in an inner function (no eval/new Function)
+    expect(content).toContain('var __r = (function() {');
+    expect(content).toContain('return 42');
+    expect(content).not.toContain('new Function');
     // Contains the namespaced result capture mechanism
     expect(content).toContain('__execResult_test-1');
     expect(content).toContain('__openTabs');
   });
 
-  test('JSON.stringify escapes special characters in user code', async () => {
+  test('places user code inline preserving its content verbatim', async () => {
     const state = createState();
     const code = 'return "hello\\nworld"';
     const filename = await writeExecFile(state, 'escape-test', code);
 
     const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
-    expect(content).toContain(`new Function(${JSON.stringify(code)})`);
+    // User code appears verbatim (not JSON-escaped) inside the inner function
+    expect(content).toContain(code);
+    expect(content).not.toContain('new Function');
   });
 
   test('handles async code with promise support in wrapper', async () => {
@@ -104,15 +108,16 @@ describe('writeExecFile', () => {
     expect(content).toContain('.catch(function(e)');
   });
 
-  test('malicious code with closing braces cannot break the wrapper', async () => {
+  test('user code is placed inline in the inner function body', async () => {
     const state = createState();
-    const maliciousCode = '});alert(1);//';
-    const filename = await writeExecFile(state, 'malicious-test', maliciousCode);
+    const code = '});alert(1);//';
+    const filename = await writeExecFile(state, 'inline-test', code);
 
     const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
-    // The malicious code is safely JSON-escaped inside Function constructor
-    expect(content).toContain(`new Function(${JSON.stringify(maliciousCode)})`);
-    // The IIFE wrapper is still intact
+    // User code is inlined verbatim — no eval-like wrapping
+    expect(content).toContain(code);
+    expect(content).not.toContain('new Function');
+    // The outer IIFE wrapper is intact
     expect(content.startsWith('(function() {')).toBe(true);
     expect(content.endsWith('})();')).toBe(true);
   });

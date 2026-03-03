@@ -170,18 +170,19 @@ const writeExecFile = async (state: ServerState, execId: string, code: string): 
   // so concurrent executions do not collide. The extension reads the
   // namespaced key matching this execution's UUID and cleans it up.
   //
-  // User code is passed as a JSON-escaped string literal to new Function(),
-  // preventing IIFE wrapper breakout attacks. The Function constructor
-  // parses the code in its own context — closing braces/parens in user
-  // code cannot break the wrapper syntax.
+  // User code is placed inline inside an inner function expression, avoiding
+  // eval-like constructs (new Function, eval) that strict CSP blocks. The
+  // file is injected via chrome.scripting.executeScript({ files }), which
+  // runs as extension-origin code and bypasses page CSP entirely.
   const wrapped = [
     '(function() {',
     '  var __ot = globalThis.__openTabs = globalThis.__openTabs || {};',
     `  var __resultKey = ${JSON.stringify(resultKey)};`,
     `  var __asyncKey = ${JSON.stringify(asyncKey)};`,
     '  try {',
-    `    var __userFn = new Function(${JSON.stringify(code)});`,
-    '    var __r = __userFn();',
+    '    var __r = (function() {',
+    code,
+    '    })();',
     '    if (__r && typeof __r === "object" && typeof __r.then === "function") {',
     '      __ot[__asyncKey] = true;',
     '      __r.then(function(v) { __ot[__resultKey] = { value: v }; })',
