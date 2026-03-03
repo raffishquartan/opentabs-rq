@@ -8,6 +8,7 @@ export const listComments = defineTool({
   displayName: 'List Comments',
   description: 'List comments on a Linear issue, ordered by creation date.',
   icon: 'message-square',
+  group: 'Comments',
   input: z.object({
     issue_id: z.string().describe('Issue UUID to list comments for'),
     limit: z.number().optional().describe('Maximum number of comments to return (default 25, max 50)'),

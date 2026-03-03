@@ -8,6 +8,7 @@ export const getProject = defineTool({
   displayName: 'Get Project',
   description: 'Get detailed information about a single Linear project by its UUID.',
   icon: 'folder-open',
+  group: 'Projects',
   input: z.object({
     project_id: z.string().describe('Project UUID'),
   }),

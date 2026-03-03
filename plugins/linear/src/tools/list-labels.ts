@@ -9,6 +9,7 @@ export const listLabels = defineTool({
   description:
     'List all issue labels in the Linear workspace. Use this to find label IDs for creating or filtering issues.',
   icon: 'tag',
+  group: 'Workflow',
   input: z.object({}),
   output: z.object({
     labels: z.array(labelSchema).describe('List of issue labels'),

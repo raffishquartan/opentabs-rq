@@ -8,6 +8,7 @@ export const listCycles = defineTool({
   displayName: 'List Cycles',
   description: 'List cycles (sprints) for a team. Use this to find cycle IDs for creating or filtering issues.',
   icon: 'rotate-cw',
+  group: 'Workflow',
   input: z.object({
     team_id: z.string().describe('Team UUID to list cycles for (use list_teams to find IDs)'),
     limit: z.number().optional().describe('Maximum number of cycles to return (default 10, max 50)'),
