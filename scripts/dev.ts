@@ -23,6 +23,8 @@ import { readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { Readable } from 'node:stream';
+import { DEV_RELOAD_PORT } from './dev-reload-constants';
+import { type DevReloadServer, startDevReloadServer } from './dev-reload-server';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -243,7 +245,10 @@ const reloadExtension = async (): Promise<void> => {
 // Track child processes for cleanup
 const children: ChildProcess[] = [];
 
+let devReloadServer: DevReloadServer | null = null;
+
 const cleanup = (): void => {
+  devReloadServer?.close();
   for (const child of children) {
     if (process.platform === 'win32') {
       child.kill();
@@ -300,6 +305,14 @@ console.log(`${devPrefix} tsc initial compilation complete.`);
 
 // 3. Run the extension build pipeline once after initial tsc build
 await buildExtension();
+
+// 3b. Start the dev reload WebSocket relay server
+devReloadServer = await startDevReloadServer(DEV_RELOAD_PORT);
+if (devReloadServer) {
+  console.log(`${devPrefix} Dev reload server listening on ws://localhost:${DEV_RELOAD_PORT}`);
+} else {
+  console.warn(`${devPrefix} Dev reload server disabled (port ${DEV_RELOAD_PORT} in use)`);
+}
 
 // 4. Start the dev proxy (holds client connections, restarts MCP server worker on dist/ changes)
 console.log(`${devPrefix} Starting MCP server (dev proxy)...`);
