@@ -358,6 +358,8 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
       tools: p.tools,
       iconSvg: p.iconSvg,
       iconInactiveSvg: p.iconInactiveSvg,
+      iconDarkSvg: p.iconDarkSvg,
+      iconDarkInactiveSvg: p.iconDarkInactiveSvg,
       ...(typeof raw?.sdkVersion === 'string' ? { sdkVersion: raw.sdkVersion } : {}),
       ...(raw?.update && typeof raw.update === 'object'
         ? {
@@ -451,6 +453,8 @@ const handlePluginUpdate = async (params: Record<string, unknown>): Promise<void
     tools: validated.tools,
     iconSvg: validated.iconSvg,
     iconInactiveSvg: validated.iconInactiveSvg,
+    iconDarkSvg: validated.iconDarkSvg,
+    iconDarkInactiveSvg: validated.iconDarkInactiveSvg,
     ...(typeof params.sdkVersion === 'string' ? { sdkVersion: params.sdkVersion } : {}),
     ...(params.update && typeof params.update === 'object'
       ? {

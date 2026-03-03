@@ -1,8 +1,39 @@
 import type { TabState } from '@opentabs-dev/shared';
 import { ArrowUp } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { sanitizeSvg } from '../../sanitize-svg.js';
 import { cn } from '../lib/cn.js';
+
+/**
+ * Subscribes to dark mode class changes on <html> via MutationObserver.
+ * Returns true when the 'dark' class is present on document.documentElement.
+ */
+const darkModeListeners = new Set<() => void>();
+let darkModeObserver: MutationObserver | null = null;
+
+const subscribeDarkMode = (callback: () => void): (() => void) => {
+  darkModeListeners.add(callback);
+  if (!darkModeObserver) {
+    darkModeObserver = new MutationObserver(() => {
+      for (const listener of darkModeListeners) listener();
+    });
+    darkModeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+  }
+  return () => {
+    darkModeListeners.delete(callback);
+    if (darkModeListeners.size === 0 && darkModeObserver) {
+      darkModeObserver.disconnect();
+      darkModeObserver = null;
+    }
+  };
+};
+
+const getIsDark = (): boolean => document.documentElement.classList.contains('dark');
+
+const useIsDark = (): boolean => useSyncExternalStore(subscribeDarkMode, getIsDark);
 
 const AVATAR_PALETTE_SIZE = 10;
 
@@ -134,7 +165,7 @@ const PluginIcon = ({
 }: PluginIconProps) => {
   const isReady = tabState === 'ready';
   const hasSvg = !!iconSvg;
-  const isDark = document.documentElement.classList.contains('dark');
+  const isDark = useIsDark();
   const activeSvg = isDark && iconDarkSvg ? iconDarkSvg : iconSvg;
   const inactiveSvg = isDark && iconDarkInactiveSvg ? iconDarkInactiveSvg : iconInactiveSvg;
   const rawSvg = isReady ? activeSvg : inactiveSvg;
