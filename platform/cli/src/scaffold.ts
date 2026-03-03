@@ -219,7 +219,6 @@ const BIOME_CONFIG_CONTENT = `${JSON.stringify(
 const GITIGNORE_CONTENT = `dist/
 node_modules/
 *.tsbuildinfo
-package-lock.json
 `;
 
 const generateReadme = (args: ScaffoldArgs, urlPattern: string): string => {
