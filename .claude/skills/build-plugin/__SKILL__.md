@@ -95,6 +95,7 @@ opentabs_browser_get_network_requests(tabId)
 Study the captured traffic to understand:
 
 - API base URL (e.g., `https://app.example.com/api/v2`)
+- **Whether the API is same-origin or cross-origin** (critical for CORS planning)
 - Request format (JSON body vs form-encoded)
 - Required headers (content-type, custom headers like `X-Workspace-Id`)
 - Response shapes for each endpoint
@@ -102,22 +103,59 @@ Study the captured traffic to understand:
 
 **Note**: Authorization headers are redacted by the capture tool. You must discover the auth token format through other means.
 
+### Step 2b: Check CORS Policy (for Cross-Origin APIs)
+
+If the API is on a different subdomain (e.g., `api.example.com` when the page is on `app.example.com`), verify CORS behavior before writing any API code:
+
+```bash
+curl -sI -X OPTIONS https://api.example.com/endpoint \
+  -H "Origin: https://app.example.com" \
+  -H "Access-Control-Request-Method: GET" \
+  -H "Access-Control-Request-Headers: Authorization,Content-Type" \
+  | grep -i "access-control"
+```
+
+What to look for:
+
+- `access-control-allow-origin: *` — CORS allowed, but **`credentials: 'include'` will NOT work** (browser rejects cookies with wildcard origin). Only token-based auth works.
+- `access-control-allow-origin: https://app.example.com` + `access-control-allow-credentials: true` — Full cookie auth works with `credentials: 'include'`.
+- No CORS headers — Cross-origin requests are fully blocked; must use same-origin endpoints.
+
+**Same-origin API fallback**: Many apps expose same-origin API proxies or internal endpoints. Look for:
+
+- `/api/...` paths on the same domain
+- `/_graphql` internal GraphQL endpoint
+- JSON responses from standard page URLs with `Accept: application/json`
+
 ### Step 3: Discover Auth Token
 
-Use `opentabs_browser_execute_script` to probe the page for auth tokens. Try these strategies in order:
+**First, always check cookies with `opentabs_browser_get_cookies`** to understand the auth model:
+
+- Look for `httpOnly: true` cookies — these are session tokens the browser sends automatically but JS cannot read
+- If auth is HttpOnly cookie-based, skip trying to extract the token; instead detect auth from the DOM (meta tags, page globals) and let `credentials: 'include'` send the cookies automatically
+- Look for non-HttpOnly tokens that can be read with `getCookie()`
+
+**If CSP blocks `browser_execute_script`** (check for `script-src` that doesn't include `'unsafe-eval'`), use DOM-based exploration:
+
+- `browser_get_page_html(selector: "meta[name*=user], meta[name*=login], meta[name*=token]")` — finds embedded user/auth meta tags
+- `browser_get_storage()` — reads localStorage/sessionStorage
+- `browser_query_elements(selector: "[data-login], [data-user-id]")` — finds DOM auth indicators
+
+Use `opentabs_browser_execute_script` to probe the page for auth tokens only when CSP allows it. Try these strategies in order:
 
 **Strategy A: localStorage** (most common)
 
 ```javascript
 // Try direct access first
-const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+const token =
+  localStorage.getItem("token") || localStorage.getItem("access_token");
 
 // If localStorage is undefined (some SPAs delete it), use iframe fallback
-if (typeof window.localStorage === 'undefined') {
-  const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
+if (typeof window.localStorage === "undefined") {
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
   document.body.appendChild(iframe);
-  const token = iframe.contentWindow.localStorage.getItem('token');
+  const token = iframe.contentWindow.localStorage.getItem("token");
   document.body.removeChild(iframe);
 }
 ```
@@ -139,7 +177,7 @@ let wreq = null;
 window.webpackChunkapp_name.push([
   [Symbol()],
   {},
-  r => {
+  (r) => {
     wreq = r;
   },
 ]);
@@ -157,8 +195,9 @@ document.cookie; // Look for session tokens, JWT cookies
 
 ```javascript
 // Search inline <script> tags for embedded tokens/config
-document.querySelectorAll('script:not([src])').forEach(s => {
-  if (s.textContent.includes('token')) console.log(s.textContent.substring(0, 500));
+document.querySelectorAll("script:not([src])").forEach((s) => {
+  if (s.textContent.includes("token"))
+    console.log(s.textContent.substring(0, 500));
 });
 ```
 
@@ -167,9 +206,9 @@ document.querySelectorAll('script:not([src])').forEach(s => {
 Once you have the token, make a test API call:
 
 ```javascript
-const resp = await fetch('https://example.com/api/v2/me', {
-  headers: { Authorization: 'Bearer ' + token },
-  credentials: 'include',
+const resp = await fetch("https://example.com/api/v2/me", {
+  headers: { Authorization: "Bearer " + token },
+  credentials: "include",
 });
 const data = await resp.json();
 ```
@@ -244,7 +283,7 @@ src/
 This is the most critical file. Follow this pattern:
 
 ```typescript
-import { ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError } from "@opentabs-dev/plugin-sdk";
 
 interface AppAuth {
   token: string;
@@ -263,7 +302,7 @@ export const isAuthenticated = (): boolean => getAuth() !== null;
 
 // SPA hydration: poll for auth to become available after page load
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
+  new Promise((resolve) => {
     let elapsed = 0;
     const interval = 500;
     const maxWait = 5000;
@@ -291,7 +330,7 @@ export const api = async <T extends Record<string, unknown>>(
   } = {},
 ): Promise<T> => {
   const auth = getAuth();
-  if (!auth) throw ToolError.auth('Not authenticated — please log in.');
+  if (!auth) throw ToolError.auth("Not authenticated — please log in.");
 
   // Build URL with query params
   let url = `https://example.com/api/v2${endpoint}`;
@@ -305,10 +344,12 @@ export const api = async <T extends Record<string, unknown>>(
   }
 
   // Set headers
-  const headers: Record<string, string> = { Authorization: `Bearer ${auth.token}` };
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${auth.token}`,
+  };
   let fetchBody: string | undefined;
   if (options.body) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
     fetchBody = JSON.stringify(options.body);
   }
 
@@ -316,34 +357,45 @@ export const api = async <T extends Record<string, unknown>>(
   let response: Response;
   try {
     response = await fetch(url, {
-      method: options.method ?? 'GET',
+      method: options.method ?? "GET",
       headers,
       body: fetchBody,
-      credentials: 'include',
+      credentials: "include",
       signal: AbortSignal.timeout(30_000),
     });
   } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === 'TimeoutError')
+    if (err instanceof DOMException && err.name === "TimeoutError")
       throw ToolError.timeout(`API request timed out: ${endpoint}`);
-    if (err instanceof DOMException && err.name === 'AbortError') throw new ToolError('Request was aborted', 'aborted');
-    throw new ToolError(`Network error: ${err instanceof Error ? err.message : String(err)}`, 'network_error', {
-      category: 'internal',
-      retryable: true,
-    });
+    if (err instanceof DOMException && err.name === "AbortError")
+      throw new ToolError("Request was aborted", "aborted");
+    throw new ToolError(
+      `Network error: ${err instanceof Error ? err.message : String(err)}`,
+      "network_error",
+      {
+        category: "internal",
+        retryable: true,
+      },
+    );
   }
 
   // Classify HTTP errors
   if (!response.ok) {
-    const errorBody = (await response.text().catch(() => '')).substring(0, 512);
+    const errorBody = (await response.text().catch(() => "")).substring(0, 512);
     if (response.status === 429) {
-      const retryAfter = response.headers.get('Retry-After');
+      const retryAfter = response.headers.get("Retry-After");
       const retryMs = retryAfter ? Number(retryAfter) * 1000 : undefined;
-      throw ToolError.rateLimited(`Rate limited: ${endpoint} — ${errorBody}`, retryMs);
+      throw ToolError.rateLimited(
+        `Rate limited: ${endpoint} — ${errorBody}`,
+        retryMs,
+      );
     }
     if (response.status === 401 || response.status === 403)
       throw ToolError.auth(`Auth error (${response.status}): ${errorBody}`);
-    if (response.status === 404) throw ToolError.notFound(`Not found: ${endpoint} — ${errorBody}`);
-    throw ToolError.internal(`API error (${response.status}): ${endpoint} — ${errorBody}`);
+    if (response.status === 404)
+      throw ToolError.notFound(`Not found: ${endpoint} — ${errorBody}`);
+    throw ToolError.internal(
+      `API error (${response.status}): ${endpoint} — ${errorBody}`,
+    );
   }
 
   if (response.status === 204) return {} as T;
@@ -354,28 +406,31 @@ export const api = async <T extends Record<string, unknown>>(
 ### Tool Pattern (one file per tool)
 
 ```typescript
-import { defineTool } from '@opentabs-dev/plugin-sdk';
-import { z } from 'zod';
-import { api } from '../<name>-api.js';
-import { mapMessage, messageSchema } from './schemas.js';
+import { defineTool } from "@opentabs-dev/plugin-sdk";
+import { z } from "zod";
+import { api } from "../<name>-api.js";
+import { mapMessage, messageSchema } from "./schemas.js";
 
 export const sendMessage = defineTool({
-  name: 'send_message', // snake_case, auto-prefixed with plugin name
-  displayName: 'Send Message', // Title Case
-  description: 'Send a message to a channel', // clear for AI agents
-  icon: 'send', // valid Lucide icon name
+  name: "send_message", // snake_case, auto-prefixed with plugin name
+  displayName: "Send Message", // Title Case
+  description: "Send a message to a channel", // clear for AI agents
+  icon: "send", // valid Lucide icon name
   input: z.object({
-    channel: z.string().describe('Channel ID to send the message to'), // .describe() on EVERY field
-    content: z.string().describe('Message text content'),
+    channel: z.string().describe("Channel ID to send the message to"), // .describe() on EVERY field
+    content: z.string().describe("Message text content"),
   }),
   output: z.object({
-    message: messageSchema.describe('The sent message'),
+    message: messageSchema.describe("The sent message"),
   }),
-  handle: async params => {
-    const data = await api<Record<string, unknown>>('/channels/' + params.channel + '/messages', {
-      method: 'POST',
-      body: { content: params.content },
-    });
+  handle: async (params) => {
+    const data = await api<Record<string, unknown>>(
+      "/channels/" + params.channel + "/messages",
+      {
+        method: "POST",
+        body: { content: params.content },
+      },
+    );
     return { message: mapMessage(data) }; // defensive mapping with fallback defaults
   },
 });
@@ -384,38 +439,38 @@ export const sendMessage = defineTool({
 ### Shared Schemas Pattern (`tools/schemas.ts`)
 
 ```typescript
-import { z } from 'zod';
+import { z } from "zod";
 
 export const messageSchema = z.object({
-  id: z.string().describe('Message ID'),
-  channel_id: z.string().describe('Channel ID'),
-  content: z.string().describe('Message text content'),
-  timestamp: z.string().describe('ISO 8601 timestamp'),
+  id: z.string().describe("Message ID"),
+  channel_id: z.string().describe("Channel ID"),
+  content: z.string().describe("Message text content"),
+  timestamp: z.string().describe("ISO 8601 timestamp"),
 });
 
 // Defensive mapper with fallback defaults
 export const mapMessage = (m: Record<string, unknown> | undefined) => ({
-  id: (m?.id as string) ?? '',
-  channel_id: (m?.channel_id as string) ?? '',
-  content: (m?.content as string) ?? '',
-  timestamp: (m?.timestamp as string) ?? '',
+  id: (m?.id as string) ?? "",
+  channel_id: (m?.channel_id as string) ?? "",
+  content: (m?.content as string) ?? "",
+  timestamp: (m?.timestamp as string) ?? "",
 });
 ```
 
 ### Plugin Class Pattern (`index.ts`)
 
 ```typescript
-import { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
-import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
-import { isAuthenticated, waitForAuth } from './<name>-api.js';
-import { sendMessage } from './tools/send-message.js';
+import { OpenTabsPlugin } from "@opentabs-dev/plugin-sdk";
+import type { ToolDefinition } from "@opentabs-dev/plugin-sdk";
+import { isAuthenticated, waitForAuth } from "./<name>-api.js";
+import { sendMessage } from "./tools/send-message.js";
 // ... import all tools
 
 class MyPlugin extends OpenTabsPlugin {
-  readonly name = '<name>';
-  readonly description = 'OpenTabs plugin for <DisplayName>';
-  override readonly displayName = '<DisplayName>';
-  readonly urlPatterns = ['*://*.example.com/*'];
+  readonly name = "<name>";
+  readonly description = "OpenTabs plugin for <DisplayName>";
+  override readonly displayName = "<DisplayName>";
+  readonly urlPatterns = ["*://*.example.com/*"];
   readonly tools: ToolDefinition[] = [sendMessage /* ... all tools */];
 
   async isReady(): Promise<boolean> {
@@ -502,8 +557,12 @@ The adapter IIFE is re-executed when the Chrome extension reloads (e.g., during 
 // Persist token to globalThis (survives adapter re-injection)
 const getPersistedToken = (): string | null => {
   try {
-    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
-    const cache = ns?.tokenCache as Record<string, string | undefined> | undefined;
+    const ns = (globalThis as Record<string, unknown>).__openTabs as
+      | Record<string, unknown>
+      | undefined;
+    const cache = ns?.tokenCache as
+      | Record<string, string | undefined>
+      | undefined;
     return cache?.myPlugin ?? null;
   } catch {
     return null;
@@ -512,16 +571,23 @@ const getPersistedToken = (): string | null => {
 
 const setPersistedToken = (token: string): void => {
   try {
-    const ns = ((globalThis as Record<string, unknown>).__openTabs ??= {}) as Record<string, unknown>;
-    const cache = (ns.tokenCache ??= {}) as Record<string, string | undefined>;
+    const g = globalThis as Record<string, unknown>;
+    if (!g.__openTabs) g.__openTabs = {};
+    const ns = g.__openTabs as Record<string, unknown>;
+    if (!ns.tokenCache) ns.tokenCache = {};
+    const cache = ns.tokenCache as Record<string, string | undefined>;
     cache.myPlugin = token;
   } catch {}
 };
 
 const clearPersistedToken = (): void => {
   try {
-    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
-    const cache = ns?.tokenCache as Record<string, string | undefined> | undefined;
+    const ns = (globalThis as Record<string, unknown>).__openTabs as
+      | Record<string, unknown>
+      | undefined;
+    const cache = ns?.tokenCache as
+      | Record<string, string | undefined>
+      | undefined;
     if (cache) cache.myPlugin = undefined;
   } catch {}
 };
@@ -531,7 +597,7 @@ const getAuth = (): Auth | null => {
   const persisted = getPersistedToken();
   if (persisted) return { token: persisted };
 
-  const raw = readLocalStorage('token');
+  const raw = readLocalStorage("token");
   if (!raw) return null;
   // ... parse token ...
   setPersistedToken(token);
@@ -563,7 +629,7 @@ This means:
 
 ```typescript
 // BAD: classify by HTTP status only
-if (response.status === 403) throw ToolError.auth('...'); // Wrong for permission errors!
+if (response.status === 403) throw ToolError.auth("..."); // Wrong for permission errors!
 
 // GOOD: parse body first, fall back to HTTP status
 const errorBody = await response.text();
@@ -573,12 +639,13 @@ try {
 } catch {}
 
 if (apiCode !== undefined) {
-  if (VALIDATION_ERRORS.has(apiCode)) throw ToolError.validation('...');
-  if (NOT_FOUND_ERRORS.has(apiCode)) throw ToolError.notFound('...');
-  if (AUTH_ERRORS.has(apiCode)) throw ToolError.auth('...');
+  if (VALIDATION_ERRORS.has(apiCode)) throw ToolError.validation("...");
+  if (NOT_FOUND_ERRORS.has(apiCode)) throw ToolError.notFound("...");
+  if (AUTH_ERRORS.has(apiCode)) throw ToolError.auth("...");
 }
 // Fall back to HTTP status
-if (response.status === 401 || response.status === 403) throw ToolError.auth('...');
+if (response.status === 401 || response.status === 403)
+  throw ToolError.auth("...");
 ```
 
 ---
@@ -616,3 +683,58 @@ When using browser tools during testing (like `browser_navigate_tab`, `browser_e
 8. **Biome formatting** — always run `npm run format` after writing code; the project's config may differ from your defaults
 9. **The `opentabs` field in `package.json`** is how the platform discovers plugin metadata — `displayName`, `description`, and `urlPatterns` must be there
 10. **Browser tools require human approval** — `browser_navigate_tab`, `browser_execute_script`, etc. show a confirmation dialog that times out in 30 seconds
+11. **CSP may block `browser_execute_script`** — Sites with strict CSP (like GitHub: `script-src github.githubassets.com`) block eval/inline scripts. `browser_execute_script` runs in the MAIN world and is subject to the page's CSP. Use alternative exploration tools: `browser_get_page_html`, `browser_get_cookies`, `browser_get_storage`, `browser_query_elements`. The adapter IIFE itself bypasses CSP because it's injected as a file URL — plugin code works fine even on CSP-strict pages.
+12. **HttpOnly cookies are invisible to plugin code** — `getCookie()` uses `document.cookie`, which cannot read HttpOnly cookies. Most session cookies are HttpOnly. Always check the cookie `httpOnly` property when exploring auth (use `browser_get_cookies`). For HttpOnly cookie auth, detect auth indirectly: from `<meta>` tags the server embeds in HTML (e.g., `<meta name="user-login">`), from page globals (`window.__APP_STATE__`), or from localStorage. The API calls still work with `credentials: 'include'` because the browser sends HttpOnly cookies automatically — you just can't read them in JS.
+13. **Cross-origin API + cookies = CORS conflict** — When the API is on a different subdomain (e.g., `api.github.com` for a `github.com` plugin), using `credentials: 'include'` fails if the API returns `Access-Control-Allow-Origin: *` (browser rejects credentials with wildcard origin). Solutions: (a) use the API without cookies if it supports token-based auth you can extract from the page, (b) use same-origin internal API endpoints if the app has them, (c) omit `credentials: 'include'` for public/unauthenticated endpoints. Verify CORS behavior with: `curl -sI -X OPTIONS <api-url> -H "Origin: <page-origin>" -H "Access-Control-Request-Method: GET"`.
+14. **Scaffolder uses double quotes; Biome wants single quotes** — The `opentabs plugin create` scaffold generates TypeScript with double quotes, but the Biome config uses `quoteStyle: 'single'`. Always run `npm run format` immediately after scaffolding.
+15. **Cookie-only auth (no extractable token)** — Some apps (like Notion) use HttpOnly cookies exclusively. The plugin cannot read the token, but API calls work via `credentials: 'include'`. Detect authentication by checking non-HttpOnly cookies (e.g., `notion_user_id`), page globals, or by making a test API call. Auth persistence still matters — persist the *user context* (user ID, workspace ID) on globalThis even if the auth token itself is in HttpOnly cookies.
+16. **Internal API format may differ between endpoints** — The same app may wrap API responses differently across endpoints. Example: Notion's `getRecordValues` returns `block[id].value` (direct), while `queryCollection` returns `block[id].value.value` (extra wrapper with `role` field). Always verify the response shape of each endpoint individually by inspecting the actual response in `browser_execute_script` rather than assuming consistency.
+17. **CRDT-enabled workspaces may reject write operations** — Modern web apps are migrating to CRDTs for real-time collaboration. The older `submitTransaction` API may fail with "User does not have edit access" even on pages the user owns. This is because the CRDT system requires operations in a different format. When write operations fail unexpectedly, check if the app has a CRDT migration flag or a different write endpoint.
+18. **`setPersistedToken` must avoid `??=` assignment-in-expression** — The Biome lint rule `noAssignInExpressions` forbids `(obj.prop ??= value)`. Use explicit if-checks instead: `if (!obj.prop) obj.prop = value`.
+19. **Scaffolder `package.json` needs manual adjustments** — The scaffold creates a minimal `package.json` that is missing fields that official plugins need: scoped `@opentabs-dev/` package name, matching version with platform, `publishConfig`, `jiti` dev dependency, correct `zod` version matching other plugins. Always compare with an existing plugin's `package.json` and align.
+20. **Test every tool against the live browser** — The `opentabs_plugin_list_tabs` tool is the first thing to verify (no confirmation needed). Then systematically test read-only tools (search, list, get) before write tools (create, update, delete). This catches auth issues, API format mismatches, and schema mapping errors early.
+21. **API response recordMap nesting varies** — Web apps that return `recordMap` data (Notion, Slack, etc.) may nest records differently in different endpoints. The same block might be at `block[id].value` in one response and `block[id].value.value` in another. Build defensive accessor functions or check both levels.
+
+---
+
+## Cookie-Based Auth Pattern
+
+For apps where auth is entirely via HttpOnly cookies (no extractable token):
+
+```typescript
+// Auth is implicit via credentials: 'include'.
+// Detect *authentication status* from observable signals:
+
+const getAuth = (): Auth | null => {
+  const persisted = getPersistedAuth();
+  if (persisted) return persisted;
+
+  // Check non-HttpOnly cookies for user context
+  const userId = getCookie('user_id');
+  if (!userId) return null;
+
+  // Resolve workspace/space/org context from localStorage or API
+  const contextId = getContextFromLocalStorage();
+  const auth: Auth = { userId, contextId: contextId ?? '' };
+  setPersistedAuth(auth);
+  return auth;
+};
+
+// API calls use credentials: 'include' — the browser sends HttpOnly cookies automatically
+const api = async <T>(endpoint: string, body: Record<string, unknown>): Promise<T> => {
+  const auth = getAuth();
+  if (!auth) throw ToolError.auth('Not authenticated');
+
+  const response = await fetch(`https://app.example.com/api/${endpoint}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-active-user': auth.userId,  // Some apps need explicit user headers
+    },
+    body: JSON.stringify(body),
+    credentials: 'include',  // HttpOnly cookies sent automatically
+    signal: AbortSignal.timeout(30_000),
+  });
+  // ... error handling ...
+};
+```
