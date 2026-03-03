@@ -15,39 +15,39 @@
  * All tests use dynamic ports and are safe for parallel execution.
  */
 
-import {
-  expect,
-  test as fixtureTest,
-  copyE2eTestPlugin,
-  createMcpClient,
-  createMinimalPlugin,
-  startMcpServer,
-  startStrictCspServer,
-  launchExtensionContext,
-  cleanupTestConfigDir,
-  readPluginToolNames,
-  readTestConfig,
-  writeTestConfig,
-} from './fixtures.js';
-import {
-  waitFor,
-  waitForLog,
-  waitForExtensionConnected,
-  waitForToolList,
-  openTestAppTab,
-  parseToolResult,
-  waitForToolResult,
-  callToolExpectSuccess,
-  replaceIifeClosing,
-  setupAdapterSymlink,
-  writeAndWaitForWatcher,
-} from './helpers.js';
-import { test } from '@playwright/test';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { McpClient, McpServer, TestServer } from './fixtures.js';
 import type { BrowserContext, Page } from '@playwright/test';
+import { test } from '@playwright/test';
+import type { McpClient, McpServer, TestServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  copyE2eTestPlugin,
+  createMcpClient,
+  createMinimalPlugin,
+  expect,
+  test as fixtureTest,
+  launchExtensionContext,
+  readPluginToolNames,
+  readTestConfig,
+  startMcpServer,
+  startStrictCspServer,
+  writeTestConfig,
+} from './fixtures.js';
+import {
+  callToolExpectSuccess,
+  openTestAppTab,
+  parseToolResult,
+  replaceIifeClosing,
+  setupAdapterSymlink,
+  waitFor,
+  waitForExtensionConnected,
+  waitForLog,
+  waitForToolList,
+  waitForToolResult,
+  writeAndWaitForWatcher,
+} from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Setup helper — strict-CSP variant of setupToolTest

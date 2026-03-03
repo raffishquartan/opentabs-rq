@@ -9,21 +9,21 @@
  *   3. Tab states stream progressively via tab.stateChanged as each probe completes
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  startTestServer,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  readPluginToolNames,
-  launchExtensionContext,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import { waitForExtensionConnected, waitForLog, openSidePanel, setupAdapterSymlink } from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  cleanupTestConfigDir,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  launchExtensionContext,
+  readPluginToolNames,
+  startMcpServer,
+  startTestServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import { openSidePanel, setupAdapterSymlink, waitForExtensionConnected, waitForLog } from './helpers.js';
 
 /** Build a tools map from the e2e-test plugin's prefixed tool names. */
 const buildToolsMap = (): Record<string, boolean> => {

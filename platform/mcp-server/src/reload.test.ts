@@ -1,13 +1,13 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import { afterAll, afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { stopFileWatching } from './file-watcher.js';
 import { performConfigReload, performReload } from './reload.js';
 import { resetGlobalPathsCache } from './resolver.js';
-import { createState, prefixedToolName } from './state.js';
-import { afterAll, afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { ServerState, SessionPermissionRule } from './state.js';
-import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import { createState, prefixedToolName } from './state.js';
 
 /**
  * Integration tests for the reload module.

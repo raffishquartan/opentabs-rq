@@ -1,6 +1,6 @@
-import { vi, describe, expect, test, beforeEach } from 'vitest';
-import type { DisconnectReason } from './extension-messages.js';
 import type { ConfigStateBrowserTool, ConfigStateFailedPlugin, ConfigStatePlugin } from '@opentabs-dev/shared';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import type { DisconnectReason } from './extension-messages.js';
 
 /** Response shape returned by handleBgGetFullState */
 interface FullStateResponse {

@@ -7,21 +7,21 @@
  * execution safety.
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  createMcpClient,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  createMinimalPlugin,
-  readPluginToolNames,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { McpServer, McpClient } from './fixtures.js';
+import type { McpClient, McpServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  createMinimalPlugin,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  readPluginToolNames,
+  startMcpServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

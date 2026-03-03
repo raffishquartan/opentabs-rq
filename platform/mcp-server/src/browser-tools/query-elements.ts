@@ -2,9 +2,9 @@
  * browser_query_elements — query all elements matching a CSS selector and return their attributes.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const DEFAULT_ATTRIBUTES = ['id', 'class', 'href', 'src', 'type', 'name', 'value', 'placeholder'];
 

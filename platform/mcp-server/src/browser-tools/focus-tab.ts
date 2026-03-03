@@ -2,9 +2,9 @@
  * browser_focus_tab — focus a browser tab by making it the active tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const focusTab = defineBrowserTool({
   name: 'browser_focus_tab',

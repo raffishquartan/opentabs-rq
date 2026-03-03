@@ -1,4 +1,4 @@
-import { describe, expect, vi, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Chrome API stubs — network-capture.ts registers listeners at module level
@@ -27,8 +27,9 @@ let capturedOnDetachListener: ((source: { tabId?: number }, reason: string) => v
   tabs: { onRemoved: { addListener: vi.fn() } },
 };
 
-const { scrubHeaders, startCapture, isCapturing, stopCapture, getRequests, getWsFrames } =
-  await import('./network-capture.js');
+const { scrubHeaders, startCapture, isCapturing, stopCapture, getRequests, getWsFrames } = await import(
+  './network-capture.js'
+);
 
 // ---------------------------------------------------------------------------
 // Tests

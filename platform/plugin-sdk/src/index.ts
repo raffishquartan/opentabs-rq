@@ -1,12 +1,12 @@
-import type { LucideIconName } from './lucide-icon-names.js';
 import type { z } from 'zod';
+import type { LucideIconName } from './lucide-icon-names.js';
 
 // ---------------------------------------------------------------------------
 // Re-exports from @opentabs-dev/shared (single source of truth)
 // ---------------------------------------------------------------------------
 
-export { NAME_REGEX, RESERVED_NAMES, validatePluginName, validateUrlPattern } from '@opentabs-dev/shared';
 export type { ManifestTool, PluginManifest as Manifest } from '@opentabs-dev/shared';
+export { NAME_REGEX, RESERVED_NAMES, validatePluginName, validateUrlPattern } from '@opentabs-dev/shared';
 export type { LucideIconName } from './lucide-icon-names.js';
 export { LUCIDE_ICON_NAMES } from './lucide-icon-names.js';
 
@@ -146,74 +146,74 @@ export abstract class OpenTabsPlugin {
 // Errors
 // ---------------------------------------------------------------------------
 
-export { ToolError } from './errors.js';
 export type { ErrorCategory, ToolErrorOptions } from './errors.js';
+export { ToolError } from './errors.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — DOM
 // ---------------------------------------------------------------------------
 
-export { waitForSelector, waitForSelectorRemoval, querySelectorAll, getTextContent, observeDOM } from './dom.js';
-export type { WaitForSelectorOptions, ObserveDOMOptions } from './dom.js';
+export type { ObserveDOMOptions, WaitForSelectorOptions } from './dom.js';
+export { getTextContent, observeDOM, querySelectorAll, waitForSelector, waitForSelectorRemoval } from './dom.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Fetch
 // ---------------------------------------------------------------------------
 
+export type {
+  DeleteJSON,
+  FetchFromPageOptions,
+  FetchJSON,
+  PatchJSON,
+  PostForm,
+  PostFormData,
+  PostJSON,
+  PutJSON,
+} from './fetch.js';
 export {
+  deleteJSON,
   fetchFromPage,
   fetchJSON,
   fetchJSONImpl,
   httpStatusToToolError,
   parseRetryAfterMs,
-  postJSON,
+  patchJSON,
   postForm,
   postFormData,
+  postJSON,
   putJSON,
-  patchJSON,
-  deleteJSON,
-} from './fetch.js';
-export type {
-  FetchFromPageOptions,
-  FetchJSON,
-  PostJSON,
-  PostForm,
-  PostFormData,
-  PutJSON,
-  PatchJSON,
-  DeleteJSON,
 } from './fetch.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Timing
 // ---------------------------------------------------------------------------
 
-export { retry, sleep, waitUntil } from './timing.js';
 export type { RetryOptions, SleepOptions, WaitUntilOptions } from './timing.js';
+export { retry, sleep, waitUntil } from './timing.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Storage
 // ---------------------------------------------------------------------------
 
 export {
-  getLocalStorage,
-  setLocalStorage,
-  removeLocalStorage,
-  getSessionStorage,
-  setSessionStorage,
-  removeSessionStorage,
   getCookie,
+  getLocalStorage,
+  getSessionStorage,
+  removeLocalStorage,
+  removeSessionStorage,
+  setLocalStorage,
+  setSessionStorage,
 } from './storage.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Page State
 // ---------------------------------------------------------------------------
 
-export { getPageGlobal, getCurrentUrl, getPageTitle } from './page-state.js';
+export { getCurrentUrl, getPageGlobal, getPageTitle } from './page-state.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Logging
 // ---------------------------------------------------------------------------
 
+export type { LogEntry, LogLevel, LogTransport } from './log.js';
 export { log } from './log.js';
-export type { LogLevel, LogEntry, LogTransport } from './log.js';

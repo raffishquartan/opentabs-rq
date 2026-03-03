@@ -1,5 +1,5 @@
-import { retry, sleep, waitUntil } from './timing.js';
 import { describe, expect, test } from 'vitest';
+import { retry, sleep, waitUntil } from './timing.js';
 
 // ---------------------------------------------------------------------------
 // sleep

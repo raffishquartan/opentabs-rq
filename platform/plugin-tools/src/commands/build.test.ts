@@ -1,3 +1,10 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import type { LucideIconName, OpenTabsPlugin, ToolDefinition } from '@opentabs-dev/plugin-sdk';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { z } from 'zod';
 import {
   convertToolSchemas,
   deriveDisplayName,
@@ -10,13 +17,6 @@ import {
   resolvePluginPathForComparison,
   validatePlugin,
 } from './build.js';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
-import { z } from 'zod';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import type { LucideIconName, OpenTabsPlugin, ToolDefinition } from '@opentabs-dev/plugin-sdk';
 
 /** Write a file to the temp directory, awaiting the result. */
 const writeTestFile = async (path: string, content: string): Promise<void> => {

@@ -4,9 +4,9 @@
  * sorted newest-first, with optional filtering by level, source, and time.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const extensionGetLogs = defineBrowserTool({
   name: 'extension_get_logs',

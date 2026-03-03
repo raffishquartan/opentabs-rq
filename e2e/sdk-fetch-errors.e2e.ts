@@ -8,8 +8,8 @@
  * and asserts on the structured error response.
  */
 
-import { test, expect } from './fixtures.js';
-import { setupToolTest, parseErrorJson } from './helpers.js';
+import { expect, test } from './fixtures.js';
+import { parseErrorJson, setupToolTest } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // fetchFromPage error categorization — full stack

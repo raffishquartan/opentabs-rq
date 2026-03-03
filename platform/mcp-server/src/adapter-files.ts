@@ -3,12 +3,12 @@
  * Handles writing plugin adapter IIFEs, dynamic exec scripts, and cleanup.
  */
 
-import { getAdaptersDir } from './config.js';
-import { log } from './logger.js';
-import { atomicWrite } from '@opentabs-dev/shared';
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import { atomicWrite } from '@opentabs-dev/shared';
+import { getAdaptersDir } from './config.js';
+import { log } from './logger.js';
 import type { ServerState } from './state.js';
 
 /**

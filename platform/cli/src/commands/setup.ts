@@ -5,11 +5,11 @@
  * auto-initialization on first run.
  */
 
-import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
 import { cpSync, existsSync, mkdirSync } from 'node:fs';
 import { access, readFile, writeFile } from 'node:fs/promises';
-import { join, dirname, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
 
 const resolveExtensionDir = (): string => {
   try {

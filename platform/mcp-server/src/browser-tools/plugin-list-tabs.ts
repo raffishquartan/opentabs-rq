@@ -5,8 +5,8 @@
  * tab.stateChanged events from the extension) — no extension dispatch needed.
  */
 
-import { defineBrowserTool } from './definition.js';
 import { z } from 'zod';
+import { defineBrowserTool } from './definition.js';
 
 const pluginListTabs = defineBrowserTool({
   name: 'plugin_list_tabs',

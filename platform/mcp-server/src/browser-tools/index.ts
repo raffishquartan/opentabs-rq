@@ -6,10 +6,12 @@
  * when a tool's metadata changes without regenerating the catalog.
  */
 
+import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared';
 import { analyzeSiteTool } from './analyze-site.js';
 import { clearConsoleLogs } from './clear-console-logs.js';
 import { clickElement } from './click-element.js';
 import { closeTab } from './close-tab.js';
+import type { BrowserToolDefinition } from './definition.js';
 import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
 import { enableNetworkCapture } from './enable-network-capture.js';
@@ -46,8 +48,6 @@ import { selectOption } from './select-option.js';
 import { setCookie } from './set-cookie.js';
 import { typeText } from './type-text.js';
 import { waitForElement } from './wait-for-element.js';
-import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared';
-import type { BrowserToolDefinition } from './definition.js';
 
 const browserTools: BrowserToolDefinition[] = [
   reloadExtension,

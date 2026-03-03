@@ -1,3 +1,8 @@
+import { describe, expect, test } from 'vitest';
+import type { ApiAnalysis, ApiEndpoint } from './detect-apis.js';
+import type { AuthAnalysis } from './detect-auth.js';
+import type { DomAnalysis } from './detect-dom.js';
+import type { FrameworkAnalysis } from './detect-framework.js';
 import {
   capitalizeFirst,
   deriveFormName,
@@ -10,11 +15,6 @@ import {
   restEndpointSuggestion,
   toSnakeCase,
 } from './index.js';
-import { describe, expect, test } from 'vitest';
-import type { ApiAnalysis, ApiEndpoint } from './detect-apis.js';
-import type { AuthAnalysis } from './detect-auth.js';
-import type { DomAnalysis } from './detect-dom.js';
-import type { FrameworkAnalysis } from './detect-framework.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

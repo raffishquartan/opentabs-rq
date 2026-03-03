@@ -1,4 +1,3 @@
-import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 import {
   clearConsoleLogs,
   getConsoleLogs,
@@ -7,6 +6,7 @@ import {
   startCapture,
   stopCapture,
 } from '../network-capture.js';
+import { requireTabId, sendErrorResult, sendSuccessResult } from './helpers.js';
 
 export const handleBrowserEnableNetworkCapture = async (
   params: Record<string, unknown>,

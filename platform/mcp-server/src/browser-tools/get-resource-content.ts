@@ -2,9 +2,9 @@
  * browser_get_resource_content — read the content of a specific resource by URL via CDP Page.getResourceContent.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getResourceContent = defineBrowserTool({
   name: 'browser_get_resource_content',

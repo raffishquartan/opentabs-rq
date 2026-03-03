@@ -2,9 +2,9 @@
  * browser_get_page_html — extract raw HTML from a web page or specific element.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getPageHtml = defineBrowserTool({
   name: 'browser_get_page_html',

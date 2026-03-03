@@ -2,10 +2,10 @@
  * browser_set_cookie — set a browser cookie.
  */
 
+import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
 import { defineBrowserTool } from './definition.js';
 import { safeUrl } from './url-validation.js';
-import { dispatchToExtension } from '../extension-protocol.js';
-import { z } from 'zod';
 
 const setCookie = defineBrowserTool({
   name: 'browser_set_cookie',

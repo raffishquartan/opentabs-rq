@@ -1,5 +1,5 @@
-import { ErrorBoundary } from './ErrorBoundary';
 import type { Meta, StoryObj } from '@storybook/react';
+import { ErrorBoundary } from './ErrorBoundary';
 
 /** Throws during render so ErrorBoundary catches it and shows the fallback UI. */
 const Thrower = (): never => {

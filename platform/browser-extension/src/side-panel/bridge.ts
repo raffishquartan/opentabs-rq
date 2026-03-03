@@ -7,13 +7,13 @@
  * script. The side panel never communicates with the MCP server directly.
  */
 
-import type { DisconnectReason } from '../extension-messages.js';
 import type {
   ConfigStateBrowserTool,
   ConfigStateFailedPlugin,
   ConfigStatePlugin,
   WireToolDef,
 } from '@opentabs-dev/shared';
+import type { DisconnectReason } from '../extension-messages.js';
 
 /** Plugin state as displayed in the side panel. tools is optional to reflect that the server response may omit it. */
 type PluginState = Omit<ConfigStatePlugin, 'tools'> & { tools?: WireToolDef[] };

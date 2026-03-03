@@ -1,7 +1,7 @@
-import { vi, beforeEach, describe, expect, test } from 'vitest';
-import { EventEmitter, PassThrough } from 'node:stream';
-import type { RegisteredPlugin } from './state.js';
 import type * as ChildProcess from 'node:child_process';
+import { EventEmitter, PassThrough } from 'node:stream';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import type { RegisteredPlugin } from './state.js';
 
 // ---- spawn mock via vi.mock ----
 

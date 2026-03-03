@@ -8,7 +8,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 let sdkVersion = '0.0.0';

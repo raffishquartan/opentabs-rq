@@ -1,3 +1,4 @@
+import type { ConfigStatePlugin, TabState } from '@opentabs-dev/shared';
 import {
   clearAllConfirmationBadges,
   clearConfirmationBackgroundTimeout,
@@ -5,6 +6,7 @@ import {
   getPendingConfirmations,
 } from './confirmation-badge.js';
 import { buildWsUrl, SERVER_PORT_KEY, WS_CONNECTED_KEY } from './constants.js';
+import type { DisconnectReason, InternalMessage, PluginTabStateInfo } from './extension-messages.js';
 import { handleServerMessage } from './message-router.js';
 import { forwardToSidePanel, sendToServer } from './messaging.js';
 import { getAllPluginMeta } from './plugin-storage.js';
@@ -31,8 +33,6 @@ import {
   stopReadinessPoll,
 } from './tab-state.js';
 import { notifyDispatchProgress } from './tool-dispatch.js';
-import type { DisconnectReason, InternalMessage, PluginTabStateInfo } from './extension-messages.js';
-import type { ConfigStatePlugin, TabState } from '@opentabs-dev/shared';
 
 // ---------------------------------------------------------------------------
 // WebSocket connection state

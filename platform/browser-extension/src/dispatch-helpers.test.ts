@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { DispatchResult } from './dispatch-helpers.js';
 import type { PluginMeta } from './extension-messages.js';
 
@@ -46,8 +46,9 @@ const mockTabsGet = vi.fn<(tabId: number) => Promise<chrome.tabs.Tab>>();
 };
 
 // Import after mocking
-const { resolvePlugin, isAdapterNotReady, dispatchWithTabFallback, dispatchToTargetedTab } =
-  await import('./dispatch-helpers.js');
+const { resolvePlugin, isAdapterNotReady, dispatchWithTabFallback, dispatchToTargetedTab } = await import(
+  './dispatch-helpers.js'
+);
 
 /** Helper to build a minimal PluginMeta for tests */
 const makePlugin = (overrides?: Partial<PluginMeta>): PluginMeta => ({

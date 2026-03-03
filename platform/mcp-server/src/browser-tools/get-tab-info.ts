@@ -2,9 +2,9 @@
  * browser_get_tab_info — get detailed information about a specific browser tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getTabInfo = defineBrowserTool({
   name: 'browser_get_tab_info',

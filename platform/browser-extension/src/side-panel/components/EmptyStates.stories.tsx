@@ -1,5 +1,5 @@
-import { DisconnectedState, LoadingState } from './EmptyStates';
 import type { Meta, StoryObj } from '@storybook/react';
+import { DisconnectedState, LoadingState } from './EmptyStates';
 
 const meta: Meta = {
   title: 'Components/EmptyStates',

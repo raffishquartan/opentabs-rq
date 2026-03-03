@@ -10,10 +10,10 @@
  * Output: platform/browser-extension/icons/icon-{size}.png
  */
 
-import { Resvg } from '@resvg/resvg-js';
 import { mkdirSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { Resvg } from '@resvg/resvg-js';
 
 const SIZES = [16, 32, 48, 128] as const;
 

@@ -2,9 +2,9 @@
  * browser_disable_network_capture — stop capturing network requests for a tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const disableNetworkCapture = defineBrowserTool({
   name: 'browser_disable_network_capture',

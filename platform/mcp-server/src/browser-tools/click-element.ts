@@ -2,9 +2,9 @@
  * browser_click_element — click an element on the page matching a CSS selector.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const clickElement = defineBrowserTool({
   name: 'browser_click_element',

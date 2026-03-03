@@ -7,11 +7,11 @@ import {
   PLUGINS_META_KEY,
   SERVER_PORT_KEY,
 } from './constants.js';
+import type { InternalMessage } from './extension-messages.js';
 import { injectPluginsIntoTab, reinjectStoredPlugins } from './iife-injection.js';
 import { invalidatePluginCache } from './plugin-storage.js';
 import { initSidePanelToggle } from './side-panel-toggle.js';
 import { checkTabChanged, checkTabRemoved } from './tab-state.js';
-import type { InternalMessage } from './extension-messages.js';
 
 // --- Side panel toggle ---
 

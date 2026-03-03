@@ -1,6 +1,6 @@
-import { findAllMatchingTabs, findMatchingTab, matchPattern, urlMatchesPatterns } from './tab-matching.js';
 import { beforeEach, describe, expect, test } from 'vitest';
 import type { PluginMeta } from './extension-messages.js';
+import { findAllMatchingTabs, findMatchingTab, matchPattern, urlMatchesPatterns } from './tab-matching.js';
 
 describe('matchPattern', () => {
   describe('scheme matching', () => {

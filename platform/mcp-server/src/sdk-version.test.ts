@@ -1,5 +1,5 @@
-import { sdkVersion } from './sdk-version.js';
 import { describe, expect, test } from 'vitest';
+import { sdkVersion } from './sdk-version.js';
 
 describe('sdkVersion', () => {
   test('is a string', () => {

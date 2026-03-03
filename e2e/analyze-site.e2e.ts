@@ -11,9 +11,9 @@
  *   - Chromium is installed for Playwright
  */
 
-import { test, expect, startAnalyzeSiteServer } from './fixtures.js';
-import { waitForExtensionConnected, waitForLog, parseToolResult } from './helpers.js';
 import type { McpClient, TestServer } from './fixtures.js';
+import { expect, startAnalyzeSiteServer, test } from './fixtures.js';
+import { parseToolResult, waitForExtensionConnected, waitForLog } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -2,9 +2,9 @@
  * browser_get_websocket_frames — get captured WebSocket frames for a tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getWebSocketFrames = defineBrowserTool({
   name: 'browser_get_websocket_frames',

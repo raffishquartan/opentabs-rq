@@ -9,25 +9,25 @@
  * returns a Result. No side effects, no state mutation.
  */
 
-import { log } from './logger.js';
-import { sdkVersion as serverSdkVersion } from './sdk-version.js';
+import { access, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { ManifestTool, Result, TrustTier } from '@opentabs-dev/shared';
 import {
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
   BROWSER_TOOLS_CATALOG,
-  OFFICIAL_SCOPE,
-  PLUGIN_PREFIX,
-  TOOLS_FILENAME,
   err,
+  OFFICIAL_SCOPE,
   ok,
+  PLUGIN_PREFIX,
   parsePluginPackageJson,
+  TOOLS_FILENAME,
   validatePluginName,
   validateUrlPattern,
 } from '@opentabs-dev/shared';
-import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { log } from './logger.js';
+import { sdkVersion as serverSdkVersion } from './sdk-version.js';
 import type { PluginSource } from './state.js';
-import type { ManifestTool, Result, TrustTier } from '@opentabs-dev/shared';
 
 /** Browser tool names derived from the static catalog — used for prompt injection detection. */
 const browserToolNames: readonly string[] = BROWSER_TOOLS_CATALOG.map(t => t.name);

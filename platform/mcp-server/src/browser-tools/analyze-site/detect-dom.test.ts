@@ -1,6 +1,6 @@
-import { detectDom } from './detect-dom.js';
 import { describe, expect, test } from 'vitest';
 import type { DomDetectionInput } from './detect-dom.js';
+import { detectDom } from './detect-dom.js';
 
 const emptyInput: DomDetectionInput = {
   forms: [],

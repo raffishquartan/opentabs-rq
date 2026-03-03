@@ -1,6 +1,6 @@
-import { notifyServer } from './notify-server.js';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { notifyServer } from './notify-server.js';
 
 vi.mock('./config.js', () => ({
   readAuthSecret: vi.fn().mockResolvedValue(null),

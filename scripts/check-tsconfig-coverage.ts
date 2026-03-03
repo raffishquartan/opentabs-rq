@@ -9,11 +9,11 @@
  * Usage: tsx scripts/check-tsconfig-coverage.ts
  */
 
-import { globSync } from 'glob';
-import { minimatch } from 'minimatch';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import { globSync } from 'glob';
+import { minimatch } from 'minimatch';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -21,7 +21,7 @@ const ROOT = resolve(import.meta.dirname, '..');
 const SCAN_DIRS = ['platform', 'e2e', 'scripts'];
 
 /** Root-level TypeScript files that must be type-checked (covered by tsconfig.configs.json). */
-const ROOT_TS_FILES = ['eslint.config.ts', 'knip.ts', 'playwright.config.ts'];
+const ROOT_TS_FILES = ['knip.ts', 'playwright.config.ts'];
 
 /** Path segments indicating non-source directories. */
 const SKIP_SEGMENTS = new Set(['node_modules', 'dist']);

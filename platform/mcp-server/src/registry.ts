@@ -7,11 +7,11 @@
  * is constructed and swapped atomically on ServerState.
  */
 
-import { log } from './logger.js';
-import { prefixedToolName, freezeRegistryMap } from './state.js';
-import AjvValidator from 'ajv';
-import type { FailedPlugin, PluginRegistry, RegisteredPlugin, ToolLookupEntry } from './state.js';
 import type { ManifestTool, TrustTier } from '@opentabs-dev/shared';
+import AjvValidator from 'ajv';
+import { log } from './logger.js';
+import type { FailedPlugin, PluginRegistry, RegisteredPlugin, ToolLookupEntry } from './state.js';
+import { freezeRegistryMap, prefixedToolName } from './state.js';
 
 /** Result of looking up a tool in the registry */
 interface ToolLookupResult {

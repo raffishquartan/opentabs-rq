@@ -6,10 +6,10 @@
  * the background and stores results in server state.
  */
 
-import { log } from './logger.js';
-import { platformExec, toErrorMessage } from '@opentabs-dev/shared';
 import { spawn } from 'node:child_process';
-import type { ServerState, OutdatedPlugin } from './state.js';
+import { platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { log } from './logger.js';
+import type { OutdatedPlugin, ServerState } from './state.js';
 
 /** Result of checking a single plugin for updates */
 type CheckResult = { kind: 'outdated'; entry: OutdatedPlugin } | { kind: 'up-to-date' } | { kind: 'unreachable' };

@@ -1,6 +1,6 @@
-import { getTextContent, observeDOM, querySelectorAll, waitForSelector, waitForSelectorRemoval } from './dom.js';
 import { GlobalWindow } from 'happy-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { getTextContent, observeDOM, querySelectorAll, waitForSelector, waitForSelectorRemoval } from './dom.js';
 
 let win: GlobalWindow;
 

@@ -5,44 +5,44 @@
  * extension-handlers.ts.
  */
 
+import type { JsonRpcNotification, JsonRpcRequest, WsHandle } from '@opentabs-dev/shared';
+import { toErrorMessage } from '@opentabs-dev/shared';
 import {
-  ensureAdaptersDir,
-  writeAdapterFile,
-  cleanupStaleAdapterFiles,
-  writeExecFile,
-  deleteExecFile,
-  cleanupStaleExecFiles,
-  timeoutRace,
   ADAPTER_WRITE_TIMEOUT_MS,
+  cleanupStaleAdapterFiles,
+  cleanupStaleExecFiles,
+  deleteExecFile,
+  ensureAdaptersDir,
+  timeoutRace,
+  writeAdapterFile,
+  writeExecFile,
 } from './adapter-files.js';
+import type { McpCallbacks } from './extension-handlers.js';
 import {
   buildConfigStatePayload,
-  sendToExtension,
-  sendJsonRpcError,
-  serializePluginForExtension,
-  handleTabSyncAll,
-  handleTabStateChanged,
   handleConfigGetState,
-  handleConfigSetToolEnabled,
+  handleConfigSetAllBrowserToolsEnabled,
   handleConfigSetAllToolsEnabled,
   handleConfigSetBrowserToolEnabled,
-  handleConfigSetAllBrowserToolsEnabled,
-  handlePluginSearch,
-  handlePluginInstall,
-  handlePluginUpdateFromRegistry,
-  handlePluginRemove,
-  handlePluginCheckUpdates,
-  handleToolProgress,
-  handlePluginLog,
+  handleConfigSetToolEnabled,
   handleConfirmationResponse,
+  handlePluginCheckUpdates,
+  handlePluginInstall,
+  handlePluginLog,
+  handlePluginRemove,
+  handlePluginSearch,
+  handlePluginUpdateFromRegistry,
+  handleTabStateChanged,
+  handleTabSyncAll,
+  handleToolProgress,
   rejectAllPendingConfirmations,
+  sendJsonRpcError,
+  sendToExtension,
+  serializePluginForExtension,
 } from './extension-handlers.js';
 import { log } from './logger.js';
-import { getNextRequestId, DISPATCH_TIMEOUT_MS, CONFIRMATION_TIMEOUT_MS } from './state.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
-import type { McpCallbacks } from './extension-handlers.js';
-import type { ServerState, PendingDispatch, ConfirmationDecision } from './state.js';
-import type { JsonRpcNotification, JsonRpcRequest, WsHandle } from '@opentabs-dev/shared';
+import type { ConfirmationDecision, PendingDispatch, ServerState } from './state.js';
+import { CONFIRMATION_TIMEOUT_MS, DISPATCH_TIMEOUT_MS, getNextRequestId } from './state.js';
 
 /** Maximum incoming WebSocket message size (10MB) */
 const MAX_MESSAGE_SIZE = 10 * 1024 * 1024;

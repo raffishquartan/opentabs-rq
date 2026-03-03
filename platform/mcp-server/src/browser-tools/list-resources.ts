@@ -2,9 +2,9 @@
  * browser_list_resources — enumerate all resources loaded by a page via CDP Page.getResourceTree.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const listResources = defineBrowserTool({
   name: 'browser_list_resources',

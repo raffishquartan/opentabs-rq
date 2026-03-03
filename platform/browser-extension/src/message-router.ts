@@ -1,3 +1,11 @@
+import type {
+  ConfigStateBrowserTool,
+  ConfigStateFailedPlugin,
+  ConfigStatePlugin,
+  ConfigStateResult,
+  TrustTier,
+  WireToolDef,
+} from '@opentabs-dev/shared';
 import {
   handleBrowserClearConsoleLogs,
   handleBrowserClickElement,
@@ -11,21 +19,21 @@ import {
   handleBrowserGetCookies,
   handleBrowserGetNetworkRequests,
   handleBrowserGetPageHtml,
-  handleBrowserGetWebSocketFrames,
+  handleBrowserGetResourceContent,
   handleBrowserGetStorage,
   handleBrowserGetTabContent,
   handleBrowserGetTabInfo,
-  handleBrowserGetResourceContent,
+  handleBrowserGetWebSocketFrames,
   handleBrowserHandleDialog,
+  handleBrowserHoverElement,
   handleBrowserListResources,
   handleBrowserListTabs,
-  handleBrowserHoverElement,
-  handleBrowserPressKey,
-  handleBrowserScroll,
   handleBrowserNavigateTab,
   handleBrowserOpenTab,
+  handleBrowserPressKey,
   handleBrowserQueryElements,
   handleBrowserScreenshotTab,
+  handleBrowserScroll,
   handleBrowserSelectOption,
   handleBrowserSetCookie,
   handleBrowserTypeText,
@@ -38,6 +46,7 @@ import {
 } from './browser-commands/index.js';
 import { notifyConfirmationRequest } from './confirmation-badge.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
+import type { PluginMeta } from './extension-messages.js';
 import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs } from './iife-injection.js';
 import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS, JSONRPC_METHOD_NOT_FOUND } from './json-rpc-errors.js';
 import { forwardToSidePanel, sendTabStateNotification, sendToServer } from './messaging.js';
@@ -61,15 +70,6 @@ import {
   updateLastKnownState,
 } from './tab-state.js';
 import { handleToolDispatch } from './tool-dispatch.js';
-import type { PluginMeta } from './extension-messages.js';
-import type {
-  ConfigStateBrowserTool,
-  ConfigStateFailedPlugin,
-  ConfigStatePlugin,
-  ConfigStateResult,
-  TrustTier,
-  WireToolDef,
-} from '@opentabs-dev/shared';
 
 type MessageHandler = (params: Record<string, unknown>, id?: string | number) => void;
 

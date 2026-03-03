@@ -1,3 +1,11 @@
+import { toErrorMessage } from '@opentabs-dev/shared';
+import {
+  DEFAULT_QUERY_LIMIT,
+  DEFAULT_WAIT_TIMEOUT_MS,
+  POLL_INTERVAL_MS,
+  TEXT_PREVIEW_MAX_LENGTH,
+} from '../constants.js';
+import { isCapturing } from '../network-capture.js';
 import {
   extractScriptResult,
   requireSelector,
@@ -8,14 +16,6 @@ import {
   sendValidationError,
 } from './helpers.js';
 import { withDebugger } from './resource-commands.js';
-import {
-  DEFAULT_QUERY_LIMIT,
-  DEFAULT_WAIT_TIMEOUT_MS,
-  POLL_INTERVAL_MS,
-  TEXT_PREVIEW_MAX_LENGTH,
-} from '../constants.js';
-import { isCapturing } from '../network-capture.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
 
 /**
  * Clicks a DOM element matched by a CSS selector in a tab's page context.

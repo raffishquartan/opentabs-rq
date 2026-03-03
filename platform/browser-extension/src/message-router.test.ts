@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ValidatedPluginPayload } from './message-router.js';
 
 // ---------------------------------------------------------------------------

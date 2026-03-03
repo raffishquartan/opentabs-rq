@@ -13,7 +13,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const repoRoot = join(import.meta.dirname, '..');
@@ -77,12 +77,16 @@ lines.push('');
 
 const raw = lines.join('\n');
 
-// Run prettier to format the output (handles line wrapping, trailing commas, etc.)
-const content = execFileSync(join(repoRoot, 'node_modules', '.bin', 'prettier'), ['--parser', 'typescript'], {
-  input: raw,
-  encoding: 'utf-8',
-  maxBuffer: 10 * 1024 * 1024,
-});
+// Run biome to format the output (handles line wrapping, trailing commas, etc.)
+const content = execFileSync(
+  join(repoRoot, 'node_modules', '.bin', 'biome'),
+  ['format', '--stdin-file-path=generated.ts'],
+  {
+    input: raw,
+    encoding: 'utf-8',
+    maxBuffer: 10 * 1024 * 1024,
+  },
+);
 
 // Only write if content has changed (avoids unnecessary git diffs)
 let existing = '';

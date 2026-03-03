@@ -16,19 +16,19 @@
  * All tests use dynamic ports and are safe for parallel execution.
  */
 
-import { test, expect, E2E_TEST_PLUGIN_DIR } from './fixtures.js';
-import {
-  waitForLog,
-  waitForExtensionConnected,
-  openTestAppTab,
-  parseToolResult,
-  waitForToolResult,
-  waitFor,
-  setupToolTest,
-  callToolExpectSuccess,
-} from './helpers.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { E2E_TEST_PLUGIN_DIR, expect, test } from './fixtures.js';
+import {
+  callToolExpectSuccess,
+  openTestAppTab,
+  parseToolResult,
+  setupToolTest,
+  waitFor,
+  waitForExtensionConnected,
+  waitForLog,
+  waitForToolResult,
+} from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Tool dispatch — full stack roundtrip

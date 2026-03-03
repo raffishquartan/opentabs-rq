@@ -2,9 +2,9 @@
  * browser_wait_for_element — wait for an element matching a CSS selector to appear in the DOM.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const waitForElement = defineBrowserTool({
   name: 'browser_wait_for_element',

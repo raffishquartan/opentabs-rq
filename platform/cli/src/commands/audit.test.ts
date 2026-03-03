@@ -1,6 +1,6 @@
-import { formatDuration, formatTimestamp, parseDuration, parseLimit } from './audit.js';
 import { InvalidArgumentError } from 'commander';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { formatDuration, formatTimestamp, parseDuration, parseLimit } from './audit.js';
 
 // ---------------------------------------------------------------------------
 // parseDuration

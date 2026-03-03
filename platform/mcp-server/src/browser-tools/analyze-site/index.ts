@@ -7,15 +7,11 @@
  * comprehensive site analysis report.
  */
 
-import { detectApis } from './detect-apis.js';
-import { detectAuth } from './detect-auth.js';
-import { detectDom } from './detect-dom.js';
-import { deduplicateFrameworkProbes, detectFramework } from './detect-framework.js';
-import { detectGlobals } from './detect-globals.js';
-import { detectStorage } from './detect-storage.js';
-import { dispatchToExtension, writeExecFile, deleteExecFile } from '../../extension-protocol.js';
+import { deleteExecFile, dispatchToExtension, writeExecFile } from '../../extension-protocol.js';
+import type { ServerState } from '../../state.js';
 import { validateDispatchResult } from '../dispatch-utils.js';
 import type { ApiAnalysis, ApiEndpoint, WsFrame } from './detect-apis.js';
+import { detectApis } from './detect-apis.js';
 import type {
   AuthAnalysis,
   CookieEntry,
@@ -24,11 +20,15 @@ import type {
   NetworkRequest,
   StorageEntry,
 } from './detect-auth.js';
+import { detectAuth } from './detect-auth.js';
 import type { DomAnalysis, FormInput, InteractiveElementInput } from './detect-dom.js';
+import { detectDom } from './detect-dom.js';
 import type { FrameworkAnalysis, FrameworkProbe } from './detect-framework.js';
+import { deduplicateFrameworkProbes, detectFramework } from './detect-framework.js';
 import type { GlobalProperty, GlobalsAnalysis } from './detect-globals.js';
+import { detectGlobals } from './detect-globals.js';
 import type { StorageAnalysis } from './detect-storage.js';
-import type { ServerState } from '../../state.js';
+import { detectStorage } from './detect-storage.js';
 
 // ---------------------------------------------------------------------------
 // Output types

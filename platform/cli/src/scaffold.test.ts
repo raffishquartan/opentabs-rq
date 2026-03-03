@@ -1,10 +1,10 @@
-import { scaffoldPlugin, ScaffoldError, toPascalCase, toTitleCase } from './scaffold.js';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import type * as FsPromises from 'node:fs/promises';
 import { readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type * as FsPromises from 'node:fs/promises';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { ScaffoldError, scaffoldPlugin, toPascalCase, toTitleCase } from './scaffold.js';
 
 vi.mock('node:fs/promises', async importOriginal => {
   const actual = await importOriginal<typeof FsPromises>();

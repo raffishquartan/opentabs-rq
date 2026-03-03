@@ -2,9 +2,9 @@
  * browser_handle_dialog — handle JavaScript alert/confirm/prompt dialogs via CDP.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const handleDialog = defineBrowserTool({
   name: 'browser_handle_dialog',

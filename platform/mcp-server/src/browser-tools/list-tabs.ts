@@ -2,9 +2,9 @@
  * browser_list_tabs — lists all open browser tabs.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const listTabs = defineBrowserTool({
   name: 'browser_list_tabs',

@@ -16,12 +16,12 @@
  *   - POST /api/flaky — fails the first 3 calls, then succeeds
  */
 
-import { test, expect } from './fixtures.js';
+import { expect, test } from './fixtures.js';
 import {
+  callToolExpectSuccess,
+  openTestAppTab,
   waitForExtensionConnected,
   waitForLog,
-  openTestAppTab,
-  callToolExpectSuccess,
   waitForToolResult,
 } from './helpers.js';
 

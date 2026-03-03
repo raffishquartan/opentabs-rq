@@ -1,9 +1,11 @@
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { McpCallbacks } from './extension-handlers.js';
 import {
   handleConfigGetState,
   handleConfigSetAllBrowserToolsEnabled,
+  handleConfigSetAllToolsEnabled,
   handleConfigSetBrowserToolEnabled,
   handleConfigSetToolEnabled,
-  handleConfigSetAllToolsEnabled,
   handleConfirmationResponse,
   handlePluginLog,
   handlePluginRemove,
@@ -13,10 +15,8 @@ import {
   rejectAllPendingConfirmations,
 } from './extension-handlers.js';
 import { clearAllLogs, getLogs } from './log-buffer.js';
-import { createState, DISPATCH_TIMEOUT_MS, MAX_DISPATCH_TIMEOUT_MS, MAX_SESSION_PERMISSIONS } from './state.js';
-import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
-import type { McpCallbacks } from './extension-handlers.js';
 import type { PendingConfirmation, PendingDispatch, RegisteredPlugin, SessionPermissionRule } from './state.js';
+import { createState, DISPATCH_TIMEOUT_MS, MAX_DISPATCH_TIMEOUT_MS, MAX_SESSION_PERMISSIONS } from './state.js';
 
 vi.mock('./plugin-management.js', () => ({
   searchNpmPlugins: vi.fn().mockResolvedValue([]),

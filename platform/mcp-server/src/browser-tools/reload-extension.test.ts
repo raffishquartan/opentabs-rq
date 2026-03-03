@@ -1,6 +1,6 @@
-import { reloadExtension } from './reload-extension.js';
-import { createState } from '../state.js';
 import { describe, expect, test } from 'vitest';
+import { createState } from '../state.js';
+import { reloadExtension } from './reload-extension.js';
 
 describe('reloadExtension handler', () => {
   test('returns error when extensionWs is null', async () => {

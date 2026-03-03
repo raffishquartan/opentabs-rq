@@ -2,9 +2,9 @@
  * browser_screenshot_tab — capture a screenshot of a browser tab as a base64-encoded PNG.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const screenshotTab = defineBrowserTool({
   name: 'browser_screenshot_tab',

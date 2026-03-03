@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
-import { registerBuildCommand, registerInspectCommand } from './commands/index.js';
-import { Command } from 'commander';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Command } from 'commander';
+import { registerBuildCommand, registerInspectCommand } from './commands/index.js';
 
 const cliDir = dirname(fileURLToPath(import.meta.url));
 const pkgJson = JSON.parse(await readFile(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string };

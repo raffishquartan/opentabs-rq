@@ -1,8 +1,8 @@
-import { atomicWrite } from './cross-platform.js';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { atomicWrite } from './cross-platform.js';
 
 describe('atomicWrite', () => {
   let tempDir: string;

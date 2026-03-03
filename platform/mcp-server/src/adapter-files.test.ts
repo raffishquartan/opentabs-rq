@@ -1,19 +1,19 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import * as nodeFsPromises from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   cleanupStaleAdapterFiles,
   cleanupStaleExecFiles,
+  EXEC_FILE_PREFIX,
   ensureAdaptersDir,
   writeAdapterFile,
   writeExecFile,
-  EXEC_FILE_PREFIX,
 } from './adapter-files.js';
 import { getAdaptersDir } from './config.js';
 import { createState } from './state.js';
-import { afterAll, beforeEach, describe, expect, test, vi } from 'vitest';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import * as nodeFsPromises from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
 // ─── Unlink spy for atomicity test ──────────────────────────────────────────
 // vi.hoisted ensures both values exist before the vi.mock factory runs, avoiding

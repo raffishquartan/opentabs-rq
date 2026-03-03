@@ -11,14 +11,14 @@
  * tsconfig*) — only the files needed to load an unpacked extension in Chrome.
  */
 
-import { getAdaptersDir, getExtensionDir, getExtensionVersionFile } from './config.js';
-import { log } from './logger.js';
-import { version } from './version.js';
-import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
 import { cpSync, mkdirSync } from 'node:fs';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { EXTENSION_COPY_EXCLUDE_PATTERN } from '@opentabs-dev/shared';
+import { getAdaptersDir, getExtensionDir, getExtensionVersionFile } from './config.js';
+import { log } from './logger.js';
+import { version } from './version.js';
 
 /**
  * Resolve the browser-extension source directory relative to this module's

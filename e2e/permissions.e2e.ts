@@ -14,30 +14,30 @@
  * is not trusted and interact/sensitive tools will require confirmation.
  */
 
-import {
-  createTestConfigDir,
-  cleanupTestConfigDir,
-  startMcpServer,
-  startTestServer,
-  launchExtensionContext,
-  createMcpClient,
-  readTestConfig,
-  writeTestConfig,
-  symlinkCrossPlatform,
-} from './fixtures.js';
-import {
-  waitForExtensionConnected,
-  waitForLog,
-  openSidePanel,
-  setupAdapterSymlink,
-  waitFor,
-  parseToolResult,
-} from './helpers.js';
-import { test as base, expect } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { McpClient, McpServer, TestServer } from './fixtures.js';
 import type { BrowserContext, Page, Worker } from '@playwright/test';
+import { test as base, expect } from '@playwright/test';
+import type { McpClient, McpServer, TestServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  createTestConfigDir,
+  launchExtensionContext,
+  readTestConfig,
+  startMcpServer,
+  startTestServer,
+  symlinkCrossPlatform,
+  writeTestConfig,
+} from './fixtures.js';
+import {
+  openSidePanel,
+  parseToolResult,
+  setupAdapterSymlink,
+  waitFor,
+  waitForExtensionConnected,
+  waitForLog,
+} from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Custom fixture — MCP server without skipPermissions

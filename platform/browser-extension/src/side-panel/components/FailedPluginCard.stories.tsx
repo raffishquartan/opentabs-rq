@@ -1,5 +1,5 @@
-import { FailedPluginCard } from './FailedPluginCard';
 import type { Meta, StoryObj } from '@storybook/react';
+import { FailedPluginCard } from './FailedPluginCard';
 
 const meta: Meta<typeof FailedPluginCard> = {
   title: 'Components/FailedPluginCard',

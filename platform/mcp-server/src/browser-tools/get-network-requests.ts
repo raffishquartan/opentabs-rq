@@ -2,9 +2,9 @@
  * browser_get_network_requests — get captured network requests for a tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getNetworkRequests = defineBrowserTool({
   name: 'browser_get_network_requests',

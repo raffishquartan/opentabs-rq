@@ -1,3 +1,5 @@
+import { describe, expect, test } from 'vitest';
+import type { SessionPermissionRule } from './state.js';
 import {
   createState,
   EMPTY_REGISTRY,
@@ -8,8 +10,6 @@ import {
   prefixedToolName,
   STATE_SCHEMA_VERSION,
 } from './state.js';
-import { describe, expect, test } from 'vitest';
-import type { SessionPermissionRule } from './state.js';
 
 describe('createState', () => {
   test('returns state with correct defaults', () => {

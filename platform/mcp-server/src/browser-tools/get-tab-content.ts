@@ -2,9 +2,9 @@
  * browser_get_tab_content — extract text content from a web page or specific element.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getTabContent = defineBrowserTool({
   name: 'browser_get_tab_content',

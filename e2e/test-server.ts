@@ -31,10 +31,10 @@
  */
 
 import './orphan-guard.js';
-import { WebSocketServer } from 'ws';
-import http from 'node:http';
-import type { Invocation } from './test-server-utils.js';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import http from 'node:http';
+import { WebSocketServer } from 'ws';
+import type { Invocation } from './test-server-utils.js';
 
 // ---------------------------------------------------------------------------
 // State — mutated by /control endpoints, read by /api endpoints

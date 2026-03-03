@@ -1,9 +1,9 @@
-import { parsePluginPackageJson, isValidPluginPackageName } from './manifest.js';
-import { isErr, isOk, unwrap } from './result.js';
-import { describe, expect, test } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { isValidPluginPackageName, parsePluginPackageJson } from './manifest.js';
 import type { Result } from './result.js';
+import { isErr, isOk, unwrap } from './result.js';
 
 const validPackageJson = {
   name: 'opentabs-plugin-slack',

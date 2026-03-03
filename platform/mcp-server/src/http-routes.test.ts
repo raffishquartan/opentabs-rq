@@ -1,3 +1,6 @@
+import type { WsHandle } from '@opentabs-dev/shared';
+import { describe, expect, test } from 'vitest';
+import type { HotHandlers } from './http-routes.js';
 import {
   checkBearerAuth,
   checkEndpointRateLimit,
@@ -5,14 +8,11 @@ import {
   isLocalhostHost,
   sweepStaleSessions,
 } from './http-routes.js';
+import type { McpServerInstance } from './mcp-setup.js';
 import { buildRegistry } from './registry.js';
+import type { PendingDispatch } from './state.js';
 import { createState, STATE_SCHEMA_VERSION } from './state.js';
 import { version } from './version.js';
-import { describe, expect, test } from 'vitest';
-import type { HotHandlers } from './http-routes.js';
-import type { McpServerInstance } from './mcp-setup.js';
-import type { PendingDispatch } from './state.js';
-import type { WsHandle } from '@opentabs-dev/shared';
 
 /** Create a minimal mock McpServerInstance */
 const createMockSession = (): McpServerInstance => ({

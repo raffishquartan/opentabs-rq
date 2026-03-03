@@ -1,10 +1,10 @@
-import { extractFields, handleInspect, truncate } from './inspect.js';
-import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { ToolsJsonManifest } from './inspect.js';
+import { extractFields, handleInspect, truncate } from './inspect.js';
 
 // ---------------------------------------------------------------------------
 // Test helpers

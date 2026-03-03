@@ -20,17 +20,17 @@
  *   which would orphan the old handles.
  */
 
+import type { FSWatcher } from 'node:fs';
+import { statSync, watch } from 'node:fs';
+import { access, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { ManifestTool } from '@opentabs-dev/shared';
+import { ADAPTER_FILENAME, ADAPTER_SOURCE_MAP_FILENAME, isOk, TOOLS_FILENAME } from '@opentabs-dev/shared';
 import { getConfigDir } from './config.js';
 import { extractToolsArray, loadPlugin } from './loader.js';
 import { log } from './logger.js';
 import { buildRegistry } from './registry.js';
-import { ADAPTER_FILENAME, ADAPTER_SOURCE_MAP_FILENAME, TOOLS_FILENAME, isOk } from '@opentabs-dev/shared';
-import { statSync, watch } from 'node:fs';
-import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { ServerState, FileWatcherEntry, RegisteredPlugin } from './state.js';
-import type { ManifestTool } from '@opentabs-dev/shared';
-import type { FSWatcher } from 'node:fs';
+import type { FileWatcherEntry, RegisteredPlugin, ServerState } from './state.js';
 
 /** Polling interval for mtime-based fallback detection (ms) */
 const MTIME_POLL_INTERVAL_MS = 30_000;

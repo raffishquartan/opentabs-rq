@@ -6,22 +6,22 @@
  * 3. Tool invocation animation: spinner appears during tool execution
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  startTestServer,
-  createMcpClient,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  readPluginToolNames,
-  launchExtensionContext,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import { waitForExtensionConnected, waitForLog, openSidePanel, setupAdapterSymlink } from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  launchExtensionContext,
+  readPluginToolNames,
+  startMcpServer,
+  startTestServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import { openSidePanel, setupAdapterSymlink, waitForExtensionConnected, waitForLog } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // US-003: Connection status tests

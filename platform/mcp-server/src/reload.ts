@@ -11,24 +11,24 @@
  * while all reload logic lives here and is freely editable.
  */
 
+import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { browserTools } from './browser-tools/index.js';
-import { loadConfig, loadSecret, getConfigDir } from './config.js';
+import { getConfigDir, loadConfig, loadSecret } from './config.js';
 import { isDev } from './dev-mode.js';
 import { discoverPlugins } from './discovery.js';
 import { ensureExtensionInstalled } from './extension-install.js';
-import { sendSyncFull, sendPluginUpdate, sendExtensionReload, cleanupStaleExecFiles } from './extension-protocol.js';
+import { cleanupStaleExecFiles, sendExtensionReload, sendPluginUpdate, sendSyncFull } from './extension-protocol.js';
 import { startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
 import { sweepStaleSessions } from './http-routes.js';
 import { pruneStaleBuffers } from './log-buffer.js';
 import { log } from './logger.js';
-import { registerMcpHandlers, rebuildCachedBrowserTools, notifyToolListChanged } from './mcp-setup.js';
+import type { McpServerInstance } from './mcp-setup.js';
+import { notifyToolListChanged, rebuildCachedBrowserTools, registerMcpHandlers } from './mcp-setup.js';
 import { buildRegistry } from './registry.js';
 import { isCliSkipPermissions } from './skip-permissions.js';
+import type { CachedBrowserTool, ServerState } from './state.js';
 import { prefixedToolName } from './state.js';
 import { checkForUpdates } from './version-check.js';
-import type { McpServerInstance } from './mcp-setup.js';
-import type { CachedBrowserTool, ServerState } from './state.js';
-import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 
 /** Metadata from a completed reload, stored on HotState for the /health endpoint */
 interface ReloadResult {

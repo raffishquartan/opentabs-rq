@@ -11,8 +11,8 @@
  *   array or individual handler references outside of a single request scope.
  */
 
-import type { ServerState } from '../state.js';
 import type { z } from 'zod';
+import type { ServerState } from '../state.js';
 
 /** A browser tool definition with Zod input schema and a handler */
 interface BrowserToolDefinition<TInput extends z.ZodObject = z.ZodObject> {

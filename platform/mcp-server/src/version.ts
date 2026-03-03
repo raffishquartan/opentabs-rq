@@ -7,7 +7,7 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 let version = '0.0.0';

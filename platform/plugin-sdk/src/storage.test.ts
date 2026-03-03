@@ -1,3 +1,6 @@
+import { GlobalWindow } from 'happy-dom';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import type { LogEntry } from './log.js';
 import { _setLogTransport } from './log.js';
 import {
   getCookie,
@@ -8,9 +11,6 @@ import {
   setLocalStorage,
   setSessionStorage,
 } from './storage.js';
-import { GlobalWindow } from 'happy-dom';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import type { LogEntry } from './log.js';
 
 let win: GlobalWindow;
 

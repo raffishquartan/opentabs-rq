@@ -1,8 +1,8 @@
-import { BrowserToolsCard } from './BrowserToolsCard';
-import { Accordion } from './retro/Accordion';
+import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import type { BrowserToolState } from '../bridge';
-import type { Meta, StoryObj } from '@storybook/react';
+import { BrowserToolsCard } from './BrowserToolsCard';
+import { Accordion } from './retro/Accordion';
 
 const mockBrowserTools: BrowserToolState[] = [
   { name: 'browser_list_tabs', description: 'List all open browser tabs', enabled: true },

@@ -6,8 +6,8 @@
  * function validates a raw JSON object and returns a typed Result.
  */
 
-import { err, ok } from './result.js';
 import type { Result } from './result.js';
+import { err, ok } from './result.js';
 
 /** Plugin-specific metadata in the `opentabs` field of package.json */
 interface PluginOpentabsField {

@@ -11,9 +11,9 @@
  * func injection, and the temp file + global are cleaned up.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension, writeExecFile, deleteExecFile } from '../extension-protocol.js';
 import { z } from 'zod';
+import { deleteExecFile, dispatchToExtension, writeExecFile } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const executeScript = defineBrowserTool({
   name: 'browser_execute_script',

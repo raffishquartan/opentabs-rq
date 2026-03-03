@@ -13,21 +13,21 @@
  * changes automatically.
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  createMcpClient,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  createMinimalPlugin,
-  readPluginToolNames,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import { waitForLog, waitFor, waitForToolList, BROWSER_TOOL_NAMES } from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  createMinimalPlugin,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  readPluginToolNames,
+  startMcpServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import { BROWSER_TOOL_NAMES, waitFor, waitForLog, waitForToolList } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Config watcher — auto-discovery on config.json change

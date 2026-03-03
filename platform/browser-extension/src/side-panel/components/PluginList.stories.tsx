@@ -1,7 +1,7 @@
-import { PluginList } from './PluginList';
+import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import type { FailedPluginState, PluginState } from '../bridge';
-import type { Meta, StoryObj } from '@storybook/react';
+import { PluginList } from './PluginList';
 
 const mockPlugin = (overrides?: Partial<PluginState>): PluginState => ({
   name: 'slack',

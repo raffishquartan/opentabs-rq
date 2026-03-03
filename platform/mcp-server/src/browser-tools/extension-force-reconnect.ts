@@ -4,9 +4,9 @@
  * issues and testing reconnection behavior.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const extensionForceReconnect = defineBrowserTool({
   name: 'extension_force_reconnect',

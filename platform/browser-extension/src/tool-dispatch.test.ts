@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { PluginMeta } from './extension-messages.js';
 
 // ---------------------------------------------------------------------------

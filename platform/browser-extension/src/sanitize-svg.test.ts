@@ -1,5 +1,5 @@
-import { sanitizeSvg } from './sanitize-svg.js';
 import { describe, expect, test } from 'vitest';
+import { sanitizeSvg } from './sanitize-svg.js';
 
 describe('sanitizeSvg', () => {
   describe('safe SVG passthrough', () => {

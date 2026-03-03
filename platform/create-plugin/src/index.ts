@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { scaffoldPlugin, promptForMissingArgs, ScaffoldError } from '@opentabs-dev/cli/scaffold';
-import { Command } from 'commander';
-import pc from 'picocolors';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promptForMissingArgs, ScaffoldError, scaffoldPlugin } from '@opentabs-dev/cli/scaffold';
+import { Command } from 'commander';
+import pc from 'picocolors';
 
 const cliDir = dirname(fileURLToPath(import.meta.url));
 const pkgJson = JSON.parse(await readFile(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string };

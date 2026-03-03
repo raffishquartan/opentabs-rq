@@ -3,10 +3,10 @@
  * Uses esbuild to bundle React + JSX into a single file for the Chrome extension.
  */
 
-import { build } from 'esbuild';
-import babel from 'esbuild-plugin-babel';
 import { unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import { build } from 'esbuild';
+import babel from 'esbuild-plugin-babel';
 
 const base = import.meta.dirname;
 const outdir = join(base, 'dist/side-panel');

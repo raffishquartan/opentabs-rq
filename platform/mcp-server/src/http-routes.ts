@@ -12,31 +12,31 @@
  * hot reload and removes entries whose transport is no longer in the map.
  */
 
+import { timingSafeEqual } from 'node:crypto';
+import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
+import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
+import type { WsHandle } from '@opentabs-dev/shared';
+import { toErrorMessage } from '@opentabs-dev/shared';
 import { saveBrowserToolPolicy, saveToolConfig } from './config.js';
 import { isDev } from './dev-mode.js';
+import type { McpCallbacks } from './extension-protocol.js';
 import {
   handleExtensionMessage,
   queryExtension,
-  sendSyncFull,
-  sendExtensionReload,
   rejectAllPendingConfirmations,
+  sendExtensionReload,
+  sendSyncFull,
 } from './extension-protocol.js';
 import { getLogCount } from './log-buffer.js';
 import { log } from './logger.js';
+import type { McpServerInstance } from './mcp-setup.js';
 import { createMcpServer, notifyToolListChanged } from './mcp-setup.js';
 import { performConfigReload } from './reload.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import { sdkVersion } from './sdk-version.js';
+import type { AuditEntry, ServerState } from './state.js';
 import { prefixedToolName, STATE_SCHEMA_VERSION } from './state.js';
 import { version } from './version.js';
-import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
-import { isInitializeRequest } from '@modelcontextprotocol/sdk/types.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
-import { timingSafeEqual } from 'node:crypto';
-import type { McpCallbacks } from './extension-protocol.js';
-import type { McpServerInstance } from './mcp-setup.js';
-import type { AuditEntry, ServerState } from './state.js';
-import type { WsHandle } from '@opentabs-dev/shared';
 
 /** Opaque HotState accessor — index.ts injects the getter */
 type GetHotState = () => { reloadCount: number; lastReloadTimestamp: number; lastReloadDurationMs: number } | undefined;

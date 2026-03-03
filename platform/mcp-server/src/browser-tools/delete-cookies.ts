@@ -2,10 +2,10 @@
  * browser_delete_cookies — delete a specific browser cookie by URL and name.
  */
 
+import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
 import { defineBrowserTool } from './definition.js';
 import { safeUrl } from './url-validation.js';
-import { dispatchToExtension } from '../extension-protocol.js';
-import { z } from 'zod';
 
 const deleteCookies = defineBrowserTool({
   name: 'browser_delete_cookies',

@@ -16,8 +16,8 @@
  * All tests use dynamic ports and are safe for parallel execution.
  */
 
-import { test, expect } from './fixtures.js';
-import { waitForLog, setupToolTest, callToolExpectSuccess, waitFor, waitForToolResult } from './helpers.js';
+import { expect, test } from './fixtures.js';
+import { callToolExpectSuccess, setupToolTest, waitFor, waitForLog, waitForToolResult } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Lifecycle hooks

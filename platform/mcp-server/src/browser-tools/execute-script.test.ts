@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { mockWriteExecFile, mockDispatchToExtension, mockDeleteExecFile } = vi.hoisted(() => ({
   mockWriteExecFile: vi.fn<(state: unknown, execId: string, code: string) => Promise<string>>(),

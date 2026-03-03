@@ -3,9 +3,9 @@
  * or to bring an element into view.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const scroll = defineBrowserTool({
   name: 'browser_scroll',

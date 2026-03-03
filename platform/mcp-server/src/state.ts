@@ -7,11 +7,11 @@
  * fresh empty instances on each hot reload re-evaluation.
  */
 
+import type { FSWatcher } from 'node:fs';
+import type { ManifestTool, PluginTabInfo, TabState, TrustTier, WsHandle } from '@opentabs-dev/shared';
 import { appendAuditEntryToDisk } from './audit-disk.js';
 import type { BrowserToolDefinition } from './browser-tools/definition.js';
 import type { PermissionsConfig } from './config.js';
-import type { TabState, TrustTier, ManifestTool, PluginTabInfo, WsHandle } from '@opentabs-dev/shared';
-import type { FSWatcher } from 'node:fs';
 
 /**
  * Overrides the mutating methods of an existing Map to throw TypeError, preventing

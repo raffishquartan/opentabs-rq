@@ -1,6 +1,6 @@
-import { colorTabState, formatUptime, handleStatus, isNonOpenTabsHttpError, isTimeout } from './status.js';
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { MockInstance } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { colorTabState, formatUptime, handleStatus, isNonOpenTabsHttpError, isTimeout } from './status.js';
 
 vi.mock('../config.js', () => ({
   readAuthSecret: vi.fn().mockResolvedValue(null),

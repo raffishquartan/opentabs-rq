@@ -9,17 +9,17 @@
  * scenarios work correctly after one or more hot reloads.
  */
 
+import { request as httpRequest } from 'node:http';
 import {
-  test,
-  expect,
-  startMcpServer,
-  createTestConfigDir,
   cleanupTestConfigDir,
   createMcpClient,
+  createTestConfigDir,
+  expect,
   readPluginToolNames,
+  startMcpServer,
+  test,
 } from './fixtures.js';
-import { waitForLog, waitForExtensionConnected, waitForToolResult, parseToolResult, setupToolTest } from './helpers.js';
-import { request as httpRequest } from 'node:http';
+import { parseToolResult, setupToolTest, waitForExtensionConnected, waitForLog, waitForToolResult } from './helpers.js';
 
 /**
  * Open a GET /mcp SSE stream via node:http, hold it open briefly,
@@ -261,96 +261,97 @@ test.describe('MCP session persistence across hot reload', () => {
   });
 });
 
-test.describe.serial('MCP session persistence with extension and tool dispatch', () => {
-  test('end-to-end tool dispatch works after hot reload via persistent session', async ({
-    mcpServer,
-    testServer,
-    extensionContext,
-    mcpClient,
-  }) => {
-    test.slow();
+test.describe
+  .serial('MCP session persistence with extension and tool dispatch', () => {
+    test('end-to-end tool dispatch works after hot reload via persistent session', async ({
+      mcpServer,
+      testServer,
+      extensionContext,
+      mcpClient,
+    }) => {
+      test.slow();
 
-    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+      const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
 
-    try {
-      // Verify end-to-end tool dispatch works before reload
-      const beforeResult = await mcpClient.callTool('e2e-test_echo', { message: 'before-reload' });
-      expect(beforeResult.isError).toBe(false);
-      expect(parseToolResult(beforeResult.content).message).toBe('before-reload');
-
-      // Trigger hot reload
-      mcpServer.logs.length = 0;
-      mcpServer.triggerHotReload();
-
-      // Wait for reload to complete and extension to reconnect
-      await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-      await waitForExtensionConnected(mcpServer, 30_000);
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
-
-      // Poll until the tool is callable through the extension (tab state = ready)
-      await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
-
-      // Verify full end-to-end tool dispatch: MCP client → proxy → worker → extension → adapter
-      const afterResult = await mcpClient.callTool('e2e-test_echo', { message: 'after-reload' });
-      expect(afterResult.isError).toBe(false);
-      expect(parseToolResult(afterResult.content).message).toBe('after-reload');
-    } finally {
-      await page.close();
-    }
-  });
-
-  test('tool call in-flight during hot reload recovers and subsequent calls succeed', async ({
-    mcpServer,
-    testServer,
-    extensionContext,
-    mcpClient,
-  }) => {
-    test.slow();
-
-    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
-
-    try {
-      // Verify baseline tool dispatch
-      const baseline = await mcpClient.callTool('e2e-test_echo', { message: 'baseline' });
-      expect(baseline.isError).toBe(false);
-
-      // Start a slow tool call and trigger hot reload while it's in-flight
-      const slowCallPromise = mcpClient.callToolWithProgress(
-        'e2e-test_slow_with_progress',
-        { durationMs: 5_000, steps: 10 },
-        { timeout: 30_000 },
-      );
-
-      // Wait for the tool call to reach the worker, then trigger reload
-      await new Promise(r => setTimeout(r, 1_000));
-      mcpServer.logs.length = 0;
-      mcpServer.triggerHotReload();
-
-      // The in-flight call may complete, error, or be interrupted — all acceptable
       try {
-        const slowResult = await slowCallPromise;
-        if (!slowResult.isError) {
-          const output = parseToolResult(slowResult.content);
-          expect(output.completed).toBe(true);
-        }
-      } catch {
-        // Expected: 502, connection reset, or partial response during worker restart
+        // Verify end-to-end tool dispatch works before reload
+        const beforeResult = await mcpClient.callTool('e2e-test_echo', { message: 'before-reload' });
+        expect(beforeResult.isError).toBe(false);
+        expect(parseToolResult(beforeResult.content).message).toBe('before-reload');
+
+        // Trigger hot reload
+        mcpServer.logs.length = 0;
+        mcpServer.triggerHotReload();
+
+        // Wait for reload to complete and extension to reconnect
+        await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+        await waitForExtensionConnected(mcpServer, 30_000);
+        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+
+        // Poll until the tool is callable through the extension (tab state = ready)
+        await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
+
+        // Verify full end-to-end tool dispatch: MCP client → proxy → worker → extension → adapter
+        const afterResult = await mcpClient.callTool('e2e-test_echo', { message: 'after-reload' });
+        expect(afterResult.isError).toBe(false);
+        expect(parseToolResult(afterResult.content).message).toBe('after-reload');
+      } finally {
+        await page.close();
       }
+    });
 
-      // Wait for the system to stabilize after reload
-      await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-      await waitForExtensionConnected(mcpServer, 30_000);
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+    test('tool call in-flight during hot reload recovers and subsequent calls succeed', async ({
+      mcpServer,
+      testServer,
+      extensionContext,
+      mcpClient,
+    }) => {
+      test.slow();
 
-      // Poll until the tool is callable again
-      await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
+      const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
 
-      // Verify subsequent tool calls succeed after the interrupted call
-      const afterResult = await mcpClient.callTool('e2e-test_echo', { message: 'after-inflight-reload' });
-      expect(afterResult.isError).toBe(false);
-      expect(parseToolResult(afterResult.content).message).toBe('after-inflight-reload');
-    } finally {
-      await page.close();
-    }
+      try {
+        // Verify baseline tool dispatch
+        const baseline = await mcpClient.callTool('e2e-test_echo', { message: 'baseline' });
+        expect(baseline.isError).toBe(false);
+
+        // Start a slow tool call and trigger hot reload while it's in-flight
+        const slowCallPromise = mcpClient.callToolWithProgress(
+          'e2e-test_slow_with_progress',
+          { durationMs: 5_000, steps: 10 },
+          { timeout: 30_000 },
+        );
+
+        // Wait for the tool call to reach the worker, then trigger reload
+        await new Promise(r => setTimeout(r, 1_000));
+        mcpServer.logs.length = 0;
+        mcpServer.triggerHotReload();
+
+        // The in-flight call may complete, error, or be interrupted — all acceptable
+        try {
+          const slowResult = await slowCallPromise;
+          if (!slowResult.isError) {
+            const output = parseToolResult(slowResult.content);
+            expect(output.completed).toBe(true);
+          }
+        } catch {
+          // Expected: 502, connection reset, or partial response during worker restart
+        }
+
+        // Wait for the system to stabilize after reload
+        await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+        await waitForExtensionConnected(mcpServer, 30_000);
+        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+
+        // Poll until the tool is callable again
+        await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
+
+        // Verify subsequent tool calls succeed after the interrupted call
+        const afterResult = await mcpClient.callTool('e2e-test_echo', { message: 'after-inflight-reload' });
+        expect(afterResult.isError).toBe(false);
+        expect(parseToolResult(afterResult.content).message).toBe('after-inflight-reload');
+      } finally {
+        await page.close();
+      }
+    });
   });
-});

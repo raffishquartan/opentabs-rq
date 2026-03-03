@@ -1,6 +1,6 @@
-import { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, tryGetSanitizedSvg } from './PluginIcon.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { sanitizeSvg } from '../../sanitize-svg.js';
-import { vi, describe, expect, test, beforeEach, afterEach } from 'vitest';
+import { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, tryGetSanitizedSvg } from './PluginIcon.js';
 
 vi.mock('../../sanitize-svg.js', () => ({
   sanitizeSvg: vi.fn(),

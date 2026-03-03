@@ -10,20 +10,20 @@
  * The `opentabs logs` command tails this file.
  */
 
-import { installExtension } from './setup.js';
-import { ensureAuthSecret, getConfigDir, getLogFilePath, getPidFilePath } from '../config.js';
-import { parsePort, resolvePort } from '../parse-port.js';
-import { DEFAULT_PORT, isWindows, platformExec, toErrorMessage } from '@opentabs-dev/shared';
-import pc from 'picocolors';
 import { spawn } from 'node:child_process';
-import { mkdirSync, createWriteStream } from 'node:fs';
+import type { WriteStream } from 'node:fs';
+import { createWriteStream, mkdirSync } from 'node:fs';
 import { access, writeFile } from 'node:fs/promises';
 import net from 'node:net';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_PORT, isWindows, platformExec, toErrorMessage } from '@opentabs-dev/shared';
 import type { Command } from 'commander';
-import type { WriteStream } from 'node:fs';
+import pc from 'picocolors';
+import { ensureAuthSecret, getConfigDir, getLogFilePath, getPidFilePath } from '../config.js';
+import { parsePort, resolvePort } from '../parse-port.js';
+import { installExtension } from './setup.js';
 
 interface StreamingProcess {
   stdout: ReadableStream<Uint8Array>;

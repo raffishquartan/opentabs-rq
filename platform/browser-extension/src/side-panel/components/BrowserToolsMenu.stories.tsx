@@ -1,5 +1,5 @@
-import { BrowserToolsMenu } from './BrowserToolsMenu';
 import type { Meta, StoryObj } from '@storybook/react';
+import { BrowserToolsMenu } from './BrowserToolsMenu';
 
 const meta: Meta<typeof BrowserToolsMenu> = {
   title: 'Components/BrowserToolsMenu',

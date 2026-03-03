@@ -2,9 +2,9 @@
  * browser_clear_console_logs — clear the console log buffer for a browser tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const clearConsoleLogs = defineBrowserTool({
   name: 'browser_clear_console_logs',

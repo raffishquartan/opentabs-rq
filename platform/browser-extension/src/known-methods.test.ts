@@ -1,5 +1,5 @@
+import { describe, expect, test, vi } from 'vitest';
 import { ALL_ALLOWED_METHODS, DISPATCH_METHODS, PASSTHROUGH_METHODS } from './known-methods.js';
-import { vi, describe, expect, test } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Module mocks — message-router.ts imports many Chrome-API-dependent modules.

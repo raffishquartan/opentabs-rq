@@ -1,8 +1,8 @@
-import { followFile } from './logs.js';
-import { afterEach, describe, expect, test, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { statSync, createReadStream, watch } from 'node:fs';
 import type * as Fs from 'node:fs';
+import { createReadStream, statSync, watch } from 'node:fs';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { followFile } from './logs.js';
 
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof Fs>();

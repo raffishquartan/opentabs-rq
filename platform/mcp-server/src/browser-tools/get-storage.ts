@@ -2,9 +2,9 @@
  * browser_get_storage — read localStorage or sessionStorage entries from a tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const getStorage = defineBrowserTool({
   name: 'browser_get_storage',

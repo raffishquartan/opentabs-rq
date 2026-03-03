@@ -1,5 +1,5 @@
-import { sanitizeErrorMessage } from './sanitize-error.js';
 import { describe, expect, test } from 'vitest';
+import { sanitizeErrorMessage } from './sanitize-error.js';
 
 describe('sanitizeErrorMessage', () => {
   describe('passthrough', () => {

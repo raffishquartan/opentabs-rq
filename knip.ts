@@ -5,8 +5,6 @@ const config: KnipConfig = {
     '.': {
       entry: ['e2e/*.ts', 'scripts/*.ts'],
       ignoreDependencies: [
-        // Peer dependencies required by ESLint plugins at runtime
-        '@typescript-eslint/parser',
         // Referenced as Babel preset/plugin strings in build-side-panel.ts config, not as imports
         '@babel/preset-react',
         '@babel/preset-typescript',

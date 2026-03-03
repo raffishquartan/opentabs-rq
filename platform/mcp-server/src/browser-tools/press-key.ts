@@ -2,9 +2,9 @@
  * browser_press_key — dispatch keyboard events on a page element or the active element.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const pressKey = defineBrowserTool({
   name: 'browser_press_key',

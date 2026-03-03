@@ -7,17 +7,17 @@
  * it needs to launch the extension with a deliberately mismatched secret.
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  createTestConfigDir,
-  cleanupTestConfigDir,
-  launchExtensionContext,
-} from './fixtures.js';
-import { openSidePanel } from './helpers.js';
 import fs from 'node:fs';
 import type { McpServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  createTestConfigDir,
+  expect,
+  launchExtensionContext,
+  startMcpServer,
+  test,
+} from './fixtures.js';
+import { openSidePanel } from './helpers.js';
 
 test.describe('Side panel auth failed', () => {
   test('shows Authentication Failed when extension has wrong secret', async () => {

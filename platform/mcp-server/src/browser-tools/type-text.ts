@@ -2,9 +2,9 @@
  * browser_type_text — type text into an input field or textarea.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const typeText = defineBrowserTool({
   name: 'browser_type_text',

@@ -2,10 +2,10 @@
  * browser_get_cookies — get cookies for a URL.
  */
 
+import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
 import { defineBrowserTool } from './definition.js';
 import { safeUrl } from './url-validation.js';
-import { dispatchToExtension } from '../extension-protocol.js';
-import { z } from 'zod';
 
 const getCookies = defineBrowserTool({
   name: 'browser_get_cookies',

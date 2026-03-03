@@ -15,8 +15,8 @@
  *   - Chromium is installed for Playwright
  */
 
-import { test, expect } from './fixtures.js';
-import { setupToolTest, parseToolResult } from './helpers.js';
+import { expect, test } from './fixtures.js';
+import { parseToolResult, setupToolTest } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Progress notifications — full pipeline

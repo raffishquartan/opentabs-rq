@@ -29,35 +29,35 @@ export { toErrorMessage } from './error.js';
 // ---------------------------------------------------------------------------
 
 export {
-  DEFAULT_HOST,
-  DEFAULT_PORT,
   ADAPTER_FILENAME,
   ADAPTER_SOURCE_MAP_FILENAME,
-  TOOLS_FILENAME,
+  DEFAULT_HOST,
+  DEFAULT_PORT,
+  generateSecret,
   getConfigDir,
   getConfigPath,
   getExtensionDir,
   getLogFilePath,
   getPidFilePath,
-  generateSecret,
+  normalizePluginName,
   OFFICIAL_SCOPE,
   PLUGIN_PREFIX,
-  normalizePluginName,
   resolvePluginPackageCandidates,
+  TOOLS_FILENAME,
 } from './constants.js';
 
 // ---------------------------------------------------------------------------
 // Result type — structured error handling
 // ---------------------------------------------------------------------------
 
-export { type Ok, type Err, type Result, ok, err, isOk, isErr, unwrap, unwrapOr, mapResult } from './result.js';
+export { type Err, err, isErr, isOk, mapResult, type Ok, ok, type Result, unwrap, unwrapOr } from './result.js';
 
 // ---------------------------------------------------------------------------
 // Plugin package.json manifest — new plugin metadata format
 // ---------------------------------------------------------------------------
 
-export { parsePluginPackageJson, isValidPluginPackageName } from './manifest.js';
 export type { PluginOpentabsField, PluginPackageJson } from './manifest.js';
+export { isValidPluginPackageName, parsePluginPackageJson } from './manifest.js';
 
 // ---------------------------------------------------------------------------
 // Domain types — shared between MCP server and Chrome extension

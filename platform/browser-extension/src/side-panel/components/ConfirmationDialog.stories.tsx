@@ -1,7 +1,7 @@
-import { ConfirmationDialog } from './ConfirmationDialog';
+import type { Meta, StoryObj } from '@storybook/react';
 import { fn } from 'storybook/test';
 import type { ConfirmationData } from './ConfirmationDialog';
-import type { Meta, StoryObj } from '@storybook/react';
+import { ConfirmationDialog } from './ConfirmationDialog';
 
 const mockConfirmation = (overrides?: Partial<ConfirmationData>): ConfirmationData => ({
   id: 'conf-1',

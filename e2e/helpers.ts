@@ -4,23 +4,23 @@
  * own copies.
  */
 
-import {
-  copyE2eTestPlugin,
-  readPluginToolNames,
-  writeTestConfig,
-  startMcpServer,
-  startTestServer,
-  launchExtensionContext,
-  createMcpClient,
-  cleanupTestConfigDir,
-  symlinkCrossPlatform,
-} from './fixtures.js';
-import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { McpClient, McpServer, TestServer } from './fixtures.js';
+import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared';
 import type { BrowserContext, Page } from '@playwright/test';
+import type { McpClient, McpServer, TestServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  copyE2eTestPlugin,
+  createMcpClient,
+  launchExtensionContext,
+  readPluginToolNames,
+  startMcpServer,
+  startTestServer,
+  symlinkCrossPlatform,
+  writeTestConfig,
+} from './fixtures.js';
 
 // ---------------------------------------------------------------------------
 // Extension introspection

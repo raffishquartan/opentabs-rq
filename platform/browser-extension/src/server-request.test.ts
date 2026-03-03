@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Module mocks
@@ -12,8 +12,9 @@ vi.mock('./messaging.js', () => ({
   sendToServer: mockSendToServer,
 }));
 
-const { sendServerRequest, consumeServerResponse, rejectAllPendingServerRequests } =
-  await import('./server-request.js');
+const { sendServerRequest, consumeServerResponse, rejectAllPendingServerRequests } = await import(
+  './server-request.js'
+);
 
 beforeEach(() => {
   vi.clearAllMocks();

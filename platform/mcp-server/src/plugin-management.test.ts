@@ -1,8 +1,8 @@
-import { normalizePluginName, isValidPluginPackageName, spawnAsync, MAX_OUTPUT_SIZE } from './plugin-management.js';
-import { vi, describe, expect, test, beforeEach } from 'vitest';
+import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import type { ChildProcessWithoutNullStreams } from 'node:child_process';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { isValidPluginPackageName, MAX_OUTPUT_SIZE, normalizePluginName, spawnAsync } from './plugin-management.js';
 
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),

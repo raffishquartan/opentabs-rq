@@ -1,8 +1,8 @@
-import { PluginCard } from './PluginCard';
-import { Accordion } from './retro/Accordion';
+import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
 import type { PluginState } from '../bridge';
-import type { Meta, StoryObj } from '@storybook/react';
+import { PluginCard } from './PluginCard';
+import { Accordion } from './retro/Accordion';
 
 const mockPlugin = (overrides?: Partial<PluginState>): PluginState => ({
   name: 'slack',

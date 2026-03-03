@@ -11,8 +11,8 @@
  * which the SDK serializes to JSON and the server appends to the log line.
  */
 
-import { test, expect } from './fixtures.js';
-import { setupToolTest, callToolExpectSuccess, waitForLog } from './helpers.js';
+import { expect, test } from './fixtures.js';
+import { callToolExpectSuccess, setupToolTest, waitForLog } from './helpers.js';
 
 test.describe('Plugin logging — full pipeline', () => {
   test('log_levels tool emits log entries that arrive at MCP server', async ({

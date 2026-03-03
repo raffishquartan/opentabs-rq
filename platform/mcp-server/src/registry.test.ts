@@ -1,7 +1,7 @@
-import { buildRegistry, emptyRegistry, getPlugin, getTool } from './registry.js';
-import { describe, expect, test } from 'vitest';
 import os from 'node:os';
 import path from 'node:path';
+import { describe, expect, test } from 'vitest';
+import { buildRegistry, emptyRegistry, getPlugin, getTool } from './registry.js';
 import type { FailedPlugin, RegisteredPlugin } from './state.js';
 
 /**

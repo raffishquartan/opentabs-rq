@@ -1,7 +1,7 @@
-import { cn } from '../../lib/cn';
-import { cva } from 'class-variance-authority';
 import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import type { HTMLAttributes } from 'react';
+import { cn } from '../../lib/cn';
 
 const badgeVariants = cva('inline-block rounded font-medium leading-none', {
   variants: {

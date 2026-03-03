@@ -1,5 +1,5 @@
-import { resolveDisplayIndex } from './ConfirmationDialog.js';
 import { describe, expect, test } from 'vitest';
+import { resolveDisplayIndex } from './ConfirmationDialog.js';
 
 describe('resolveDisplayIndex', () => {
   test('returns the same index when removal makes the next item slide into that position', () => {

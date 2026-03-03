@@ -8,10 +8,10 @@
  * there at runtime by the MCP server and must not be deleted).
  */
 
-import { EXTENSION_COPY_EXCLUDE_PATTERN } from '../platform/shared/dist/index.js';
 import { cpSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative } from 'node:path';
+import { EXTENSION_COPY_EXCLUDE_PATTERN } from '../platform/shared/dist/index.js';
 
 const extensionSrc = join(import.meta.dirname, '..', 'platform', 'browser-extension');
 const extensionDest = join(homedir(), '.opentabs', 'extension');

@@ -8,8 +8,8 @@
  * WebSocket (matching the POST /extension/reload HTTP endpoint pattern).
  */
 
-import { defineBrowserTool } from './definition.js';
 import { z } from 'zod';
+import { defineBrowserTool } from './definition.js';
 
 const reloadExtension = defineBrowserTool({
   name: 'extension_reload',

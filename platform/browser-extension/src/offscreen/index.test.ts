@@ -1,6 +1,6 @@
-import { isValidWsOrigin, wsToHttpBase } from './ws-utils.js';
-import { vi, describe, expect, test, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, test, vi } from 'vitest';
 import type { InternalMessage } from '../extension-messages.js';
+import { isValidWsOrigin, wsToHttpBase } from './ws-utils.js';
 
 describe('isValidWsOrigin', () => {
   test('valid ws:// URL with matching host passes', () => {

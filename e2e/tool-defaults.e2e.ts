@@ -9,10 +9,10 @@
  * (tool is callable, appears in tools/list and /health).
  */
 
-import { test, expect, E2E_TEST_PLUGIN_DIR } from './fixtures.js';
-import { setupToolTest, callToolExpectSuccess } from './helpers.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { E2E_TEST_PLUGIN_DIR, expect, test } from './fixtures.js';
+import { callToolExpectSuccess, setupToolTest } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Build artifact verification

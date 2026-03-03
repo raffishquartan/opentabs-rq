@@ -1,5 +1,5 @@
-import { ToolError } from './errors.js';
 import { describe, expect, test } from 'vitest';
+import { ToolError } from './errors.js';
 
 describe('ToolError factory methods', () => {
   describe('default codes', () => {

@@ -8,8 +8,8 @@
  * Chrome extension background → content script injection (or skip).
  */
 
-import { test, expect } from './fixtures.js';
-import { waitForLog, setupToolTest, callToolExpectSuccess, waitFor, waitForToolResult } from './helpers.js';
+import { expect, test } from './fixtures.js';
+import { callToolExpectSuccess, setupToolTest, waitFor, waitForLog, waitForToolResult } from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Hash-based skip on reconnect

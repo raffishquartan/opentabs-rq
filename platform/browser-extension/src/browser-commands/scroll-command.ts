@@ -1,3 +1,4 @@
+import { TEXT_PREVIEW_MAX_LENGTH } from '../constants.js';
 import {
   extractScriptResult,
   requireTabId,
@@ -5,7 +6,6 @@ import {
   sendSuccessResult,
   sendValidationError,
 } from './helpers.js';
-import { TEXT_PREVIEW_MAX_LENGTH } from '../constants.js';
 
 export const handleBrowserScroll = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {

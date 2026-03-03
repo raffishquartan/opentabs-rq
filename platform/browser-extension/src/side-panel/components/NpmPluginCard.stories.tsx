@@ -1,6 +1,6 @@
-import { NpmPluginCard } from './NpmPluginCard';
-import type { PluginSearchResult } from '../bridge';
 import type { Meta, StoryObj } from '@storybook/react';
+import type { PluginSearchResult } from '../bridge';
+import { NpmPluginCard } from './NpmPluginCard';
 
 const mockNpmPlugin = (overrides?: Partial<PluginSearchResult>): PluginSearchResult => ({
   name: '@opentabs-dev/opentabs-plugin-slack',

@@ -1,3 +1,5 @@
+import { toErrorMessage } from '@opentabs-dev/shared';
+import type { PluginMeta } from './extension-messages.js';
 import {
   JSONRPC_ADAPTER_NOT_READY,
   JSONRPC_INTERNAL_ERROR,
@@ -8,8 +10,6 @@ import { sendToServer } from './messaging.js';
 import { getPluginMeta } from './plugin-storage.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import { findAllMatchingTabs, urlMatchesPatterns } from './tab-matching.js';
-import { toErrorMessage } from '@opentabs-dev/shared';
-import type { PluginMeta } from './extension-messages.js';
 
 /**
  * Structured result from a MAIN-world adapter script execution.

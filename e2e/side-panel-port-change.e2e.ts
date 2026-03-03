@@ -9,21 +9,21 @@
  * config dir / auth secret) instead of the standard extensionContext fixture.
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  launchExtensionContext,
-  cleanupTestConfigDir,
-  readPluginToolNames,
-  writeTestConfig,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import { waitForExtensionConnected, openSidePanel, setupAdapterSymlink } from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { McpServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  launchExtensionContext,
+  readPluginToolNames,
+  startMcpServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import { openSidePanel, setupAdapterSymlink, waitForExtensionConnected } from './helpers.js';
 
 test.describe('Side panel port change', () => {
   test('changing port in footer reconnects extension to new server', async () => {

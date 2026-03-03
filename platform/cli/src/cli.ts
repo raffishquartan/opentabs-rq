@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+import { readFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Command, CommanderError } from 'commander';
 import {
   handleStatus,
   registerAuditCommand,
@@ -13,10 +17,6 @@ import {
   registerUpdateCommand,
 } from './commands/index.js';
 import { parsePort } from './parse-port.js';
-import { Command, CommanderError } from 'commander';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const cliDir = dirname(fileURLToPath(import.meta.url));
 const pkgJson = JSON.parse(await readFile(join(cliDir, '..', 'package.json'), 'utf-8')) as { version: string };

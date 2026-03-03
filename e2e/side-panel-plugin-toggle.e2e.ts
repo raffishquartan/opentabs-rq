@@ -12,30 +12,30 @@
  * the full background → MCP server communication path for tool toggles.
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  startTestServer,
-  createMcpClient,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  readPluginToolNames,
-  launchExtensionContext,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import {
-  waitForExtensionConnected,
-  waitForLog,
-  openSidePanel,
-  setupAdapterSymlink,
-  waitForToolResult,
-  openTestAppTab,
-  BROWSER_TOOL_NAMES,
-} from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  launchExtensionContext,
+  readPluginToolNames,
+  startMcpServer,
+  startTestServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import {
+  BROWSER_TOOL_NAMES,
+  openSidePanel,
+  openTestAppTab,
+  setupAdapterSymlink,
+  waitForExtensionConnected,
+  waitForLog,
+  waitForToolResult,
+} from './helpers.js';
 
 // ---------------------------------------------------------------------------
 // Plugin list rendering — name and icon state

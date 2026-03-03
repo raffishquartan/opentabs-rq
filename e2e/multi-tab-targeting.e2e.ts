@@ -10,14 +10,14 @@
  *   - Readiness reporting per tab
  */
 
-import { test, expect } from './fixtures.js';
+import { expect, test } from './fixtures.js';
 import {
+  callToolExpectSuccess,
   openTestAppTab,
   parseToolResult,
-  waitForToolResult,
   setupToolTest,
   waitFor,
-  callToolExpectSuccess,
+  waitForToolResult,
 } from './helpers.js';
 
 /** Shape of plugin_list_tabs response entries. */

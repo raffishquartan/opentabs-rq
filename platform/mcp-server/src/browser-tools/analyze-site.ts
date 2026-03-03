@@ -9,10 +9,10 @@
  * suggestions based on the observed site capabilities.
  */
 
+import { z } from 'zod';
 import { analyzeSite } from './analyze-site/index.js';
 import { defineBrowserTool } from './definition.js';
 import { safeUrl } from './url-validation.js';
-import { z } from 'zod';
 
 const analyzeSiteTool = defineBrowserTool({
   name: 'plugin_analyze_site',

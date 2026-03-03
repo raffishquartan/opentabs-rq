@@ -4,9 +4,9 @@
  * its hash, readiness, and tool count for each tab.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const extensionCheckAdapter = defineBrowserTool({
   name: 'extension_check_adapter',

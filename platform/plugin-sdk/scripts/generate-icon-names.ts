@@ -8,11 +8,11 @@
  * - LUCIDE_ICON_NAMES: a runtime Set for build-time validation in the CLI
  */
 
+import { writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { iconNames } from 'lucide-react/dynamic';
 import { version } from 'lucide-react/package.json';
-import { writeFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 const sorted = [...iconNames].sort();
 

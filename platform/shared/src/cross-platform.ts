@@ -5,8 +5,8 @@
  * and platform detection that work correctly on macOS, Linux, and Windows.
  */
 
-import { toErrorMessage } from './error.js';
 import { chmod, rename, unlink, writeFile } from 'node:fs/promises';
+import { toErrorMessage } from './error.js';
 
 // ---------------------------------------------------------------------------
 // Platform detection

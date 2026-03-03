@@ -2,9 +2,9 @@
  * browser_select_option — select an option from a <select> dropdown element.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { dispatchToExtension } from '../extension-protocol.js';
 import { z } from 'zod';
+import { dispatchToExtension } from '../extension-protocol.js';
+import { defineBrowserTool } from './definition.js';
 
 const selectOption = defineBrowserTool({
   name: 'browser_select_option',

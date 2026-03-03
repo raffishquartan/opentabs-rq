@@ -10,29 +10,29 @@
  *   4. Server disconnect/reconnect → side panel recovers all states
  */
 
-import {
-  test,
-  expect,
-  startMcpServer,
-  startTestServer,
-  createMcpClient,
-  cleanupTestConfigDir,
-  writeTestConfig,
-  readPluginToolNames,
-  readTestConfig,
-  launchExtensionContext,
-  E2E_TEST_PLUGIN_DIR,
-} from './fixtures.js';
-import {
-  waitForExtensionConnected,
-  waitForLog,
-  openSidePanel,
-  setupAdapterSymlink,
-  BROWSER_TOOL_NAMES,
-} from './helpers.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  E2E_TEST_PLUGIN_DIR,
+  expect,
+  launchExtensionContext,
+  readPluginToolNames,
+  readTestConfig,
+  startMcpServer,
+  startTestServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
+import {
+  BROWSER_TOOL_NAMES,
+  openSidePanel,
+  setupAdapterSymlink,
+  waitForExtensionConnected,
+  waitForLog,
+} from './helpers.js';
 
 /** Build a tools map from the e2e-test plugin's prefixed tool names. */
 const buildToolsMap = (): Record<string, boolean> => {

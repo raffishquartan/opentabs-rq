@@ -1,9 +1,9 @@
-import { VALID_PLUGIN_NAME } from '../../constants.js';
-import { TOOL_INVOCATION_TIMEOUT_MS } from '../constants.js';
+import type { TabState } from '@opentabs-dev/shared';
 import { useEffect, useRef } from 'react';
+import { VALID_PLUGIN_NAME } from '../../constants.js';
 import type { PluginState } from '../bridge.js';
 import type { ConfirmationData } from '../components/ConfirmationDialog.js';
-import type { TabState } from '@opentabs-dev/shared';
+import { TOOL_INVOCATION_TIMEOUT_MS } from '../constants.js';
 
 const validTabStates: ReadonlySet<string> = new Set<TabState>(['closed', 'unavailable', 'ready']);
 

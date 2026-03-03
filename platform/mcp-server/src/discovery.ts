@@ -1,15 +1,15 @@
 /** Plugin discovery orchestrator: resolve → load → register pipeline. */
 
+import path from 'node:path';
+import type { TrustTier } from '@opentabs-dev/shared';
+import { isErr, OFFICIAL_SCOPE, toErrorMessage } from '@opentabs-dev/shared';
+import type { LoadedPlugin } from './loader.js';
 import { loadPlugin } from './loader.js';
 import { log } from './logger.js';
 import { buildRegistry } from './registry.js';
 import { discoverGlobalNpmPlugins, resolvePluginPath } from './resolver.js';
 import { isSkipNpmDiscovery } from './skip-npm-discovery.js';
-import { isErr, OFFICIAL_SCOPE, toErrorMessage } from '@opentabs-dev/shared';
-import path from 'node:path';
-import type { LoadedPlugin } from './loader.js';
 import type { FailedPlugin, PluginRegistry } from './state.js';
-import type { TrustTier } from '@opentabs-dev/shared';
 
 /** Outcome of plugin discovery: an immutable registry plus any errors from failed plugins. */
 interface DiscoveryResult {

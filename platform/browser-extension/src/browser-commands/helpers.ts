@@ -1,7 +1,7 @@
+import { isBlockedUrlScheme, toErrorMessage } from '@opentabs-dev/shared';
 import { JSONRPC_INTERNAL_ERROR, JSONRPC_INVALID_PARAMS } from '../json-rpc-errors.js';
 import { sendToServer } from '../messaging.js';
 import { sanitizeErrorMessage } from '../sanitize-error.js';
-import { isBlockedUrlScheme, toErrorMessage } from '@opentabs-dev/shared';
 
 /**
  * Validates that `params.tabId` is a number.

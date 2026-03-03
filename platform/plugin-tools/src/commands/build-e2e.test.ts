@@ -1,9 +1,9 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest';
 
 const CLI_PATH = resolve(import.meta.dirname, '..', '..', 'dist', 'cli.js');
 const E2E_PLUGIN_DIR = resolve(import.meta.dirname, '..', '..', '..', '..', 'plugins', 'e2e-test');

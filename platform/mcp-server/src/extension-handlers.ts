@@ -5,26 +5,6 @@
  * handleExtensionMessage router in extension-protocol.ts.
  */
 
-import { appendLog } from './log-buffer.js';
-import { log } from './logger.js';
-import {
-  searchNpmPlugins,
-  installPlugin,
-  updatePlugin,
-  removePlugin,
-  checkPluginUpdates,
-} from './plugin-management.js';
-import {
-  prefixedToolName,
-  isToolEnabled,
-  isBrowserToolEnabled,
-  pushSessionPermission,
-  DISPATCH_TIMEOUT_MS,
-  MAX_DISPATCH_TIMEOUT_MS,
-} from './state.js';
-import { version } from './version.js';
-import type { PluginLogEntry } from './log-buffer.js';
-import type { RegisteredPlugin, ServerState, TabMapping, ConfirmationScope, SessionPermissionRule } from './state.js';
 import type {
   ConfigSetAllBrowserToolsEnabledParams,
   ConfigSetAllToolsEnabledParams,
@@ -39,6 +19,26 @@ import type {
   TabSyncAllParams,
   TrustTier,
 } from '@opentabs-dev/shared';
+import type { PluginLogEntry } from './log-buffer.js';
+import { appendLog } from './log-buffer.js';
+import { log } from './logger.js';
+import {
+  checkPluginUpdates,
+  installPlugin,
+  removePlugin,
+  searchNpmPlugins,
+  updatePlugin,
+} from './plugin-management.js';
+import type { ConfirmationScope, RegisteredPlugin, ServerState, SessionPermissionRule, TabMapping } from './state.js';
+import {
+  DISPATCH_TIMEOUT_MS,
+  isBrowserToolEnabled,
+  isToolEnabled,
+  MAX_DISPATCH_TIMEOUT_MS,
+  prefixedToolName,
+  pushSessionPermission,
+} from './state.js';
+import { version } from './version.js';
 
 /** Callbacks the extension protocol can invoke on the MCP side */
 interface McpCallbacks {

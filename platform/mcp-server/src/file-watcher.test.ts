@@ -1,12 +1,12 @@
-import { handleToolsJsonChange, startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
-import { log } from './logger.js';
-import { buildRegistry } from './registry.js';
-import { createState } from './state.js';
-import { afterEach, describe, expect, test, vi } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import { handleToolsJsonChange, startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
+import { log } from './logger.js';
+import { buildRegistry } from './registry.js';
 import type { RegisteredPlugin, ServerState } from './state.js';
+import { createState } from './state.js';
 
 /** No-op file watcher callbacks */
 const noopCallbacks = {

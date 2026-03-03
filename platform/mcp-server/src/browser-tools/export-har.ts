@@ -6,11 +6,11 @@
  * Optionally includes captured WebSocket frames via browser.getWebSocketFrames.
  */
 
-import { defineBrowserTool } from './definition.js';
-import { validateDispatchResult } from './dispatch-utils.js';
+import { z } from 'zod';
 import { dispatchToExtension } from '../extension-protocol.js';
 import { version } from '../version.js';
-import { z } from 'zod';
+import { defineBrowserTool } from './definition.js';
+import { validateDispatchResult } from './dispatch-utils.js';
 
 /** HAR 1.2 header entry */
 interface HarHeader {

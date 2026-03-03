@@ -1,6 +1,6 @@
-import { detectGlobals } from './detect-globals.js';
 import { describe, expect, test } from 'vitest';
 import type { GlobalsDetectionInput } from './detect-globals.js';
+import { detectGlobals } from './detect-globals.js';
 
 const emptyInput: GlobalsDetectionInput = {
   globals: [],

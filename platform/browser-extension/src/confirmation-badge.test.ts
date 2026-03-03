@@ -1,4 +1,4 @@
-import { vi, describe, expect, test, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks — vi.hoisted runs before vi.mock factories
