@@ -381,8 +381,6 @@ describe('loadPlugin — SVG icon extraction', () => {
     writePluginWithManifest(pluginDir, {
       sdkVersion: '0.0.16',
       tools: [{ name: 't', displayName: 'T', description: 'T', icon: 'wrench', input_schema: {}, output_schema: {} }],
-      resources: [],
-      prompts: [],
       iconSvg: '<svg>active</svg>',
       iconInactiveSvg: '<svg>inactive</svg>',
     });
@@ -400,8 +398,6 @@ describe('loadPlugin — SVG icon extraction', () => {
     writePluginWithManifest(pluginDir, {
       sdkVersion: '0.0.16',
       tools: [{ name: 't', displayName: 'T', description: 'T', icon: 'wrench', input_schema: {}, output_schema: {} }],
-      resources: [],
-      prompts: [],
     });
 
     const result = await loadPlugin(pluginDir, 'local', 'local');
@@ -417,8 +413,6 @@ describe('loadPlugin — SVG icon extraction', () => {
     writePluginWithManifest(pluginDir, {
       sdkVersion: '0.0.16',
       tools: [{ name: 't', displayName: 'T', description: 'T', icon: 'wrench', input_schema: {}, output_schema: {} }],
-      resources: [],
-      prompts: [],
       iconSvg: 42,
       iconInactiveSvg: true,
     });
