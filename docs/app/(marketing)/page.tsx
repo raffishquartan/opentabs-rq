@@ -1,8 +1,8 @@
+import { SiGithub } from '@icons-pack/react-simple-icons';
+import Link from 'next/link';
 import Footer from '@/components/footer';
 import { ArchitectureIllustration } from '@/components/illustrations';
 import { Button, Text } from '@/components/retroui';
-import { SiGithub } from '@icons-pack/react-simple-icons';
-import Link from 'next/link';
 
 const steps = [
   {
@@ -31,12 +31,12 @@ export default function Home() {
       {/* ── Hero ──────────────────────────────────────────── */}
       <section className="container mx-auto max-w-6xl px-4 pt-14 pb-8 lg:px-0 lg:pt-20 lg:pb-10">
         <div className="mx-auto max-w-3xl text-center">
-          <Text as="h1" className="text-foreground mb-6 text-5xl lg:text-6xl">
+          <Text as="h1" className="mb-6 text-5xl text-foreground lg:text-6xl">
             AI agents for
             <br />
             any web app
           </Text>
-          <p className="text-muted-foreground mx-auto mb-10 max-w-xl text-lg">
+          <p className="mx-auto mb-10 max-w-xl text-lg text-muted-foreground">
             Give AI agents access to any web application through your authenticated browser session. No API keys. No
             reverse engineering. Just your browser.
           </p>
@@ -57,26 +57,26 @@ export default function Home() {
       {/* ── Architecture Illustration ─────────────────────── */}
       <section className="container mx-auto max-w-5xl px-4 pb-12 lg:px-0">
         <div className="relative">
-          <div className="bg-foreground absolute inset-0 translate-x-3 translate-y-3" />
-          <div className="border-foreground bg-background relative border-4 p-6 lg:p-8">
+          <div className="absolute inset-0 translate-x-3 translate-y-3 bg-foreground" />
+          <div className="relative border-4 border-foreground bg-background p-6 lg:p-8">
             <ArchitectureIllustration />
           </div>
         </div>
       </section>
 
       {/* ── How It Works ──────────────────────────────────── */}
-      <section className="border-foreground container mx-auto max-w-6xl border-t-2 px-4 py-20 lg:px-0">
+      <section className="container mx-auto max-w-6xl border-foreground border-t-2 px-4 py-20 lg:px-0">
         <Text as="h2" className="mb-12 text-3xl">
           How it works
         </Text>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {steps.map(item => (
             <div key={item.step} className="flex gap-5">
-              <span className="border-foreground bg-primary text-foreground flex h-10 w-10 flex-shrink-0 items-center justify-center border-2 text-sm font-bold">
+              <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center border-2 border-foreground bg-primary font-bold text-foreground text-sm">
                 {item.step}
               </span>
               <div>
-                <p className="text-foreground mb-2 font-bold">{item.title}</p>
+                <p className="mb-2 font-bold text-foreground">{item.title}</p>
                 <p className="text-muted-foreground text-sm leading-relaxed">{item.description}</p>
               </div>
             </div>
@@ -86,9 +86,9 @@ export default function Home() {
 
       {/* ── CTA ───────────────────────────────────────────── */}
       <section className="container mx-auto my-24 max-w-6xl px-4 lg:px-0">
-        <div className="border-foreground bg-primary flex flex-col items-center justify-between gap-8 border-4 px-8 py-14 lg:flex-row">
+        <div className="flex flex-col items-center justify-between gap-8 border-4 border-foreground bg-primary px-8 py-14 lg:flex-row">
           <div>
-            <Text as="h2" className="text-foreground mb-2">
+            <Text as="h2" className="mb-2 text-foreground">
               Build plugins for any website
             </Text>
             <p className="text-foreground/70">

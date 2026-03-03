@@ -1,5 +1,13 @@
 'use client';
 
+import { MDXContent } from '@content-collections/mdx/react';
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import Image from 'next/image';
+import Link from 'next/link';
+import type React from 'react';
+import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
+import { Alert, Badge, Card, Text } from '@/components/retroui';
+import { cn } from '@/lib/utils';
 import { CodeBlock } from './CodeBlock';
 import { CliCommand } from './ComponentInstall';
 import {
@@ -16,14 +24,6 @@ import {
   QuickStartFlow,
 } from './illustrations';
 import { Table } from './retroui/Table';
-import { Alert, Badge, Card, Text } from '@/components/retroui';
-import { cn } from '@/lib/utils';
-import { MDXContent } from '@content-collections/mdx/react';
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
-import Image from 'next/image';
-import Link from 'next/link';
-import type { AnchorHTMLAttributes, HTMLAttributes } from 'react';
-import type React from 'react';
 
 const docComponents = {
   h1: (props: HTMLAttributes<HTMLHeadingElement>) => (
@@ -48,12 +48,12 @@ const docComponents = {
   ul: (props: HTMLAttributes<HTMLUListElement>) => <ul className="mb-4 ml-6 list-disc space-y-1.5" {...props} />,
   ol: (props: HTMLAttributes<HTMLOListElement>) => <ol className="mb-4 ml-6 list-decimal space-y-1.5" {...props} />,
   li: ({ className, ...props }: HTMLAttributes<HTMLLIElement>) => (
-    <li className={cn('leading-relaxed [&>p]:mb-2 [&>p:last-child]:mb-0', className)} {...props} />
+    <li className={cn('leading-relaxed [&>p:last-child]:mb-0 [&>p]:mb-2', className)} {...props} />
   ),
   blockquote: (props: HTMLAttributes<HTMLQuoteElement>) => (
-    <blockquote className="border-primary text-muted-foreground my-6 border-l-4 pl-4 italic" {...props} />
+    <blockquote className="my-6 border-primary border-l-4 pl-4 text-muted-foreground italic" {...props} />
   ),
-  hr: (props: HTMLAttributes<HTMLHRElement>) => <hr className="border-border my-8 border-t-2" {...props} />,
+  hr: (props: HTMLAttributes<HTMLHRElement>) => <hr className="my-8 border-border border-t-2" {...props} />,
   // alt is passed through from MDX image syntax and spread via ...props
   img: ({ alt = '', ...props }: HTMLAttributes<HTMLImageElement> & { alt?: string }) => (
     <img alt={alt} className="mx-auto my-8 w-full max-w-[600px]" {...props} />
@@ -67,12 +67,12 @@ const docComponents = {
         href={href}
         target={target ?? '_blank'}
         rel={rel ?? 'noopener noreferrer'}
-        className="hover:decoration-primary underline underline-offset-4"
+        className="underline underline-offset-4 hover:decoration-primary"
         {...rest}>
         {children}
       </a>
     ) : (
-      <Link href={href} className="hover:decoration-primary underline underline-offset-4" {...rest}>
+      <Link href={href} className="underline underline-offset-4 hover:decoration-primary" {...rest}>
         {children}
       </Link>
     );
@@ -96,7 +96,7 @@ const docComponents = {
     return (
       <code
         className={cn(
-          'bg-inline-code-bg text-inline-code-fg border-border/30 relative rounded-(--radius) border px-1.5 py-0.5 font-mono text-sm',
+          'relative rounded-(--radius) border border-border/30 bg-inline-code-bg px-1.5 py-0.5 font-mono text-inline-code-fg text-sm',
           className,
         )}
         {...props}>

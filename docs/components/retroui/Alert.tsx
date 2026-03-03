@@ -1,8 +1,8 @@
+import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
+import type { HtmlHTMLAttributes } from 'react';
 import { Text } from '@/components/retroui/Text';
 import { cn } from '@/lib/utils';
-import { cva } from 'class-variance-authority';
-import type { VariantProps } from 'class-variance-authority';
-import type { HtmlHTMLAttributes } from 'react';
 
 const alertVariants = cva('relative w-full rounded-(--radius) border-2 p-4', {
   variants: {

@@ -15,5 +15,5 @@
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "include": ["eslint.config.ts", "knip.config.ts"]
+  "include": ["knip.config.ts"]
 }

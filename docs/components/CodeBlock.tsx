@@ -1,10 +1,10 @@
 'use client';
 
+import { Check, ClipboardCopy } from 'lucide-react';
+import type { HTMLAttributes } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/retroui';
 import { cn } from '@/lib/utils';
-import { Check, ClipboardCopy } from 'lucide-react';
-import { useRef, useState } from 'react';
-import type { HTMLAttributes } from 'react';
 
 export const CodeBlock = ({
   className,
@@ -32,8 +32,8 @@ export const CodeBlock = ({
   return (
     <div className="relative my-6">
       {showCopy && (
-        <div className="bg-code-bg hidden items-center justify-between rounded-t-(--radius) border-b border-white/10 px-4 py-2 md:flex">
-          {language ? <span className="text-code-fg font-mono text-xs">{language}</span> : <span />}
+        <div className="hidden items-center justify-between rounded-t-(--radius) border-white/10 border-b bg-code-bg px-4 py-2 md:flex">
+          {language ? <span className="font-mono text-code-fg text-xs">{language}</span> : <span />}
           <Button disabled={hasCopied} size="sm" onClick={handleClickCopy}>
             {hasCopied ? 'Copied' : 'Copy'}
           </Button>
@@ -41,7 +41,7 @@ export const CodeBlock = ({
       )}
       <pre
         className={cn(
-          'bg-code-bg text-code-fg overflow-x-auto rounded-(--radius) p-4',
+          'overflow-x-auto rounded-(--radius) bg-code-bg p-4 text-code-fg',
           showCopy && 'md:rounded-t-none',
           className,
         )}

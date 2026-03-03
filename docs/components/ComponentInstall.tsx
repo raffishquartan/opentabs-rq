@@ -1,10 +1,10 @@
 'use client';
 
-import { Button } from './retroui';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { Check, ClipboardCopy } from 'lucide-react';
-import { useState } from 'react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { Button } from './retroui';
 
 /**
  * Tokenizes a shell command string into spans matching the Dracula-soft Shiki
@@ -87,16 +87,16 @@ export const CliCommand = ({
 
   return (
     <div className="relative my-2">
-      <TabGroup className="bg-code-bg rounded-(--radius)" selectedIndex={selectedIndex} onChange={setSelectedIndex}>
-        <div className="flex items-center justify-between px-4 py-2 md:border-b md:border-white/10">
+      <TabGroup className="rounded-(--radius) bg-code-bg" selectedIndex={selectedIndex} onChange={setSelectedIndex}>
+        <div className="flex items-center justify-between px-4 py-2 md:border-white/10 md:border-b">
           <TabList className="flex space-x-4 text-sm">
-            <Tab className="data-selected:text-code-fg relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2">
+            <Tab className="relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2 data-selected:text-code-fg">
               npm
             </Tab>
-            <Tab className="data-selected:text-code-fg relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2">
+            <Tab className="relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2 data-selected:text-code-fg">
               pnpm
             </Tab>
-            <Tab className="data-selected:text-code-fg relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2">
+            <Tab className="relative cursor-pointer border-[#62E884] bg-transparent px-2 py-1 text-[#6272A4] focus:outline-hidden data-selected:border-b-2 data-selected:text-code-fg">
               yarn
             </Tab>
           </TabList>
@@ -104,7 +104,7 @@ export const CliCommand = ({
             {copied ? 'Copied' : 'Copy'}
           </Button>
         </div>
-        <TabPanels className="text-code-fg p-4 text-sm">
+        <TabPanels className="p-4 text-code-fg text-sm">
           <TabPanel>
             <code className="font-mono">{highlightCommand(npmCommand)}</code>
           </TabPanel>

@@ -1,24 +1,24 @@
 'use client';
 
-import HamburgerMenu from './HamburgerMenu';
-import { Button } from '@/components/retroui';
-import { navConfig } from '@/config/navigation';
-import { useTheme } from '@/contexts/ThemeContext';
 import { SiGithub } from '@icons-pack/react-simple-icons';
 import { MoonIcon, SunIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Button } from '@/components/retroui';
+import { navConfig } from '@/config/navigation';
+import { useTheme } from '@/contexts/ThemeContext';
+import HamburgerMenu from './HamburgerMenu';
 
 export default function TopNav() {
   const { isDarkMode, toggleDarkMode } = useTheme();
 
   return (
-    <nav className="bg-background sticky top-0 right-0 z-50 w-full border-b-2">
+    <nav className="sticky top-0 right-0 z-50 w-full border-b-2 bg-background">
       <div className="container mx-auto max-w-6xl px-4 lg:px-0">
         <div className="flex h-16 items-center justify-between">
           {/* Logo Section */}
           <div className="shrink-0">
-            <Link href="/" className="font-head flex items-center gap-2 text-2xl">
+            <Link href="/" className="flex items-center gap-2 font-head text-2xl">
               <Image src="/icon.svg" alt="OpenTabs logo" width={36} height={36} />
               <span className="text-foreground">OpenTabs</span>
             </Link>
@@ -37,7 +37,7 @@ export default function TopNav() {
           </div>
 
           <div className="flex items-center space-x-4 lg:hidden">
-            <button onClick={toggleDarkMode} aria-label="Toggle dark mode">
+            <button type="button" onClick={toggleDarkMode} aria-label="Toggle dark mode">
               {isDarkMode ? <SunIcon size={20} /> : <MoonIcon size={20} />}
             </button>
             <Link

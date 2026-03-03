@@ -1,14 +1,14 @@
 'use client';
 
-import SideNav from './SideNav';
-import { Button } from '@/components/retroui';
 import { AlignJustify, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@/components/retroui';
+import SideNav from './SideNav';
 
 export default function HamburgerMenu() {
   const [isOpen, setIsOpen] = useState(false);
 
-  const close = () => setIsOpen(false);
+  const close = useCallback(() => setIsOpen(false), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -24,7 +24,7 @@ export default function HamburgerMenu() {
       document.body.style.overflow = '';
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, close]);
 
   return (
     <div>
@@ -44,7 +44,7 @@ export default function HamburgerMenu() {
           role="button"
           tabIndex={0}
           aria-label="Close menu"
-          className="bg-foreground/50 fixed inset-0 h-screen w-full"
+          className="fixed inset-0 h-screen w-full bg-foreground/50"
           onClick={close}
           onKeyDown={e => {
             if (e.key === 'Enter' || e.key === ' ') close();

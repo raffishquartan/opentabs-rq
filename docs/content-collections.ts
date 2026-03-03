@@ -3,8 +3,8 @@ import { compileMDX } from '@content-collections/mdx';
 import { rehypePrettyCode } from 'rehype-pretty-code';
 import rehypeSlug from 'rehype-slug';
 import remarkToc from 'remark-toc';
-import { z } from 'zod';
 import type { Pluggable } from 'unified';
+import { z } from 'zod';
 
 const docs = defineCollection({
   name: 'docs',

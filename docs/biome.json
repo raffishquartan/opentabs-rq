@@ -1,0 +1,80 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.4.5/schema.json",
+  "files": {
+    "includes": ["**", "!.next", "!.content-collections", "!**/*.css", "!**/*.mjs", "!next-env.d.ts"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "trailingCommas": "all",
+      "semicolons": "always",
+      "quoteStyle": "single",
+      "arrowParentheses": "asNeeded",
+      "bracketSameLine": true
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
+    }
+  },
+  "linter": {
+    "domains": {
+      "react": "recommended",
+      "next": "recommended"
+    },
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noDoubleEquals": "error",
+        "noVar": "error",
+        "noAssignInExpressions": "off",
+        "noImplicitAnyLet": "off",
+        "noArrayIndexKey": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "off",
+        "useAnchorContent": "off",
+        "useSemanticElements": "off",
+        "useFocusableInteractive": "off",
+        "useAriaPropsForRole": "off"
+      },
+      "style": {
+        "useConst": "error",
+        "useImportType": "error",
+        "useExportType": "error",
+        "useConsistentArrowReturn": "error"
+      },
+      "correctness": {
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error",
+        "noUnusedFunctionParameters": "error"
+      },
+      "nursery": {
+        "useSortedClasses": "error"
+      },
+      "performance": {
+        "noImgElement": "off"
+      }
+    }
+  },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [":URL:", ":NODE:", ":PACKAGE:", "@*/**", ":PATH:"]
+          }
+        }
+      }
+    }
+  }
+}

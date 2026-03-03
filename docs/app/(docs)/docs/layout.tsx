@@ -1,6 +1,6 @@
-import SideNav from '@/components/SideNav';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import SideNav from '@/components/SideNav';
 
 export const metadata: Metadata = {
   title: 'Docs | OpenTabs',

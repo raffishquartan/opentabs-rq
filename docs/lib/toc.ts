@@ -1,8 +1,8 @@
+import type { Nodes, Root } from 'mdast';
 import { toc } from 'mdast-util-toc';
 import { remark } from 'remark';
-import { visit } from 'unist-util-visit';
-import type { Nodes, Root } from 'mdast';
 import type { Node } from 'unist';
+import { visit } from 'unist-util-visit';
 import type { VFile } from 'vfile';
 
 const textTypes = ['text', 'emphasis', 'strong', 'inlineCode'] as const;

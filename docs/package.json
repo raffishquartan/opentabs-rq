@@ -7,10 +7,10 @@
     "build": "next build",
     "start": "next start",
     "type-check": "tsc --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "format": "prettier --write --cache \"**/*.{ts,tsx,json,md,mjs,css}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,mjs,css}\"",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --fix .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "knip": "knip --config knip.config.ts",
     "check": "npm run build && npm run type-check && npm run lint && npm run knip && npm run format:check"
   },
@@ -43,30 +43,15 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/compat": "^2.0.2",
-    "@eslint/eslintrc": "^3.3.3",
-    "@eslint/js": "^9.39.2",
+    "@biomejs/biome": "2.4.5",
     "@tailwindcss/postcss": "^4.0.14",
     "@types/node": "^22.15.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/mdast": "^4.0.4",
-    "@typescript-eslint/parser": "^8.56.0",
-    "eslint": "^9.39.2",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-plugin-import-x": "^4.16.1",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-prettier": "^5.5.5",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "globals": "^17.3.0",
     "knip": "^5.84.1",
     "postcss": "^8",
-    "prettier": "^3.8.1",
-    "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.0.14",
-    "typescript": "^5",
-    "typescript-eslint": "^8.56.0"
+    "typescript": "^5"
   }
 }

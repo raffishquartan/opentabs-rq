@@ -1,9 +1,9 @@
-import { cn } from '@/lib/utils';
 import { Slot } from '@radix-ui/react-slot';
-import { cva } from 'class-variance-authority';
-import { forwardRef } from 'react';
 import type { VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import type { ButtonHTMLAttributes } from 'react';
+import { forwardRef } from 'react';
+import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
   'font-head transition-all rounded-(--radius) outline-hidden cursor-pointer duration-200 font-medium flex justify-center items-center disabled:opacity-60 disabled:cursor-not-allowed',

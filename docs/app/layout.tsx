@@ -2,8 +2,8 @@ import { Toaster } from '@/components/retroui';
 import TopNav from '@/components/TopNav';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import './global.css';
-import { Archivo_Black, Space_Grotesk, Space_Mono } from 'next/font/google';
 import type { Metadata } from 'next';
+import { Archivo_Black, Space_Grotesk, Space_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 
 const sans = Space_Grotesk({
@@ -64,7 +64,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="bg-background text-foreground">
             <a
               href="#main-content"
-              className="bg-primary text-foreground sr-only focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:font-bold">
+              className="sr-only bg-primary text-foreground focus:not-sr-only focus:absolute focus:z-[100] focus:p-4 focus:font-bold">
               Skip to main content
             </a>
             <TopNav />

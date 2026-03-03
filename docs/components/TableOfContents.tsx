@@ -1,6 +1,6 @@
-import { cn } from '@/lib/utils';
-import type { TableOfContents as TOCType } from '@/lib/toc';
 import type { ReactElement } from 'react';
+import type { TableOfContents as TOCType } from '@/lib/toc';
+import { cn } from '@/lib/utils';
 
 interface TableOfContentsProps {
   toc: TOCType;
@@ -22,7 +22,7 @@ const renderTOCItems = (items: TOCItem[], level = 0): ReactElement | null => {
           <a
             href={item.url}
             title={item.title}
-            className="hover:text-foreground hover:border-accent block truncate border-l-2 border-transparent py-1 pl-2 text-sm transition-colors">
+            className="block truncate border-transparent border-l-2 py-1 pl-2 text-sm transition-colors hover:border-accent hover:text-foreground">
             {item.title}
           </a>
           {item.items && renderTOCItems(item.items, level + 1)}
@@ -38,8 +38,8 @@ export default function TableOfContents({ toc }: TableOfContentsProps) {
   }
 
   return (
-    <div className="border-border sidebar-scroll max-h-60 overflow-y-scroll overscroll-y-contain rounded-(--radius) border-2 p-4">
-      <h3 className="border-border mb-3 border-b-2 pb-2">On this Page</h3>
+    <div className="sidebar-scroll max-h-60 overflow-y-scroll overscroll-y-contain rounded-(--radius) border-2 border-border p-4">
+      <h3 className="mb-3 border-border border-b-2 pb-2">On this Page</h3>
       {renderTOCItems(toc.items as TOCItem[])}
     </div>
   );

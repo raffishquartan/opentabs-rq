@@ -31,7 +31,7 @@ const Footer = () => (
               <li key={link.name}>
                 <a
                   href={link.href}
-                  className="decoration-primary font-medium decoration-2 underline-offset-4 transition-all hover:underline">
+                  className="font-medium decoration-2 decoration-primary underline-offset-4 transition-all hover:underline">
                   {link.name}
                 </a>
               </li>
