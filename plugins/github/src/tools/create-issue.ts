@@ -8,6 +8,7 @@ export const createIssue = defineTool({
   displayName: 'Create Issue',
   description: 'Create a new issue in a repository.',
   icon: 'plus-circle',
+  group: 'Issues',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

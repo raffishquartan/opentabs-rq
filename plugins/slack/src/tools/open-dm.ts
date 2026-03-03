@@ -8,6 +8,7 @@ export const openDm = defineTool({
   description:
     'Open a direct message conversation with one or more users. Returns an existing DM channel if one already exists, or creates a new one. For multi-person DMs (group DMs), pass multiple comma-separated user IDs.',
   icon: 'mail',
+  group: 'DMs',
   input: z.object({
     users: z
       .string()

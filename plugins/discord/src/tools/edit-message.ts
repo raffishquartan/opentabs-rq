@@ -8,6 +8,7 @@ export const editMessage = defineTool({
   displayName: 'Edit Message',
   description: 'Edit an existing message. Only messages sent by the authenticated user can be edited.',
   icon: 'pencil',
+  group: 'Messages',
   input: z.object({
     channel: z.string().describe('Channel ID where the message is located'),
     message_id: z.string().describe('ID of the message to edit'),

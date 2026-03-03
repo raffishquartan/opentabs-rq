@@ -8,6 +8,7 @@ export const createPullRequest = defineTool({
   displayName: 'Create Pull Request',
   description: 'Create a new pull request.',
   icon: 'git-pull-request-arrow',
+  group: 'Pull Requests',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

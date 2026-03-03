@@ -7,6 +7,7 @@ export const addReaction = defineTool({
   displayName: 'Add Reaction',
   description: 'Add a reaction to an issue, pull request, or comment.',
   icon: 'smile-plus',
+  group: 'Reactions',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

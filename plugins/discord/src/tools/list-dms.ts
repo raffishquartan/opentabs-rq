@@ -8,6 +8,7 @@ export const listDms = defineTool({
   displayName: 'List DMs',
   description: 'List all open direct message channels for the authenticated user',
   icon: 'mail',
+  group: 'DMs',
   input: z.object({}),
   output: z.object({
     channels: z

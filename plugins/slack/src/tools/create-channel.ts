@@ -7,6 +7,7 @@ export const createChannel = defineTool({
   displayName: 'Create Channel',
   description: 'Create a new public or private Slack channel',
   icon: 'plus-circle',
+  group: 'Channels',
   input: z.object({
     name: z
       .string()

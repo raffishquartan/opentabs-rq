@@ -8,6 +8,7 @@ export const openDm = defineTool({
   displayName: 'Open DM',
   description: 'Open or get an existing direct message channel with a user. For group DMs, pass multiple user IDs.',
   icon: 'message-circle',
+  group: 'DMs',
   input: z.object({
     recipient_ids: z
       .array(z.string())

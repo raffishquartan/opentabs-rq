@@ -12,6 +12,7 @@ export const getBlockChildren = defineTool({
   displayName: 'Get Block Children',
   description: 'Get the child blocks of a specific block or page. Useful for reading nested content.',
   icon: 'list-tree',
+  group: 'Blocks',
   input: z.object({
     block_id: z.string().describe('Block or page ID (UUID) to get children of'),
   }),

@@ -7,6 +7,7 @@ export const sendMessage = defineTool({
   displayName: 'Send Message',
   description: 'Send a message to a Slack channel or thread',
   icon: 'send',
+  group: 'Messages',
   input: z.object({
     channel: z.string().min(1).describe('Channel ID to send the message to (e.g., C01234567)'),
     text: z.string().min(1).describe('Message text to send — supports Slack mrkdwn formatting'),

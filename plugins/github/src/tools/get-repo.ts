@@ -8,6 +8,7 @@ export const getRepo = defineTool({
   displayName: 'Get Repository',
   description: 'Get detailed information about a specific repository.',
   icon: 'book-open',
+  group: 'Repositories',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

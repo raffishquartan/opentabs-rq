@@ -9,6 +9,7 @@ export const listChannels = defineTool({
   displayName: 'List Channels',
   description: 'List channels in the Slack workspace with optional pagination',
   icon: 'list',
+  group: 'Channels',
   input: z.object({
     limit: z
       .number()

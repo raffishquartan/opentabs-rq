@@ -16,6 +16,7 @@ export const getPage = defineTool({
   description:
     'Get a Notion page by ID, including its title, metadata, and content blocks. Returns the page info and its direct child blocks.',
   icon: 'file-text',
+  group: 'Pages',
   input: z.object({
     page_id: z.string().describe('Page ID (UUID format, e.g., "f4ab7079-036d-4893-aaa3-6440d973a22f")'),
   }),

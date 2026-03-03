@@ -8,6 +8,7 @@ export const getIssue = defineTool({
   displayName: 'Get Issue',
   description: 'Get detailed information about a specific issue, including its full body.',
   icon: 'circle-dot',
+  group: 'Issues',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

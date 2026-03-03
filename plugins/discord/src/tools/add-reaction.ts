@@ -7,6 +7,7 @@ export const addReaction = defineTool({
   displayName: 'Add Reaction',
   description: 'Add an emoji reaction to a message',
   icon: 'smile-plus',
+  group: 'Reactions',
   input: z.object({
     channel: z.string().describe('Channel ID where the message is located'),
     message_id: z.string().describe('Message ID to react to'),

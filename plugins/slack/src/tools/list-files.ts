@@ -25,6 +25,7 @@ export const listFiles = defineTool({
   displayName: 'List Files',
   description: 'List files in a Slack channel or workspace with optional filters',
   icon: 'files',
+  group: 'Files',
   input: z.object({
     channel: z.string().optional().describe('Channel ID to filter files by — omit to search the entire workspace'),
     count: z.number().int().min(1).max(100).optional().describe('Number of files to return (default 20, max 100)'),

@@ -31,6 +31,7 @@ export const queryDatabase = defineTool({
   displayName: 'Query Database',
   description: 'Query rows from a Notion database with optional search. Returns items with their property values.',
   icon: 'table',
+  group: 'Databases',
   input: z.object({
     database_id: z.string().describe('Database (collection) ID to query'),
     view_id: z.string().optional().describe('Collection view ID. If omitted, uses the first available view.'),

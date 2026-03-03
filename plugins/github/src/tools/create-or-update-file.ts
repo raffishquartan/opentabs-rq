@@ -8,6 +8,7 @@ export const createOrUpdateFile = defineTool({
   description:
     'Create or update a file in a repository. To update an existing file, provide the current file SHA (obtainable from the contents API). Commits directly to the specified branch.',
   icon: 'file-edit',
+  group: 'Repositories',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

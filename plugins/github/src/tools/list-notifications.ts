@@ -8,6 +8,7 @@ export const listNotifications = defineTool({
   displayName: 'List Notifications',
   description: 'List notifications for the authenticated user. Includes issue, PR, and release notifications.',
   icon: 'bell',
+  group: 'Users',
   input: z.object({
     all: z.boolean().optional().describe('Show all notifications including read ones (default: false)'),
     participating: z

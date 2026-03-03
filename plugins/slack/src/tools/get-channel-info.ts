@@ -9,6 +9,7 @@ export const getChannelInfo = defineTool({
   displayName: 'Get Channel Info',
   description: 'Get detailed information about a Slack channel including topic, purpose, and member count',
   icon: 'info',
+  group: 'Channels',
   input: z.object({
     channel: z.string().min(1).describe('Channel ID to get info for (e.g., C01234567)'),
   }),

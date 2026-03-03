@@ -9,6 +9,7 @@ export const readThread = defineTool({
   description:
     'Read messages from a thread. Threads are channels, so this works the same as read_messages but is semantically specific to threads.',
   icon: 'git-branch',
+  group: 'Messages',
   input: z.object({
     thread_id: z.string().describe('Thread (channel) ID to read messages from'),
     limit: z.number().int().min(1).max(100).optional().describe('Number of messages to return (default 50, max 100)'),

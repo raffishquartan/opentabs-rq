@@ -7,6 +7,7 @@ export const removeReaction = defineTool({
   displayName: 'Remove Reaction',
   description: 'Remove an emoji reaction from a Slack message',
   icon: 'smile',
+  group: 'Reactions',
   input: z.object({
     channel: z.string().min(1).describe('Channel ID where the message is located (e.g., C01234567)'),
     ts: z

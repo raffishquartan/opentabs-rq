@@ -8,6 +8,7 @@ export const getPullRequest = defineTool({
   displayName: 'Get Pull Request',
   description: 'Get detailed information about a specific pull request, including merge status and diff stats.',
   icon: 'git-pull-request',
+  group: 'Pull Requests',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

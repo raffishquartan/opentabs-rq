@@ -17,6 +17,7 @@ export const listPages = defineTool({
   description:
     'List all pages in the Notion workspace, sorted by last edited time. Use this to get an overview of workspace content.',
   icon: 'files',
+  group: 'Pages',
   input: z.object({
     limit: z.number().optional().describe('Maximum number of pages to return (default 20, max 100)'),
   }),

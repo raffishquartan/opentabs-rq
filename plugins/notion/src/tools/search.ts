@@ -16,6 +16,7 @@ export const search = defineTool({
   displayName: 'Search',
   description: 'Search for pages and blocks in the Notion workspace by text query',
   icon: 'search',
+  group: 'Pages',
   input: z.object({
     query: z.string().describe('Search query text'),
     limit: z.number().optional().describe('Maximum number of results to return (default 10, max 100)'),

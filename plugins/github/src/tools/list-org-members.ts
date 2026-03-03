@@ -7,6 +7,7 @@ export const listOrgMembers = defineTool({
   displayName: 'List Organization Members',
   description: 'List public members of a GitHub organization.',
   icon: 'users',
+  group: 'Users',
   input: z.object({
     org: z.string().min(1).describe('Organization name'),
     per_page: z.number().int().min(1).max(100).optional().describe('Results per page (default 30, max 100)'),

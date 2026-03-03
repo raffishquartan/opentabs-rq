@@ -8,6 +8,7 @@ export const getFileContent = defineTool({
   description:
     'Read a file from a repository. Returns the raw content as text. Use the ref parameter to read from a specific branch or commit.',
   icon: 'file-text',
+  group: 'Repositories',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

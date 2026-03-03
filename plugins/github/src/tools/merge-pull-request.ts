@@ -7,6 +7,7 @@ export const mergePullRequest = defineTool({
   displayName: 'Merge Pull Request',
   description: 'Merge a pull request. Supports merge commit, squash, and rebase strategies.',
   icon: 'git-merge',
+  group: 'Pull Requests',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

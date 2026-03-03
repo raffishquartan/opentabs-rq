@@ -8,6 +8,7 @@ export const createComment = defineTool({
   displayName: 'Create Comment',
   description: 'Add a comment to an issue or pull request.',
   icon: 'message-square-plus',
+  group: 'Comments',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

@@ -8,6 +8,7 @@ export const updateIssue = defineTool({
   displayName: 'Update Issue',
   description: 'Update an existing issue — change title, body, state, labels, or assignees.',
   icon: 'pencil',
+  group: 'Issues',
   input: z.object({
     owner: z.string().min(1).describe('Repository owner (user or org)'),
     repo: z.string().min(1).describe('Repository name'),

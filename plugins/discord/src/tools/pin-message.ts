@@ -7,6 +7,7 @@ export const pinMessage = defineTool({
   displayName: 'Pin Message',
   description: 'Pin a message in a channel. Requires Manage Messages permission.',
   icon: 'pin',
+  group: 'Reactions',
   input: z.object({
     channel: z.string().describe('Channel ID where the message is located'),
     message_id: z.string().describe('Message ID to pin'),

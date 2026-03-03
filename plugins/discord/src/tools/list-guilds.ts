@@ -8,6 +8,7 @@ export const listGuilds = defineTool({
   displayName: 'List Guilds',
   description: 'List all Discord guilds (servers) the authenticated user is a member of',
   icon: 'server',
+  group: 'Servers',
   input: z.object({
     limit: z.number().int().min(1).max(200).optional().describe('Max guilds to return (default 200)'),
     before: z.string().optional().describe('Get guilds before this guild ID (for pagination)'),

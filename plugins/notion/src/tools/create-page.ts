@@ -13,6 +13,7 @@ export const createPage = defineTool({
   description:
     'Create a new page in the Notion workspace. The page is created at the top level of the workspace by default, or as a child of an existing page.',
   icon: 'file-plus',
+  group: 'Pages',
   input: z.object({
     title: z.string().describe('Page title'),
     parent_page_id: z

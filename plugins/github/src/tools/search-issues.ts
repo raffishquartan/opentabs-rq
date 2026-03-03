@@ -9,6 +9,7 @@ export const searchIssues = defineTool({
   description:
     'Search issues and pull requests across GitHub. Uses GitHub search syntax — e.g., "repo:owner/name is:open label:bug".',
   icon: 'search',
+  group: 'Issues',
   input: z.object({
     query: z
       .string()

@@ -15,6 +15,7 @@ export const listUsers = defineTool({
   displayName: 'List Users',
   description: 'List all users (members) in the current Notion workspace',
   icon: 'users',
+  group: 'Users',
   input: z.object({}),
   output: z.object({
     users: z.array(userSchema).describe('Workspace members'),

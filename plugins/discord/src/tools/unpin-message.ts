@@ -7,6 +7,7 @@ export const unpinMessage = defineTool({
   displayName: 'Unpin Message',
   description: 'Unpin a message from a channel. Requires Manage Messages permission.',
   icon: 'pin-off',
+  group: 'Reactions',
   input: z.object({
     channel: z.string().describe('Channel ID where the message is located'),
     message_id: z.string().describe('Message ID to unpin'),

@@ -8,6 +8,7 @@ export const listMembers = defineTool({
   displayName: 'List Members',
   description: 'List members in a Discord guild (server)',
   icon: 'users',
+  group: 'Users',
   input: z.object({
     guild_id: z.string().describe('Guild (server) ID to list members for'),
     limit: z.number().int().min(1).max(1000).optional().describe('Max members to return (default 100, max 1000)'),
