@@ -28,7 +28,8 @@ Object.assign(globalThis, {
 });
 
 // Import after mocking
-const { handleBrowserPressKey } = await import('./key-press-command.js');
+const { handleBrowserPressKey, SHIFTED_PUNCTUATION_CODES, UNSHIFTED_PUNCTUATION_CODES } =
+  await import('./key-press-command.js');
 
 /** Extract the first argument from the first call to mockSendToServer */
 const firstSentMessage = (): Record<string, unknown> => {
@@ -95,5 +96,54 @@ describe('handleBrowserPressKey', () => {
       id: 99,
       error: { code: -32602 },
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Punctuation code maps
+// ---------------------------------------------------------------------------
+
+describe('SHIFTED_PUNCTUATION_CODES', () => {
+  test('maps digit-row shifted characters to their physical key codes', () => {
+    expect(SHIFTED_PUNCTUATION_CODES['!']).toBe('Digit1');
+    expect(SHIFTED_PUNCTUATION_CODES['@']).toBe('Digit2');
+    expect(SHIFTED_PUNCTUATION_CODES['#']).toBe('Digit3');
+    expect(SHIFTED_PUNCTUATION_CODES['$']).toBe('Digit4');
+    expect(SHIFTED_PUNCTUATION_CODES['%']).toBe('Digit5');
+    expect(SHIFTED_PUNCTUATION_CODES['^']).toBe('Digit6');
+    expect(SHIFTED_PUNCTUATION_CODES['&']).toBe('Digit7');
+    expect(SHIFTED_PUNCTUATION_CODES['*']).toBe('Digit8');
+    expect(SHIFTED_PUNCTUATION_CODES['(']).toBe('Digit9');
+    expect(SHIFTED_PUNCTUATION_CODES[')']).toBe('Digit0');
+  });
+
+  test('maps shifted symbol keys to their physical key codes', () => {
+    expect(SHIFTED_PUNCTUATION_CODES['_']).toBe('Minus');
+    expect(SHIFTED_PUNCTUATION_CODES['+']).toBe('Equal');
+    expect(SHIFTED_PUNCTUATION_CODES['{']).toBe('BracketLeft');
+    expect(SHIFTED_PUNCTUATION_CODES['}']).toBe('BracketRight');
+    expect(SHIFTED_PUNCTUATION_CODES['|']).toBe('Backslash');
+    expect(SHIFTED_PUNCTUATION_CODES[':']).toBe('Semicolon');
+    expect(SHIFTED_PUNCTUATION_CODES['"']).toBe('Quote');
+    expect(SHIFTED_PUNCTUATION_CODES['<']).toBe('Comma');
+    expect(SHIFTED_PUNCTUATION_CODES['>']).toBe('Period');
+    expect(SHIFTED_PUNCTUATION_CODES['?']).toBe('Slash');
+    expect(SHIFTED_PUNCTUATION_CODES['~']).toBe('Backquote');
+  });
+});
+
+describe('UNSHIFTED_PUNCTUATION_CODES', () => {
+  test('maps unshifted punctuation characters to their physical key codes', () => {
+    expect(UNSHIFTED_PUNCTUATION_CODES['-']).toBe('Minus');
+    expect(UNSHIFTED_PUNCTUATION_CODES['=']).toBe('Equal');
+    expect(UNSHIFTED_PUNCTUATION_CODES['[']).toBe('BracketLeft');
+    expect(UNSHIFTED_PUNCTUATION_CODES[']']).toBe('BracketRight');
+    expect(UNSHIFTED_PUNCTUATION_CODES['\\']).toBe('Backslash');
+    expect(UNSHIFTED_PUNCTUATION_CODES[';']).toBe('Semicolon');
+    expect(UNSHIFTED_PUNCTUATION_CODES["'"]).toBe('Quote');
+    expect(UNSHIFTED_PUNCTUATION_CODES[',']).toBe('Comma');
+    expect(UNSHIFTED_PUNCTUATION_CODES['.']).toBe('Period');
+    expect(UNSHIFTED_PUNCTUATION_CODES['/']).toBe('Slash');
+    expect(UNSHIFTED_PUNCTUATION_CODES['`']).toBe('Backquote');
   });
 });

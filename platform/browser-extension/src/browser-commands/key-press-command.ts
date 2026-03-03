@@ -6,6 +6,46 @@ import {
   sendSuccessResult,
 } from './helpers.js';
 
+// Exported for testing — maps shifted punctuation characters to their physical key codes.
+export const SHIFTED_PUNCTUATION_CODES: Record<string, string> = {
+  '!': 'Digit1',
+  '@': 'Digit2',
+  '#': 'Digit3',
+  $: 'Digit4',
+  '%': 'Digit5',
+  '^': 'Digit6',
+  '&': 'Digit7',
+  '*': 'Digit8',
+  '(': 'Digit9',
+  ')': 'Digit0',
+  _: 'Minus',
+  '+': 'Equal',
+  '{': 'BracketLeft',
+  '}': 'BracketRight',
+  '|': 'Backslash',
+  ':': 'Semicolon',
+  '"': 'Quote',
+  '<': 'Comma',
+  '>': 'Period',
+  '?': 'Slash',
+  '~': 'Backquote',
+};
+
+// Exported for testing — maps unshifted punctuation characters to their physical key codes.
+export const UNSHIFTED_PUNCTUATION_CODES: Record<string, string> = {
+  '-': 'Minus',
+  '=': 'Equal',
+  '[': 'BracketLeft',
+  ']': 'BracketRight',
+  '\\': 'Backslash',
+  ';': 'Semicolon',
+  "'": 'Quote',
+  ',': 'Comma',
+  '.': 'Period',
+  '/': 'Slash',
+  '`': 'Backquote',
+};
+
 export const handleBrowserPressKey = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
     const tabId = requireTabId(params, id);
@@ -25,7 +65,16 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
     const results = await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
-      func: (k: string, sel: string | null, shift: boolean, ctrl: boolean, alt: boolean, meta: boolean) => {
+      func: (
+        k: string,
+        sel: string | null,
+        shift: boolean,
+        ctrl: boolean,
+        alt: boolean,
+        meta: boolean,
+        shiftedPunct: Record<string, string>,
+        unshiftedPunct: Record<string, string>,
+      ) => {
         // Resolve target element
         let target: Element | null = null;
         if (sel) {
@@ -36,14 +85,14 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
           target = document.activeElement ?? document.body;
         }
 
-        // Derive code from key
+        // Derive physical key code from key value
         const deriveCode = (k: string): string => {
           if (k.length === 1) {
             const upper = k.toUpperCase();
             if (upper >= 'A' && upper <= 'Z') return `Key${upper}`;
             if (k >= '0' && k <= '9') return `Digit${k}`;
             if (k === ' ') return 'Space';
-            return k;
+            return shiftedPunct[k] ?? unshiftedPunct[k] ?? k;
           }
           return k;
         };
@@ -141,7 +190,7 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
           },
         };
       },
-      args: [key, selector, shiftKey, ctrlKey, altKey, metaKey],
+      args: [key, selector, shiftKey, ctrlKey, altKey, metaKey, SHIFTED_PUNCTUATION_CODES, UNSHIFTED_PUNCTUATION_CODES],
     });
 
     const result = extractScriptResult(results, id);
