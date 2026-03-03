@@ -55,7 +55,7 @@ const ToolIcon = ({ icon, className = '', enabled = true, active = false }: Tool
             active && 'animate-activity-flash',
             fadingOut && !active && 'animate-activity-fade-out',
           )}
-          style={{ width: 8, height: 8, bottom: -2, right: -2 }}
+          style={{ width: 8, height: 8, bottom: -4, right: -4 }}
         />
       )}
     </div>
