@@ -8,6 +8,7 @@ export const createIssue = defineTool({
   displayName: 'Create Issue',
   description: 'Create a new issue in Linear. Requires a team ID and title at minimum.',
   icon: 'plus-circle',
+  group: 'Issues',
   input: z.object({
     team_id: z.string().describe('Team UUID to create the issue in (use list_teams to find team IDs)'),
     title: z.string().describe('Issue title'),

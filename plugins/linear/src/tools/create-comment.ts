@@ -8,6 +8,7 @@ export const createComment = defineTool({
   displayName: 'Create Comment',
   description: 'Add a comment to an existing Linear issue.',
   icon: 'message-square-plus',
+  group: 'Comments',
   input: z.object({
     issue_id: z.string().describe('Issue UUID to comment on'),
     body: z.string().describe('Comment body in markdown'),

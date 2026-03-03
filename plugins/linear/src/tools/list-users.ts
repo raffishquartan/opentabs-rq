@@ -8,6 +8,7 @@ export const listUsers = defineTool({
   displayName: 'List Users',
   description: 'List all users in the Linear organization. Use this to find user IDs for assigning issues.',
   icon: 'users',
+  group: 'Teams & Users',
   input: z.object({
     limit: z.number().optional().describe('Maximum number of users to return (default 50, max 100)'),
     after: z.string().optional().describe('Pagination cursor from a previous response'),

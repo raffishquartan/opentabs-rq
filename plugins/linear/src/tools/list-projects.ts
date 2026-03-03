@@ -8,6 +8,7 @@ export const listProjects = defineTool({
   displayName: 'List Projects',
   description: 'List all projects in the Linear workspace. Supports pagination.',
   icon: 'folder',
+  group: 'Projects',
   input: z.object({
     limit: z.number().optional().describe('Maximum number of projects to return (default 25, max 50)'),
     after: z.string().optional().describe('Pagination cursor from a previous response'),

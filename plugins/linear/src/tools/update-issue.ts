@@ -8,6 +8,7 @@ export const updateIssue = defineTool({
   displayName: 'Update Issue',
   description: 'Update an existing Linear issue. Only specified fields are changed; omitted fields remain unchanged.',
   icon: 'pencil',
+  group: 'Issues',
   input: z.object({
     issue_id: z.string().describe('Issue UUID to update'),
     title: z.string().optional().describe('New issue title'),

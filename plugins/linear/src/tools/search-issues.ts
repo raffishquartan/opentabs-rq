@@ -20,6 +20,7 @@ export const searchIssues = defineTool({
   description:
     'Search and filter Linear issues. Supports text search, filtering by team, assignee, state, label, project, and more. Returns paginated results.',
   icon: 'search',
+  group: 'Issues',
   input: z.object({
     query: z.string().optional().describe('Text search query to find issues by title or description'),
     team_key: z.string().optional().describe('Filter by team key (e.g. "ENG")'),
