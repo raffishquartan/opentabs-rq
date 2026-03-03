@@ -85,9 +85,49 @@ const PluginCard = ({
     });
   };
 
+  const handleToggleGroup = (groupTools: WireToolDef[], checked: boolean) => {
+    const myVersion = ++toggleCounter.current;
+    const toolNames = new Set(groupTools.map(t => t.name));
+    updatePluginTools(prev => {
+      preToggleRef.current = prev;
+      return prev.map(t => (toolNames.has(t.name) ? { ...t, enabled: checked } : t));
+    });
+    void Promise.all(groupTools.map(t => setToolEnabled(plugin.name, t.name, checked))).catch(() => {
+      if (toggleCounter.current === myVersion) {
+        updatePluginTools(() => preToggleRef.current);
+      }
+      showToggleError('Failed to toggle group');
+    });
+  };
+
   const filterLower = toolFilter?.toLowerCase() ?? '';
   const visibleTools = filterLower ? pluginTools.filter(t => matchesTool(t, filterLower)) : pluginTools;
   const hasActiveTool = pluginTools.some(t => activeTools.has(`${plugin.name}:${t.name}`));
+
+  // Group tools by their group field, preserving first-seen order
+  const hasAnyGroup = visibleTools.some(t => t.group);
+  const toolGroups: { name: string; tools: WireToolDef[] }[] = [];
+  if (hasAnyGroup) {
+    const groupMap = new Map<string, WireToolDef[]>();
+    for (const tool of visibleTools) {
+      const groupName = tool.group ?? 'Other';
+      let bucket = groupMap.get(groupName);
+      if (!bucket) {
+        bucket = [];
+        groupMap.set(groupName, bucket);
+      }
+      bucket.push(tool);
+    }
+    // Move 'Other' to the end if it exists
+    const otherBucket = groupMap.get('Other');
+    groupMap.delete('Other');
+    for (const [name, tools] of groupMap) {
+      toolGroups.push({ name, tools });
+    }
+    if (otherBucket) {
+      toolGroups.push({ name: 'Other', tools: otherBucket });
+    }
+  }
 
   return (
     <Accordion.Item
@@ -178,18 +218,45 @@ const PluginCard = ({
             {visibleTools.length} of {pluginTools.length} tools
           </div>
         )}
-        {visibleTools.map(tool => (
-          <ToolRow
-            key={tool.name}
-            name={tool.name}
-            displayName={tool.displayName}
-            description={tool.description}
-            icon={tool.icon}
-            enabled={tool.enabled}
-            active={activeTools.has(`${plugin.name}:${tool.name}`)}
-            onToggle={() => handleToggleTool(tool.name, tool.enabled)}
-          />
-        ))}
+        {hasAnyGroup
+          ? toolGroups.map(group => (
+              <div key={group.name}>
+                <div className="flex items-center gap-2 border-border border-b bg-muted/20 px-3 py-1">
+                  <span className="flex-1 font-head text-muted-foreground text-xs uppercase tracking-wider">
+                    {group.name}
+                  </span>
+                  <Switch
+                    checked={group.tools.every(t => t.enabled)}
+                    onCheckedChange={checked => handleToggleGroup(group.tools, checked)}
+                    aria-label={`Toggle all ${group.name} tools`}
+                  />
+                </div>
+                {group.tools.map(tool => (
+                  <ToolRow
+                    key={tool.name}
+                    name={tool.name}
+                    displayName={tool.displayName}
+                    description={tool.description}
+                    icon={tool.icon}
+                    enabled={tool.enabled}
+                    active={activeTools.has(`${plugin.name}:${tool.name}`)}
+                    onToggle={() => handleToggleTool(tool.name, tool.enabled)}
+                  />
+                ))}
+              </div>
+            ))
+          : visibleTools.map(tool => (
+              <ToolRow
+                key={tool.name}
+                name={tool.name}
+                displayName={tool.displayName}
+                description={tool.description}
+                icon={tool.icon}
+                enabled={tool.enabled}
+                active={activeTools.has(`${plugin.name}:${tool.name}`)}
+                onToggle={() => handleToggleTool(tool.name, tool.enabled)}
+              />
+            ))}
       </Accordion.Content>
     </Accordion.Item>
   );
