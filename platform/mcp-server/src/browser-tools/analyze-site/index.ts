@@ -954,13 +954,7 @@ const analyzeSite = async (
         ? networkResult
         : ((networkResult as { requests?: NetworkRequest[] }).requests ?? []);
     } catch {
-      // Partial analysis: network requests unavailable
-      try {
-        await dispatchToExtension(state, 'browser.disableNetworkCapture', { tabId });
-      } catch {
-        // Best-effort cleanup — ignore errors
-      }
-      state.activeNetworkCaptures.delete(tabId);
+      // Partial analysis: network requests unavailable — finally block handles cleanup
     }
 
     // Get captured WebSocket frames
