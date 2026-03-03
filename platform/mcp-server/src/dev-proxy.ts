@@ -311,7 +311,14 @@ const connectUpstreamSse = (session: ProxySession, clientRes: ServerResponse, po
     },
     upstreamRes => {
       if (upstreamRes.statusCode !== 200) {
+        console.warn(
+          `[proxy] Upstream SSE rejected for session ${session.proxySessionId} (status ${upstreamRes.statusCode})`,
+        );
         upstreamRes.resume();
+        session.sseStreams.delete(clientRes);
+        if (!clientRes.destroyed && !clientRes.writableEnded) {
+          clientRes.end();
+        }
         return;
       }
 
