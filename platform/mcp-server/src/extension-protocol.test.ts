@@ -1456,13 +1456,13 @@ describe('handleExtensionMessage — config.setToolPermission', () => {
       JSON.stringify({
         jsonrpc: '2.0',
         method: 'config.setToolPermission',
-        params: { plugin: 'my-plugin', tool: 'send', permission: 'off' },
+        params: { plugin: 'my-plugin', tool: 'send', permission: 'ask' },
         id: 1,
       }),
       callbacks,
     );
 
-    expect(state.pluginPermissions['my-plugin']?.tools?.send).toBe('off');
+    expect(state.pluginPermissions['my-plugin']?.tools?.send).toBe('ask');
     expect(configChangedCalled).toBe(true);
     expect(configPersistCalled).toBe(true);
 

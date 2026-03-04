@@ -390,9 +390,22 @@ const handleConfigSetToolPermission = (
   }
 
   const pConfig = state.pluginPermissions[pluginName] ?? {};
+  const pluginDefault: ToolPermission = pConfig.permission ?? 'off';
   const tools = { ...(pConfig.tools ?? {}) };
-  tools[tool] = permission as ToolPermission;
-  state.pluginPermissions[pluginName] = { ...pConfig, tools };
+
+  if (permission === pluginDefault) {
+    delete tools[tool];
+  } else {
+    tools[tool] = permission as ToolPermission;
+  }
+
+  const updated = { ...pConfig };
+  if (Object.keys(tools).length > 0) {
+    updated.tools = tools;
+  } else {
+    delete updated.tools;
+  }
+  state.pluginPermissions[pluginName] = updated;
   callbacks.onToolConfigChanged();
   callbacks.onPluginPermissionsPersist();
 

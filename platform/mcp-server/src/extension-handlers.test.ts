@@ -674,12 +674,12 @@ describe('handleConfigSetToolPermission', () => {
 
     handleConfigSetToolPermission(
       state,
-      { plugin: 'test-plugin', tool: 'do_thing', permission: 'off' },
+      { plugin: 'test-plugin', tool: 'do_thing', permission: 'ask' },
       'req-1',
       noopCallbacks,
     );
 
-    expect(state.pluginPermissions['test-plugin']?.tools?.do_thing).toBe('off');
+    expect(state.pluginPermissions['test-plugin']?.tools?.do_thing).toBe('ask');
     expect(messages).toHaveLength(2);
     const notification = JSON.parse(messages[0] as string) as {
       method: string;
@@ -694,7 +694,7 @@ describe('handleConfigSetToolPermission', () => {
       (p: unknown) => (p as { name: string }).name === 'test-plugin',
     ) as { tools: { name: string; permission: string }[] } | undefined;
     const tool = pluginEntry?.tools.find(t => t.name === 'do_thing');
-    expect(tool?.permission).toBe('off');
+    expect(tool?.permission).toBe('ask');
     const response = JSON.parse(messages[1] as string) as { result: { ok: boolean }; id: string };
     expect(response.result).toEqual({ ok: true });
     expect(response.id).toBe('req-1');
@@ -862,6 +862,96 @@ describe('handleConfigSetToolPermission', () => {
     const response = JSON.parse(messages[0] as string) as { error: { code: number; message: string } };
     expect(response.error.code).toBe(-32602);
     expect(response.error.message).toContain('expected plugin (string)');
+  });
+
+  test('removes per-tool override when permission matches plugin default', () => {
+    const state = createState();
+    const { ws } = createMockWs();
+    state.extensionWs = ws;
+    const plugin = makePlugin('test-plugin', ['do_thing']);
+    state.registry = {
+      ...state.registry,
+      plugins: new Map([['test-plugin', plugin]]) as ReadonlyMap<string, RegisteredPlugin>,
+    };
+    // Plugin default is 'ask', tool has an override of 'auto'
+    state.pluginPermissions['test-plugin'] = { permission: 'ask', tools: { do_thing: 'auto' } };
+
+    // Set tool permission back to 'ask' (matches plugin default)
+    handleConfigSetToolPermission(
+      state,
+      { plugin: 'test-plugin', tool: 'do_thing', permission: 'ask' },
+      'req-10',
+      noopCallbacks,
+    );
+
+    // The per-tool override should be removed
+    expect(state.pluginPermissions['test-plugin']?.tools?.do_thing).toBeUndefined();
+  });
+
+  test('creates per-tool override when permission differs from plugin default', () => {
+    const state = createState();
+    const { ws } = createMockWs();
+    state.extensionWs = ws;
+    const plugin = makePlugin('test-plugin', ['do_thing']);
+    state.registry = {
+      ...state.registry,
+      plugins: new Map([['test-plugin', plugin]]) as ReadonlyMap<string, RegisteredPlugin>,
+    };
+    state.pluginPermissions['test-plugin'] = { permission: 'ask' };
+
+    // Set tool permission to 'auto' (differs from plugin default 'ask')
+    handleConfigSetToolPermission(
+      state,
+      { plugin: 'test-plugin', tool: 'do_thing', permission: 'auto' },
+      'req-11',
+      noopCallbacks,
+    );
+
+    expect(state.pluginPermissions['test-plugin']?.tools?.do_thing).toBe('auto');
+  });
+
+  test('removes tools map entirely when last override is cleaned up', () => {
+    const state = createState();
+    const { ws } = createMockWs();
+    state.extensionWs = ws;
+    const plugin = makePlugin('test-plugin', ['do_thing']);
+    state.registry = {
+      ...state.registry,
+      plugins: new Map([['test-plugin', plugin]]) as ReadonlyMap<string, RegisteredPlugin>,
+    };
+    // Plugin default is 'off' (implicit), tool has an override
+    state.pluginPermissions['test-plugin'] = { tools: { do_thing: 'auto' } };
+
+    // Set tool back to 'off' (matches implicit default)
+    handleConfigSetToolPermission(
+      state,
+      { plugin: 'test-plugin', tool: 'do_thing', permission: 'off' },
+      'req-12',
+      noopCallbacks,
+    );
+
+    expect(state.pluginPermissions['test-plugin']?.tools).toBeUndefined();
+  });
+
+  test('removes browser tool override when permission matches browser plugin default', () => {
+    const state = createState();
+    const { ws } = createMockWs();
+    state.extensionWs = ws;
+    state.cachedBrowserTools = [
+      { name: 'browser_list_tabs', description: 'List tabs', inputSchema: {}, tool: null as never },
+    ];
+    // Browser plugin default is 'auto', tool has an override of 'ask'
+    state.pluginPermissions.browser = { permission: 'auto', tools: { browser_list_tabs: 'ask' } };
+
+    // Set tool permission back to 'auto' (matches browser plugin default)
+    handleConfigSetToolPermission(
+      state,
+      { plugin: 'browser', tool: 'browser_list_tabs', permission: 'auto' },
+      'req-13',
+      noopCallbacks,
+    );
+
+    expect(state.pluginPermissions.browser?.tools?.browser_list_tabs).toBeUndefined();
   });
 });
 
