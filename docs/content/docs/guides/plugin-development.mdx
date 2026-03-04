@@ -1,7 +1,7 @@
 ---
 title: Plugin Development
 description: Build an OpenTabs plugin from scratch — scaffold, define tools, use SDK utilities, test with hot reload, and publish to npm.
-lastUpdated: 2026-03-01
+lastUpdated: 2026-03-03
 ---
 
 This guide walks you through creating an OpenTabs plugin from scratch. By the end, you'll have a working plugin that gives AI agents access to a web application through the user's browser.
@@ -157,6 +157,7 @@ export const getItems = defineTool({
   displayName: 'Get Items',
   description: 'Retrieve items from the current workspace.',
   icon: 'list',
+  group: 'Items',
   input: z.object({
     limit: z.number().int().min(1).max(100).optional().describe('Maximum items to return (default 20, max 100)'),
     status: z.enum(['active', 'archived']).optional().describe('Filter by status'),
@@ -196,6 +197,7 @@ export const getItems = defineTool({
 - **`displayName`** — human-readable, shown in the side panel.
 - **`description`** — shown to AI agents. Be specific about what the tool does, what it returns, and when to use it.
 - **`icon`** — a [Lucide icon](https://lucide.dev/icons/) name in `kebab-case` (e.g., `list`, `send`, `search`).
+- **`group`** — optional group name for visual grouping in the side panel. Tools with the same group render together under a section header.
 
 ### The handle function
 
