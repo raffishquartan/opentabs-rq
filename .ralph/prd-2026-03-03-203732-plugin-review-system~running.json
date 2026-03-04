@@ -222,7 +222,7 @@
         "npm run test:e2e passes"
       ],
       "priority": 9,
-      "passes": false,
+      "passes": true,
       "e2eCheckpoint": true,
       "model": "opus",
       "notes": "Files to modify:\n- e2e/plugin-review.e2e.ts — New E2E test file. Create comprehensive tests for the full review flow.\n- e2e/fixtures.ts — Add fixture helpers for creating test plugins with known adapter IIFE content. The test plugin's adapter should be a simple, readable IIFE that the test can verify is returned by plugin_inspect.\n\nFor the version change test: the fixture needs to simulate a plugin version change. This could be done by modifying the test plugin's package.json version between test steps, then triggering a reload.\n\nFor the side panel tests: use Playwright to interact with the side panel. Check for the ShieldQuestion icon, click the permission selector, verify the dialog appears, click buttons, verify state changes.\n\nFor the token tests: call plugin_mark_reviewed with a fabricated token string and verify the error. Call it without calling plugin_inspect first (no valid token exists) and verify the error."
