@@ -630,10 +630,10 @@ test.describe('config.setPluginPermission', () => {
         'e2e-test_echo [Disabled] after plugin off',
       );
 
-      // Calling the off tool should return isError: true
+      // Calling the off tool should return isError: true with review flow message
       const result = await mcpClient.callTool('e2e-test_echo', { message: 'hello' });
       expect(result.isError).toBe(true);
-      expect(result.content).toContain('disabled');
+      expect(result.content).toContain('has not been reviewed yet');
     } finally {
       await mcpClient.close();
       close();

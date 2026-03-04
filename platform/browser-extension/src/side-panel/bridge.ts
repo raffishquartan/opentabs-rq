@@ -121,9 +121,14 @@ const setToolPermission = (plugin: string, tool: string, permission: ToolPermiss
 const setAllToolsPermission = (plugin: string, permission: ToolPermission): Promise<unknown> =>
   sendBgMessage({ type: 'bg:setAllToolsPermission', plugin, permission });
 
-/** Set a plugin's default permission */
-const setPluginPermission = (plugin: string, permission: ToolPermission): Promise<unknown> =>
-  sendBgMessage({ type: 'bg:setPluginPermission', plugin, permission });
+/** Set a plugin's default permission. Pass reviewedVersion to also mark the plugin as reviewed. */
+const setPluginPermission = (plugin: string, permission: ToolPermission, reviewedVersion?: string): Promise<unknown> =>
+  sendBgMessage({
+    type: 'bg:setPluginPermission',
+    plugin,
+    permission,
+    ...(reviewedVersion ? { reviewedVersion } : {}),
+  });
 
 /** Search npm registry for plugins matching the given query */
 const searchPlugins = (query: string): Promise<{ results: PluginSearchResult[] }> =>

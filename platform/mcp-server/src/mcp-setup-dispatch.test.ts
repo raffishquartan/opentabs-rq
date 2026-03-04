@@ -297,7 +297,8 @@ describe('tools/call handler — plugin tool not found / disabled', () => {
     };
 
     expect(result.isError).toBe(true);
-    expect(result.content[0]?.text).toContain('disabled');
+    expect(result.content[0]?.text).toContain('has not been reviewed yet');
+    expect(result.content[0]?.text).toContain('plugin_inspect');
   });
 });
 

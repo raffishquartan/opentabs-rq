@@ -124,8 +124,12 @@ const parsePluginPermissionEntry = (raw: unknown): PluginPermissionConfig | null
     }
   }
 
+  if (typeof obj.reviewedVersion === 'string' && obj.reviewedVersion.length > 0) {
+    result.reviewedVersion = obj.reviewedVersion;
+  }
+
   // Only return if at least one field was set
-  if (result.permission !== undefined || result.tools !== undefined) {
+  if (result.permission !== undefined || result.tools !== undefined || result.reviewedVersion !== undefined) {
     return result;
   }
   return null;

@@ -96,6 +96,8 @@ export interface PluginPermissionConfig {
   permission?: ToolPermission;
   /** Per-tool permission overrides (tool base name → permission) */
   tools?: Record<string, ToolPermission>;
+  /** Plugin version that was reviewed. When present and matching the installed version, the plugin is considered reviewed. */
+  reviewedVersion?: string;
 }
 
 /** Confirmation request sent to the extension when a tool requires user approval */
@@ -317,6 +319,8 @@ export interface ConfigStatePlugin {
   iconDarkSvg?: string;
   /** Optional SVG icon for dark mode inactive state */
   iconDarkInactiveSvg?: string;
+  /** Whether this plugin's current version has been reviewed (reviewedVersion matches installed version) */
+  reviewed: boolean;
   /** Present when a newer version of this plugin is available on npm */
   update?: { latestVersion: string; updateCommand: string };
 }
@@ -363,6 +367,8 @@ export interface ConfigSetToolPermissionParams {
 export interface ConfigSetPluginPermissionParams {
   plugin: string;
   permission: ToolPermission;
+  /** When provided, sets the plugin's reviewedVersion (used by "Enable Anyway" in the side panel) */
+  reviewedVersion?: string;
 }
 
 /** extension.reload request: server → extension (no params needed) */

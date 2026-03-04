@@ -25,7 +25,12 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { z } from 'zod';
 import { log } from './logger.js';
 import type { DispatchCallbacks, RequestHandlerExtra } from './mcp-tool-dispatch.js';
-import { handleBrowserToolCall, handlePluginToolCall } from './mcp-tool-dispatch.js';
+import {
+  handleBrowserToolCall,
+  handlePluginInspect,
+  handlePluginMarkReviewed,
+  handlePluginToolCall,
+} from './mcp-tool-dispatch.js';
 import type { CachedBrowserTool, ServerState, ToolLookupEntry } from './state.js';
 import { getToolPermission, prefixedToolName } from './state.js';
 import { version } from './version.js';
@@ -100,6 +105,59 @@ const rebuildCachedBrowserTools = (state: ServerState): void => {
 };
 
 /**
+ * Platform tools: always available, bypass permission checks, not shown in the side panel.
+ * These are infrastructure tools used by AI agents for platform-level operations.
+ */
+const PLATFORM_TOOLS: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }> = [
+  {
+    name: 'plugin_inspect',
+    description:
+      'Retrieve plugin adapter source code for security review. Call this before enabling an unreviewed plugin.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        plugin: {
+          type: 'string',
+          description: 'The plugin name to inspect (e.g., "slack", "discord").',
+        },
+      },
+      required: ['plugin'],
+    },
+  },
+  {
+    name: 'plugin_mark_reviewed',
+    description:
+      'Mark a plugin as reviewed and set its permission. Requires a valid review token from plugin_inspect. Only call this after the user has reviewed and approved your security assessment.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        plugin: {
+          type: 'string',
+          description: 'The plugin name to mark as reviewed.',
+        },
+        version: {
+          type: 'string',
+          description: 'The plugin version that was reviewed.',
+        },
+        reviewToken: {
+          type: 'string',
+          description: 'The review token received from plugin_inspect.',
+        },
+        permission: {
+          type: 'string',
+          enum: ['ask', 'auto'],
+          description: 'The permission to set for this plugin after review.',
+        },
+      },
+      required: ['plugin', 'version', 'reviewToken', 'permission'],
+    },
+  },
+];
+
+/** Set of platform tool names for O(1) lookup in the tools/call handler */
+export const PLATFORM_TOOL_NAMES = new Set(PLATFORM_TOOLS.map(t => t.name));
+
+/**
  * Register (or re-register) tools/list and tools/call handlers on an MCP Server
  * instance. Each handler creates fresh closures over the current module's imports
  * (dispatchToolToExtension, sendInvocationStart, etc.), ensuring that after hot
@@ -125,6 +183,14 @@ const registerMcpHandlers = (server: McpServerInstance, state: ServerState): voi
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const toolName = request.params.name;
     const args = request.params.arguments ?? {};
+
+    // Platform tools: always available, bypass permissions, not in side panel.
+    if (toolName === 'plugin_inspect') {
+      return handlePluginInspect(state, args);
+    }
+    if (toolName === 'plugin_mark_reviewed') {
+      return handlePluginMarkReviewed(state, args, dispatchCallbacks);
+    }
 
     // Check cached browser tools first (O(n) over small fixed set).
     // Browser tools are few and fixed.
@@ -233,6 +299,15 @@ export const getAllToolsList = (
       name: cached.name,
       description: `${prefix}${cached.description}`,
       inputSchema: cached.inputSchema,
+    });
+  }
+
+  // Platform tools: always available, no permission prefixes, not shown in side panel.
+  for (const pt of PLATFORM_TOOLS) {
+    tools.push({
+      name: pt.name,
+      description: pt.description,
+      inputSchema: pt.inputSchema,
     });
   }
 

@@ -96,6 +96,8 @@ Each subdirectory has its own `CLAUDE.md` with package-specific details.
 
 **Progress reporting**: Tools report progress via `ToolHandlerContext.reportProgress()`. See `platform/mcp-server/CLAUDE.md` for the full dispatch pipeline.
 
+**Plugin review system**: Plugins start with permission `'off'` and must be reviewed before use. When an agent calls a tool on an unreviewed plugin, the error response guides it through a review flow: call `plugin_inspect` to retrieve the adapter IIFE source code and a review token → AI reviews the code with security guidance → user confirms → call `plugin_mark_reviewed` with the token to set the permission and mark the plugin as reviewed. Review state is tracked per-version via `reviewedVersion` in `PluginPermissionConfig` — when a plugin updates, its permission resets to `'off'` and requires re-review. The side panel shows an unreviewed icon (shield with question mark) on plugin cards and presents a confirmation dialog when users try to enable unreviewed plugins directly. Both `plugin_inspect` and `plugin_mark_reviewed` are platform tools (always available, bypass permissions, hidden from the side panel). See `platform/mcp-server/CLAUDE.md` for server-side details and `platform/browser-extension/CLAUDE.md` for UI details.
+
 ### Commands
 
 ```bash

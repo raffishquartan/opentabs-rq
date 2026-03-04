@@ -136,6 +136,8 @@ export interface BgSetPluginPermissionMessage {
   type: 'bg:setPluginPermission';
   plugin: string;
   permission: ToolPermission;
+  /** When provided, also sets the plugin's reviewedVersion (used by "Enable Anyway" in the side panel) */
+  reviewedVersion?: string;
 }
 
 /** Side panel → Background: search npm registry for plugins */

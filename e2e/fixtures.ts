@@ -185,6 +185,7 @@ const parsePortFromLogs = (logs: string[]): number | null => {
 interface PluginPermissionConfig {
   permission?: 'off' | 'ask' | 'auto';
   tools?: Record<string, 'off' | 'ask' | 'auto'>;
+  reviewedVersion?: string;
 }
 
 /** Shape of the ~/.opentabs/config.json file written per-test. */

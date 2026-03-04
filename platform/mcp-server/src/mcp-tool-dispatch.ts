@@ -6,10 +6,12 @@
  * mcp-setup.ts delegates to these functions after resolving the tool name.
  */
 
-import type { PluginPermissionConfig } from '@opentabs-dev/shared';
+import { readFile } from 'node:fs/promises';
+import type { PluginPermissionConfig, ToolPermission } from '@opentabs-dev/shared';
 import { toErrorMessage } from '@opentabs-dev/shared';
 import type { ZodError } from 'zod';
 import { savePluginPermissions } from './config.js';
+import { buildConfigStatePayload, sendToExtension } from './extension-handlers.js';
 import {
   dispatchToExtension,
   isDispatchError,
@@ -20,7 +22,13 @@ import {
 import { log } from './logger.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import type { AuditEntry, CachedBrowserTool, ServerState, ToolLookupEntry } from './state.js';
-import { appendAuditEntry, getToolPermission } from './state.js';
+import {
+  appendAuditEntry,
+  consumeReviewToken,
+  generateReviewToken,
+  getToolPermission,
+  validateReviewToken,
+} from './state.js';
 
 /** Maximum concurrent tool dispatches per plugin to prevent tab performance degradation */
 const MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 5;
@@ -189,7 +197,7 @@ const handleBrowserToolCall = async (
       content: [
         {
           type: 'text' as const,
-          text: `Tool ${toolName} is currently disabled. Ask the user to enable it in the OpenTabs side panel.`,
+          text: `Tool "${toolName}" is currently disabled. Ask the user to enable it in the OpenTabs side panel.`,
         },
       ],
       isError: true,
@@ -263,11 +271,23 @@ const handlePluginToolCall = async (
   const permission = getToolPermission(state, pluginName, toolBaseName);
 
   if (permission === 'off') {
+    const plugin = state.registry.plugins.get(pluginName);
+    const pluginVersion = plugin?.version ?? 'unknown';
+    const permConfig = state.pluginPermissions[pluginName];
+    const reviewedVersion = permConfig?.reviewedVersion;
+
+    let statusLine: string;
+    if (reviewedVersion && reviewedVersion !== pluginVersion) {
+      statusLine = `Plugin "${pluginName}" has been updated from v${reviewedVersion} to v${pluginVersion} and needs re-review.`;
+    } else {
+      statusLine = `Plugin "${pluginName}" (v${pluginVersion}) has not been reviewed yet.`;
+    }
+
     return {
       content: [
         {
           type: 'text' as const,
-          text: `Tool ${toolName} is currently disabled. Ask the user to enable it in the OpenTabs side panel.`,
+          text: `${statusLine}\n\nYou can help the user by:\n1. Ask the user if they would like you to review the plugin's code for security before enabling it.\n2. If they agree, call the plugin_inspect tool to retrieve the adapter source code.\n3. Review the code and share your findings with the user.\n4. If the user approves, call plugin_mark_reviewed to enable the plugin.\n\nAlternatively, the user can enable this plugin directly from the OpenTabs side panel.`,
         },
       ],
       isError: true,
@@ -454,5 +474,267 @@ const handlePluginToolCall = async (
   }
 };
 
+/** Review guidance text included in plugin_inspect responses */
+const REVIEW_GUIDANCE = `Review this plugin adapter code and report your findings to the user. Be thorough and honest.
+
+## What to check
+
+### 1. Code readability
+- Is the code minified, obfuscated, or bundled into unreadable single-line blocks?
+- The official build tool (opentabs-plugin build) produces unminified, readable JavaScript with original variable names and formatting.
+- Minified or obfuscated code is a significant red flag — it means the author bypassed the standard build process or is intentionally hiding the implementation.
+- Look for intentionally misleading variable names or code structures designed to obscure intent.
+
+### 2. Data exfiltration
+- Does the code make network requests to ANY external domains? Look for: fetch(), XMLHttpRequest, navigator.sendBeacon(), WebSocket connections, new Image() with src (pixel tracking), dynamic script/iframe injection that loads external URLs.
+- Plugin adapters should ONLY interact with the page DOM of the target web application. Any outbound requests to third-party domains are suspicious.
+- Check for encoded/obfuscated URLs (base64, string concatenation to build URLs, hex-encoded strings).
+- Look for data being serialized and sent anywhere — JSON.stringify of DOM content, form data collection, or page scraping beyond what the plugin's stated tools require.
+
+### 3. Credential and sensitive data access
+- Does the code access: document.cookie, localStorage, sessionStorage, indexedDB, Web Crypto API keys, password input fields, authentication tokens, session identifiers, or OAuth tokens?
+- Does it read or modify HTTP-only cookie attributes?
+- Does it access the Clipboard API (navigator.clipboard)?
+- Does it intercept or modify form submissions?
+- These APIs are not needed for normal plugin tool operation.
+
+### 4. Code execution vectors
+- Does the code use: eval(), new Function(), setTimeout/setInterval with string arguments, dynamic script injection (createElement('script')), document.write(), innerHTML with unsanitized content, import() with dynamic URLs?
+- These can be used to execute arbitrary code at runtime, potentially loading malicious payloads after the initial review.
+
+### 5. DOM manipulation beyond stated purpose
+- Does the code's DOM interaction match the plugin's stated purpose?
+- A Slack plugin should read/write Slack-specific DOM elements (message inputs, channel lists, etc.) — not access unrelated page content.
+- Look for broad DOM queries (document.querySelectorAll('*'), document.body.innerHTML) that scrape entire page content rather than targeted element access.
+- Does it attach global event listeners (keydown, input, submit, beforeunload) that could monitor user activity beyond the plugin's scope?
+
+### 6. Destructive actions
+- Even if the code only interacts with the target web service, does it perform any potentially destructive actions?
+- Look for: mass deletion patterns (delete all, remove all, clear all), bulk modification of user data, account settings changes, permission escalation, automated posting/messaging without clear user intent, subscription or billing modifications.
+- Check if the tool implementations match their declared names and descriptions — a tool named 'list_messages' should not be deleting or modifying messages.
+
+### 7. Persistence and stealth
+- Does the code set up any persistence mechanisms? Look for: Service Worker registration, browser extension message passing to unknown targets, periodic timers that run after the tool completes, mutation observers or intersection observers that trigger background behavior, web worker creation.
+- Does the code attempt to hide its activity by suppressing console output, catching and silencing errors, or modifying browser DevTools behavior?
+
+### 8. Scope escalation
+- Does the code attempt to access cross-origin resources or iframes?
+- Does it modify the page's Content Security Policy?
+- Does it interact with browser APIs beyond DOM manipulation (geolocation, camera, microphone, notifications, Bluetooth)?
+- Does it attempt to interact with other browser tabs or windows?
+
+## How to report
+Provide a clear, honest summary to the user:
+1. Overall assessment: safe / suspicious / dangerous
+2. What the code does (in plain language)
+3. Any concerns or red flags found
+4. Your recommendation: enable or keep disabled
+
+Do not downplay concerns. If anything is suspicious, say so clearly.`;
+
+/**
+ * Handle the plugin_inspect platform tool.
+ * Returns the plugin's adapter IIFE source code, metadata, and a review token.
+ */
+const handlePluginInspect = async (state: ServerState, args: Record<string, unknown>): Promise<ToolCallResult> => {
+  const pluginName = args.plugin;
+  if (typeof pluginName !== 'string' || pluginName.length === 0) {
+    return {
+      content: [{ type: 'text' as const, text: 'Invalid arguments: "plugin" must be a non-empty string.' }],
+      isError: true,
+    };
+  }
+
+  const plugin = state.registry.plugins.get(pluginName);
+  if (!plugin) {
+    const available = [...state.registry.plugins.keys()].join(', ') || '(none)';
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Plugin "${pluginName}" not found. Available plugins: ${available}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // The adapter IIFE is loaded into memory during plugin discovery
+  const adapterSource = plugin.iife;
+  if (!adapterSource || adapterSource.length === 0) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Plugin "${pluginName}" has no adapter IIFE file. The plugin may not have been built correctly.`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Read author from package.json if sourcePath is available
+  let author: string | undefined;
+  if (plugin.sourcePath) {
+    try {
+      const pkgJson = JSON.parse(await readFile(`${plugin.sourcePath}/package.json`, 'utf-8')) as Record<
+        string,
+        unknown
+      >;
+      if (typeof pkgJson.author === 'string') {
+        author = pkgJson.author;
+      } else if (typeof pkgJson.author === 'object' && pkgJson.author !== null) {
+        const authorObj = pkgJson.author as Record<string, unknown>;
+        author = typeof authorObj.name === 'string' ? authorObj.name : undefined;
+      }
+    } catch {
+      // package.json read failure is non-fatal — author will be undefined
+    }
+  }
+
+  const lineCount = adapterSource.split('\n').length;
+  const byteSize = Buffer.byteLength(adapterSource, 'utf-8');
+  const reviewToken = generateReviewToken(state, pluginName, plugin.version);
+
+  const response = {
+    plugin: pluginName,
+    version: plugin.version,
+    ...(author ? { author } : {}),
+    ...(plugin.npmPackageName ? { npmPackage: plugin.npmPackageName } : {}),
+    lineCount,
+    byteSize,
+    reviewToken,
+    reviewGuidance: REVIEW_GUIDANCE,
+    adapterSource,
+  };
+
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(response, null, 2) }],
+  };
+};
+
+/** Valid permission values for plugin_mark_reviewed (excludes 'off') */
+const VALID_REVIEW_PERMISSIONS = new Set<string>(['ask', 'auto']);
+
+/**
+ * Handle the plugin_mark_reviewed platform tool.
+ * Validates the review token, consumes it, updates plugin permission and reviewedVersion,
+ * persists to config, and notifies both MCP clients and the extension.
+ */
+const handlePluginMarkReviewed = async (
+  state: ServerState,
+  args: Record<string, unknown>,
+  callbacks: DispatchCallbacks,
+): Promise<ToolCallResult> => {
+  const pluginName = args.plugin;
+  const version = args.version;
+  const reviewToken = args.reviewToken;
+  const permission = args.permission;
+
+  if (typeof pluginName !== 'string' || pluginName.length === 0) {
+    return {
+      content: [{ type: 'text' as const, text: 'Invalid arguments: "plugin" must be a non-empty string.' }],
+      isError: true,
+    };
+  }
+
+  if (typeof version !== 'string' || version.length === 0) {
+    return {
+      content: [{ type: 'text' as const, text: 'Invalid arguments: "version" must be a non-empty string.' }],
+      isError: true,
+    };
+  }
+
+  if (typeof reviewToken !== 'string' || reviewToken.length === 0) {
+    return {
+      content: [{ type: 'text' as const, text: 'Invalid arguments: "reviewToken" must be a non-empty string.' }],
+      isError: true,
+    };
+  }
+
+  if (typeof permission !== 'string' || !VALID_REVIEW_PERMISSIONS.has(permission)) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Invalid arguments: "permission" must be "ask" or "auto". Setting permission to "off" after review is not supported.',
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Verify the plugin exists
+  const plugin = state.registry.plugins.get(pluginName);
+  if (!plugin) {
+    const available = [...state.registry.plugins.keys()].join(', ') || '(none)';
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: `Plugin "${pluginName}" not found. Available plugins: ${available}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Validate the review token
+  if (!validateReviewToken(state, reviewToken, pluginName, version)) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: 'Invalid or expired review token. You must call plugin_inspect first to get a valid review token for this plugin and version.',
+        },
+      ],
+      isError: true,
+    };
+  }
+
+  // Consume the token so it cannot be reused
+  consumeReviewToken(state, reviewToken);
+
+  // Update plugin permission and reviewedVersion
+  const existing = state.pluginPermissions[pluginName] ?? {};
+  const updatedConfig: PluginPermissionConfig = {
+    ...existing,
+    permission: permission as ToolPermission,
+    reviewedVersion: version,
+  };
+  state.pluginPermissions[pluginName] = updatedConfig;
+
+  // Persist to config.json
+  void savePluginPermissions(state, state.pluginPermissions);
+
+  // Notify MCP clients that tool list changed (description prefixes update)
+  callbacks.onToolConfigChanged();
+
+  // Notify the extension so the side panel refreshes
+  sendToExtension(state, {
+    jsonrpc: '2.0',
+    method: 'plugins.changed',
+    params: { ...buildConfigStatePayload(state) },
+  });
+
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: `Plugin "${pluginName}" v${version} has been reviewed and permission set to "${permission}".\n\nNote: This tool should only be called after the user has explicitly confirmed they want to enable the plugin following your code review.`,
+      },
+    ],
+  };
+};
+
 export type { ToolCallResult, RequestHandlerExtra, DispatchCallbacks };
-export { sanitizeOutput, formatStructuredError, formatZodError, handleBrowserToolCall, handlePluginToolCall };
+export {
+  sanitizeOutput,
+  formatStructuredError,
+  formatZodError,
+  handleBrowserToolCall,
+  handlePluginToolCall,
+  handlePluginInspect,
+  handlePluginMarkReviewed,
+  REVIEW_GUIDANCE,
+};

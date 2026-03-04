@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
@@ -582,5 +582,138 @@ describe('performConfigReload', () => {
     resolveBlocker();
     await reloadPromise;
     expect(completed).toBe(true);
+  });
+});
+
+describe('reviewedVersion reset on plugin update', () => {
+  let configDir: string;
+  let state: ServerState;
+
+  beforeEach(() => {
+    configDir = mkdtempSync(join(tmpdir(), 'opentabs-version-reset-'));
+    writeConfig(configDir);
+    process.env.OPENTABS_CONFIG_DIR = configDir;
+    state = createState();
+
+    (globalThis as Record<string, unknown>).__opentabs_reload_chain__ = undefined;
+    (globalThis as Record<string, unknown>).__opentabs_global_paths__ = [];
+  });
+
+  afterEach(() => {
+    stopFileWatching(state);
+    rmSync(configDir, { recursive: true, force: true });
+    resetGlobalPathsCache();
+  });
+
+  afterAll(() => {
+    if (originalConfigDir !== undefined) {
+      process.env.OPENTABS_CONFIG_DIR = originalConfigDir;
+    } else {
+      delete process.env.OPENTABS_CONFIG_DIR;
+    }
+  });
+
+  test('version mismatch resets permission to off and clears reviewedVersion', async () => {
+    const pluginDir = createPluginDir(configDir, 'my-plugin');
+
+    // Plugin is at v1.0.0 (from createPluginDir), but config says reviewedVersion 0.9.0
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [pluginDir],
+        permissions: {
+          'my-plugin': { permission: 'auto', reviewedVersion: '0.9.0' },
+        },
+      }),
+    );
+
+    await performReload(state, [], emptyTransports(), false);
+
+    expect(state.pluginPermissions['my-plugin']?.permission).toBe('off');
+    expect(state.pluginPermissions['my-plugin']?.reviewedVersion).toBeUndefined();
+  });
+
+  test('version match preserves permission and reviewedVersion', async () => {
+    const pluginDir = createPluginDir(configDir, 'my-plugin');
+
+    // Plugin is at v1.0.0, reviewedVersion matches
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [pluginDir],
+        permissions: {
+          'my-plugin': { permission: 'auto', reviewedVersion: '1.0.0' },
+        },
+      }),
+    );
+
+    await performReload(state, [], emptyTransports(), false);
+
+    expect(state.pluginPermissions['my-plugin']?.permission).toBe('auto');
+    expect(state.pluginPermissions['my-plugin']?.reviewedVersion).toBe('1.0.0');
+  });
+
+  test('absent reviewedVersion preserves permission', async () => {
+    const pluginDir = createPluginDir(configDir, 'my-plugin');
+
+    // No reviewedVersion — fresh install, permission stays at configured value
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [pluginDir],
+        permissions: {
+          'my-plugin': { permission: 'ask' },
+        },
+      }),
+    );
+
+    await performReload(state, [], emptyTransports(), false);
+
+    expect(state.pluginPermissions['my-plugin']?.permission).toBe('ask');
+    expect(state.pluginPermissions['my-plugin']?.reviewedVersion).toBeUndefined();
+  });
+
+  test('version reset is persisted to config.json', async () => {
+    const pluginDir = createPluginDir(configDir, 'my-plugin');
+
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [pluginDir],
+        permissions: {
+          'my-plugin': { permission: 'auto', reviewedVersion: '0.9.0' },
+        },
+      }),
+    );
+
+    await performReload(state, [], emptyTransports(), false);
+
+    // savePluginPermissions is fire-and-forget — wait for the async write to complete
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    const persisted = JSON.parse(readFileSync(join(configDir, 'config.json'), 'utf-8'));
+    expect(persisted.permissions['my-plugin'].permission).toBe('off');
+    expect(persisted.permissions['my-plugin'].reviewedVersion).toBeUndefined();
+  });
+
+  test('browser pseudo-plugin is not affected by version reset', async () => {
+    const pluginDir = createPluginDir(configDir, 'my-plugin');
+
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [pluginDir],
+        permissions: {
+          browser: { permission: 'auto', reviewedVersion: '0.0.0' },
+          'my-plugin': { permission: 'auto', reviewedVersion: '1.0.0' },
+        },
+      }),
+    );
+
+    await performReload(state, [], emptyTransports(), false);
+
+    // Browser is skipped by resetStaleReviewedVersions
+    expect(state.pluginPermissions.browser?.permission).toBe('auto');
+    expect(state.pluginPermissions.browser?.reviewedVersion).toBe('0.0.0');
   });
 });

@@ -13,6 +13,7 @@ const mockPlugin = (overrides?: Partial<PluginState>): PluginState => ({
   tabState: 'ready',
   urlPatterns: ['*://*.slack.com/*'],
   sdkVersion: '0.0.3',
+  reviewed: true,
   tools: [
     {
       name: 'send_message',
@@ -562,6 +563,46 @@ const SkipPermissions: Story = {
   render: () => <SkipPermissionsDemo />,
 };
 
+const ReviewedDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin({ reviewed: true })]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return <PluginCard plugin={plugin} activeTools={new Set()} setPlugins={setPlugins} />;
+};
+
+const Reviewed: Story = {
+  render: () => <ReviewedDemo />,
+};
+
+const UnreviewedDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin({ reviewed: false })]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return <PluginCard plugin={plugin} activeTools={new Set()} setPlugins={setPlugins} />;
+};
+
+const Unreviewed: Story = {
+  render: () => <UnreviewedDemo />,
+};
+
+const UnreviewedOffDemo = () => {
+  const [plugins, setPlugins] = useState([mockPlugin({ reviewed: false, permission: 'off' })]);
+  const plugin = plugins[0];
+  if (!plugin) return null;
+  return (
+    <div>
+      <p className="mb-2 text-muted-foreground text-xs">
+        Change permission from Off to Ask or Auto to see the confirmation dialog:
+      </p>
+      <PluginCard plugin={plugin} activeTools={new Set()} setPlugins={setPlugins} />
+    </div>
+  );
+};
+
+const UnreviewedWithDialog: Story = {
+  render: () => <UnreviewedOffDemo />,
+};
+
 export default meta;
 export {
   Ready,
@@ -579,4 +620,7 @@ export {
   NoGroups,
   SingleGroup,
   SkipPermissions,
+  Reviewed,
+  Unreviewed,
+  UnreviewedWithDialog,
 };

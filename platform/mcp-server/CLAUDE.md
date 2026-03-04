@@ -64,6 +64,30 @@ The MCP server registers built-in browser tools (`platform/mcp-server/src/browse
 
 `plugin_list_tabs` lists all open tabs matching a plugin's URL patterns, with per-tab readiness. It reads directly from `state.tabMapping` (server-side, no extension round-trip) and accepts an optional `plugin` parameter to filter by plugin name. Use it to discover tab IDs before using the `tabId` parameter on plugin tools.
 
+## Plugin Review System
+
+The MCP server implements a plugin code review flow that ensures plugins are reviewed before use. The system consists of two platform tools, a review token mechanism, and per-version review tracking.
+
+### Platform Tools
+
+**`plugin_inspect`**: Retrieves a plugin's adapter IIFE source code for security review. Accepts `{ plugin: string }`, reads the adapter file from disk (`<pluginPath>/dist/adapter.iife.js`), and returns the full source code with metadata (name, version, author, npm package, line count, byte size), a review token, and comprehensive security review guidance. Returns an error if the plugin doesn't exist or has no adapter file.
+
+**`plugin_mark_reviewed`**: Marks a plugin as reviewed and sets its permission. Accepts `{ plugin: string, version: string, reviewToken: string, permission: 'ask' | 'auto' }`. Validates the review token (must be valid, not expired, not used, matching plugin and version), then consumes the token, sets the permission and `reviewedVersion` in state, persists to config, and sends `tools/list_changed` and `plugins.changed` notifications. Returns an error for invalid tokens or `permission: 'off'`.
+
+Both tools are registered as platform tools in `mcp-setup.ts` — they bypass permission checks, are always available, and are hidden from the side panel (excluded from `buildConfigStatePayload`).
+
+### Review Tokens
+
+Review tokens enforce that `plugin_inspect` must be called before `plugin_mark_reviewed`. Tokens are stored in `state.reviewTokens` (in-memory `Map<string, ReviewToken>`). Each token records the plugin name, version, creation time, and used flag. Tokens expire after 10 minutes (TTL). Expired tokens are lazily cleaned up on each `generateReviewToken` call. Token functions: `generateReviewToken(state, plugin, version)`, `validateReviewToken(state, token, plugin, version)`, `consumeReviewToken(state, token)` — all in `state.ts`.
+
+### Version Reset
+
+During `reloadCore`, `resetStaleReviewedVersions` iterates `state.pluginPermissions` and compares each plugin's `reviewedVersion` against the registry's installed version. On mismatch, the permission resets to `'off'` and `reviewedVersion` is cleared, then persisted via `savePluginPermissions`. This ensures plugin updates force re-review. The browser pseudo-plugin is excluded from this check.
+
+### Off-Plugin Error Messages
+
+When an agent calls a tool on a plugin with permission `'off'`, the error response includes review flow instructions: the plugin name, version, guidance to call `plugin_inspect`, and a note about the side panel alternative. The message distinguishes between fresh plugins ("has not been reviewed yet") and updated plugins ("has been updated from vX to vY and needs re-review"). Browser tools use a simpler message without review flow instructions.
+
 ## Site Analysis Tool
 
 `plugin_analyze_site` is a high-level browser tool that comprehensively analyzes a web page to produce actionable intelligence for building OpenTabs plugins. Use it when developing a new plugin for a website — it reveals how the site authenticates users, what APIs it calls, what framework it uses, and what data is available in the DOM and storage. The tool orchestrates multiple browser tool capabilities (tab management, network capture, script execution, cookie reading) and passes collected data through six detection modules in `platform/mcp-server/src/browser-tools/analyze-site/`:

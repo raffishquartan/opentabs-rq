@@ -160,3 +160,9 @@ import type { TabState } from '@opentabs-dev/shared';
 ### Debugger Permission
 
 The `debugger` permission in the manifest is required for network capture via the Chrome DevTools Protocol (`chrome.debugger.attach`, `Network.enable`, `Runtime.enable`) in `network-capture.ts`.
+
+### Plugin Review UI
+
+**Unreviewed icon**: Plugin cards display a `ShieldQuestion` icon (from lucide-react) next to the plugin name when the plugin's current version has not been reviewed (`reviewed: false` in the sync payload). The icon has a tooltip ("This plugin version has not been reviewed") and uses `text-muted-foreground` color. Browser tools never show this icon. The `reviewed` boolean is computed server-side by comparing `reviewedVersion` against the installed version and included in `ConfigStatePlugin`.
+
+**Unreviewed plugin confirmation dialog**: When a user changes an unreviewed plugin's permission from `'off'` to `'ask'` or `'auto'`, a Dialog modal intercepts the change. The dialog explains the plugin hasn't been reviewed, suggests asking the AI agent to review the adapter code, and offers "Cancel" (no change) and "Enable Anyway" (sets permission + marks as user-accepted by writing `reviewedVersion`). The dialog does not appear for reviewed plugins, browser tools, changes to `'off'`, or changes between `'ask'`/`'auto'`. The dialog is implemented inline in `PluginCard.tsx` using the retro Dialog primitive with `pendingPermission` state.

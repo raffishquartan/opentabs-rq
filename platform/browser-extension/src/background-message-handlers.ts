@@ -216,6 +216,7 @@ const handleBgGetFullState: MessageHandler = (_message, sendResponse) => {
         tools,
         tabState,
         source: serverPlugin?.source ?? 'local',
+        reviewed: serverPlugin?.reviewed ?? false,
         sdkVersion: serverPlugin?.sdkVersion,
         update: serverPlugin?.update,
       };
@@ -415,6 +416,7 @@ const handleBgSetAllToolsPermission: MessageHandler = (message, sendResponse) =>
 const handleBgSetPluginPermission: MessageHandler = (message, sendResponse) => {
   const plugin = message.plugin as string;
   const permission = message.permission as ToolPermission;
+  const reviewedVersion = typeof message.reviewedVersion === 'string' ? message.reviewedVersion : undefined;
 
   // Capture the original plugin-level permission for surgical rollback
   const cache = getServerStateCache();
@@ -422,11 +424,17 @@ const handleBgSetPluginPermission: MessageHandler = (message, sendResponse) => {
   const originalPermission = pluginEntry?.permission ?? 'off';
 
   // Optimistically update the local server state cache
-  const updatedPlugins = cache.plugins.map(p => (p.name === plugin ? { ...p, permission } : p));
+  const updatedPlugins = cache.plugins.map(p =>
+    p.name === plugin ? { ...p, permission, ...(reviewedVersion ? { reviewed: true } : {}) } : p,
+  );
   addPendingPluginPermissionUpdate(plugin, permission);
   updateServerStateCache({ plugins: updatedPlugins });
 
-  sendServerRequest('config.setPluginPermission', { plugin, permission })
+  sendServerRequest('config.setPluginPermission', {
+    plugin,
+    permission,
+    ...(reviewedVersion ? { reviewedVersion } : {}),
+  })
     .then((result: unknown) => {
       removePendingPluginPermissionUpdate(plugin);
       sendResponse(result);

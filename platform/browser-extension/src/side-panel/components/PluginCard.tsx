@@ -2,7 +2,7 @@
 
 import type { ToolPermission } from '@opentabs-dev/shared';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ShieldQuestionMark } from 'lucide-react';
 import type { Dispatch, SetStateAction } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { PluginState, WireToolDef } from '../bridge.js';
@@ -13,6 +13,8 @@ import { PluginMenu } from './PluginMenu.js';
 import { Accordion } from './retro/Accordion.js';
 import { Alert } from './retro/Alert.js';
 import { Badge } from './retro/Badge.js';
+import { Button } from './retro/Button.js';
+import { Dialog } from './retro/Dialog.js';
 import { Tooltip } from './retro/Tooltip.js';
 import { PermissionSelect, ToolRow } from './ToolRow.js';
 
@@ -42,6 +44,7 @@ const PluginCard = ({
   transitionClass?: string;
 }) => {
   const [toggleError, setToggleError] = useState<string | null>(null);
+  const [pendingPermission, setPendingPermission] = useState<ToolPermission | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toggleCounter = useRef(0);
   const preToggleRef = useRef<WireToolDef[]>([]);
@@ -61,11 +64,17 @@ const PluginCard = ({
 
   const prePluginPermRef = useRef<ToolPermission>('off');
 
-  const handlePluginPermissionChange = (newPermission: ToolPermission) => {
+  const applyPluginPermission = (newPermission: ToolPermission, reviewedVersion?: string) => {
     const myVersion = ++toggleCounter.current;
     prePluginPermRef.current = plugin.permission;
-    setPlugins(prev => prev.map(p => (p.name === plugin.name ? { ...p, permission: newPermission } : p)));
-    void setPluginPermission(plugin.name, newPermission).catch(() => {
+    setPlugins(prev =>
+      prev.map(p =>
+        p.name === plugin.name
+          ? { ...p, permission: newPermission, ...(reviewedVersion ? { reviewed: true } : {}) }
+          : p,
+      ),
+    );
+    void setPluginPermission(plugin.name, newPermission, reviewedVersion).catch(() => {
       if (toggleCounter.current === myVersion) {
         setPlugins(prev =>
           prev.map(p => (p.name === plugin.name ? { ...p, permission: prePluginPermRef.current } : p)),
@@ -73,6 +82,21 @@ const PluginCard = ({
       }
       showToggleError('Failed to update plugin permission');
     });
+  };
+
+  const handlePluginPermissionChange = (newPermission: ToolPermission) => {
+    if (!plugin.reviewed && plugin.permission === 'off' && newPermission !== 'off') {
+      setPendingPermission(newPermission);
+      return;
+    }
+    applyPluginPermission(newPermission);
+  };
+
+  const handleEnableAnyway = () => {
+    if (pendingPermission) {
+      applyPluginPermission(pendingPermission, plugin.version);
+    }
+    setPendingPermission(null);
   };
 
   const handleToolPermissionChange = (toolName: string, newPermission: ToolPermission) => {
@@ -169,6 +193,14 @@ const PluginCard = ({
                 <Tooltip.Content>SDK version mismatch — rebuild plugin</Tooltip.Content>
               </Tooltip>
             )}
+            {!plugin.reviewed && (
+              <Tooltip>
+                <Tooltip.Trigger asChild>
+                  <ShieldQuestionMark className="inline-block h-3.5 w-3.5 align-middle text-muted-foreground" />
+                </Tooltip.Trigger>
+                <Tooltip.Content>This plugin version has not been reviewed</Tooltip.Content>
+              </Tooltip>
+            )}
           </div>
           <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
         </AccordionPrimitive.Trigger>
@@ -244,6 +276,32 @@ const PluginCard = ({
               />
             ))}
       </Accordion.Content>
+
+      <Dialog open={pendingPermission !== null} onOpenChange={open => !open && setPendingPermission(null)}>
+        <Dialog.Content onInteractOutside={(e: Event) => e.preventDefault()}>
+          <Dialog.Header>Unreviewed Plugin</Dialog.Header>
+          <Dialog.Body>
+            <p className="font-mono text-foreground text-sm">
+              {plugin.displayName} v{plugin.version}
+            </p>
+            <p className="mt-2 text-foreground text-sm">
+              This plugin version has not been reviewed. You can ask your AI agent to review the adapter code by saying
+              &ldquo;review the {plugin.name} plugin&rdquo; in your chat.
+            </p>
+            <p className="mt-2 text-muted-foreground text-xs">You can also enable it now without review.</p>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Dialog.Close asChild>
+              <Button size="sm" variant="outline">
+                Cancel
+              </Button>
+            </Dialog.Close>
+            <Button size="sm" onClick={handleEnableAnyway}>
+              Enable Anyway
+            </Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog>
     </Accordion.Item>
   );
 };

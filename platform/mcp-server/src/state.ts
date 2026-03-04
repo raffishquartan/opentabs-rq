@@ -239,6 +239,17 @@ export const appendAuditEntry = (state: ServerState, entry: AuditEntry): void =>
   void appendAuditEntryToDisk(entry);
 };
 
+/** Review token issued by plugin_inspect, consumed by plugin_mark_reviewed */
+export interface ReviewToken {
+  plugin: string;
+  version: string;
+  createdAt: number;
+  used: boolean;
+}
+
+/** Time-to-live for review tokens (10 minutes) */
+export const REVIEW_TOKEN_TTL_MS = 10 * 60 * 1000;
+
 /** Server state singleton — shared across hot reloads via globalThis */
 export interface ServerState {
   /**
@@ -297,6 +308,8 @@ export interface ServerState {
   adaptersDirReady: boolean;
   /** Set of tab IDs that currently have active network capture (browser_enable_network_capture called, not yet disabled) */
   activeNetworkCaptures: Set<number>;
+  /** In-memory review tokens: token string → ReviewToken. Lost on restart (intentional). */
+  reviewTokens: Map<string, ReviewToken>;
 }
 
 /** Increment when changing the type of an existing ServerState field */
@@ -351,6 +364,7 @@ export const createState = (): ServerState => ({
   endpointCallTimestamps: new Map(),
   adaptersDirReady: false,
   activeNetworkCaptures: new Set(),
+  reviewTokens: new Map(),
 });
 
 /** Generate a cryptographically random JSON-RPC request ID */
@@ -366,4 +380,45 @@ export const getToolPermission = (state: ServerState, pluginName: string, toolNa
   const pluginConfig = state.pluginPermissions[pluginName];
   if (!pluginConfig) return 'off';
   return pluginConfig.tools?.[toolName] ?? pluginConfig.permission ?? 'off';
+};
+
+/**
+ * Generate a review token for a plugin+version pair.
+ * Lazily cleans up expired tokens before creating a new one.
+ */
+export const generateReviewToken = (state: ServerState, plugin: string, version: string): string => {
+  const now = Date.now();
+
+  // Lazily clean up expired tokens
+  for (const [key, token] of state.reviewTokens) {
+    if (now - token.createdAt > REVIEW_TOKEN_TTL_MS) {
+      state.reviewTokens.delete(key);
+    }
+  }
+
+  const tokenId = crypto.randomUUID();
+  state.reviewTokens.set(tokenId, { plugin, version, createdAt: now, used: false });
+  return tokenId;
+};
+
+/**
+ * Validate a review token without consuming it.
+ * Returns true only if: token exists, plugin matches, version matches, not used, not expired.
+ */
+export const validateReviewToken = (state: ServerState, token: string, plugin: string, version: string): boolean => {
+  const entry = state.reviewTokens.get(token);
+  if (!entry) return false;
+  if (entry.plugin !== plugin) return false;
+  if (entry.version !== version) return false;
+  if (entry.used) return false;
+  if (Date.now() - entry.createdAt > REVIEW_TOKEN_TTL_MS) return false;
+  return true;
+};
+
+/** Mark a review token as used so it cannot be reused. */
+export const consumeReviewToken = (state: ServerState, token: string): void => {
+  const entry = state.reviewTokens.get(token);
+  if (entry) {
+    entry.used = true;
+  }
 };

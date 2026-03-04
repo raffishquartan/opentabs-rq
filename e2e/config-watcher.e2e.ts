@@ -51,10 +51,10 @@ test.describe('Config watcher — auto-discovery', () => {
       // Wait for config watcher to be set up
       await waitForLog(server, 'Config watcher: Watching', 10_000);
 
-      // Initially only browser tools should be present
+      // Initially only browser tools and platform tools should be present
       const toolsBefore = await client.listTools();
-      const browserToolSet = new Set(BROWSER_TOOL_NAMES);
-      const pluginToolsBefore = toolsBefore.filter(t => !browserToolSet.has(t.name));
+      const builtInToolSet = new Set([...BROWSER_TOOL_NAMES, 'plugin_inspect', 'plugin_mark_reviewed']);
+      const pluginToolsBefore = toolsBefore.filter(t => !builtInToolSet.has(t.name));
       expect(pluginToolsBefore.length).toBe(0);
 
       for (const bt of BROWSER_TOOL_NAMES) {

@@ -166,6 +166,28 @@ describe('setPluginPermission', () => {
       permission: 'ask',
     });
   });
+
+  test('includes reviewedVersion when provided', async () => {
+    mockResponse = { ok: true };
+
+    await setPluginPermission('slack', 'auto', '1.2.0');
+
+    expect(sendMessageCalls).toHaveLength(1);
+    expect(sendMessageCalls[0]?.message).toEqual({
+      type: 'bg:setPluginPermission',
+      plugin: 'slack',
+      permission: 'auto',
+      reviewedVersion: '1.2.0',
+    });
+  });
+
+  test('omits reviewedVersion when not provided', async () => {
+    mockResponse = { ok: true };
+
+    await setPluginPermission('slack', 'ask');
+
+    expect(sendMessageCalls[0]?.message).not.toHaveProperty('reviewedVersion');
+  });
 });
 
 // --- searchPlugins ---
@@ -291,6 +313,7 @@ const plugin = (overrides?: Partial<PluginState>): PluginState => ({
   tabState: 'ready',
   urlPatterns: ['*://*.slack.com/*'],
   sdkVersion: '0.0.3',
+  reviewed: true,
   tools: [tool()],
   ...overrides,
 });

@@ -1,11 +1,15 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  consumeReviewToken,
   createState,
   EMPTY_REGISTRY,
+  generateReviewToken,
   getNextRequestId,
   getToolPermission,
   prefixedToolName,
+  REVIEW_TOKEN_TTL_MS,
   STATE_SCHEMA_VERSION,
+  validateReviewToken,
 } from './state.js';
 
 describe('createState', () => {
@@ -151,5 +155,117 @@ describe('EMPTY_REGISTRY', () => {
   test('non-sentinel maps (new Map()) remain mutable', () => {
     const freshMap = new Map<string, unknown>();
     expect(() => freshMap.set('key', {})).not.toThrow();
+  });
+});
+
+describe('review tokens', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('generateReviewToken', () => {
+    test('returns a unique token string', () => {
+      const state = createState();
+      const token1 = generateReviewToken(state, 'slack', '1.0.0');
+      const token2 = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(typeof token1).toBe('string');
+      expect(typeof token2).toBe('string');
+      expect(token1).not.toBe(token2);
+    });
+
+    test('stores the token in the reviewTokens map', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(state.reviewTokens.has(token)).toBe(true);
+      const entry = state.reviewTokens.get(token);
+      expect(entry).toBeDefined();
+      expect(entry?.plugin).toBe('slack');
+      expect(entry?.version).toBe('1.0.0');
+      expect(entry?.used).toBe(false);
+    });
+
+    test('lazily cleans up expired tokens', () => {
+      const state = createState();
+      const expiredToken = generateReviewToken(state, 'old-plugin', '0.1.0');
+      expect(state.reviewTokens.has(expiredToken)).toBe(true);
+
+      // Advance past TTL
+      vi.advanceTimersByTime(REVIEW_TOKEN_TTL_MS + 1);
+
+      // Generating a new token triggers cleanup
+      generateReviewToken(state, 'slack', '1.0.0');
+      expect(state.reviewTokens.has(expiredToken)).toBe(false);
+    });
+  });
+
+  describe('validateReviewToken', () => {
+    test('returns true for a fresh, matching token', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(validateReviewToken(state, token, 'slack', '1.0.0')).toBe(true);
+    });
+
+    test('returns false for a nonexistent token', () => {
+      const state = createState();
+
+      expect(validateReviewToken(state, 'nonexistent-token', 'slack', '1.0.0')).toBe(false);
+    });
+
+    test('returns false for wrong plugin', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(validateReviewToken(state, token, 'discord', '1.0.0')).toBe(false);
+    });
+
+    test('returns false for wrong version', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(validateReviewToken(state, token, 'slack', '2.0.0')).toBe(false);
+    });
+
+    test('returns false for expired token', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      vi.advanceTimersByTime(REVIEW_TOKEN_TTL_MS + 1);
+
+      expect(validateReviewToken(state, token, 'slack', '1.0.0')).toBe(false);
+    });
+
+    test('returns false for already-used token', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      consumeReviewToken(state, token);
+
+      expect(validateReviewToken(state, token, 'slack', '1.0.0')).toBe(false);
+    });
+  });
+
+  describe('consumeReviewToken', () => {
+    test('marks a token as used', () => {
+      const state = createState();
+      const token = generateReviewToken(state, 'slack', '1.0.0');
+
+      expect(state.reviewTokens.get(token)?.used).toBe(false);
+      consumeReviewToken(state, token);
+      expect(state.reviewTokens.get(token)?.used).toBe(true);
+    });
+
+    test('is a no-op for nonexistent tokens', () => {
+      const state = createState();
+
+      // Should not throw
+      consumeReviewToken(state, 'nonexistent-token');
+    });
   });
 });
