@@ -1,4 +1,4 @@
-import { ToolError } from '@opentabs-dev/plugin-sdk';
+import { parseRetryAfterMs, ToolError } from '@opentabs-dev/plugin-sdk';
 
 // --- Auth context ---
 
@@ -133,7 +133,7 @@ export const apiV2 = async <T>(
     const errorBody = (await response.text().catch(() => '')).substring(0, 512);
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
-      const retryMs = retryAfter ? Number(retryAfter) * 1000 : undefined;
+      const retryMs = retryAfter !== null ? parseRetryAfterMs(retryAfter) : undefined;
       throw ToolError.rateLimited(`Rate limited: ${endpoint} — ${errorBody}`, retryMs);
     }
     if (response.status === 401 || response.status === 403)
@@ -201,7 +201,7 @@ export const apiV1 = async <T>(
     const errorBody = (await response.text().catch(() => '')).substring(0, 512);
     if (response.status === 429) {
       const retryAfter = response.headers.get('Retry-After');
-      const retryMs = retryAfter ? Number(retryAfter) * 1000 : undefined;
+      const retryMs = retryAfter !== null ? parseRetryAfterMs(retryAfter) : undefined;
       throw ToolError.rateLimited(`Rate limited: ${endpoint} — ${errorBody}`, retryMs);
     }
     if (response.status === 401 || response.status === 403)
