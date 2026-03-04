@@ -13,7 +13,7 @@
 
 import type { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { browserTools } from './browser-tools/index.js';
-import { getConfigDir, loadConfig, loadSecret } from './config.js';
+import { getConfigDir, loadConfig, loadSecret, savePluginPermissions } from './config.js';
 import { isDev } from './dev-mode.js';
 import { discoverPlugins } from './discovery.js';
 import { ensureExtensionInstalled } from './extension-install.js';
@@ -192,6 +192,38 @@ const createFileWatcherCallbacks = (
 };
 
 /**
+ * Reset permissions for plugins whose reviewedVersion no longer matches the installed version.
+ * When a plugin is updated, its permission reverts to 'off' and reviewedVersion is cleared,
+ * forcing a re-review before the plugin can be used. Persists the reset to config.json.
+ */
+const resetStaleReviewedVersions = (state: ServerState): void => {
+  let resetCount = 0;
+
+  for (const [pluginName, config] of Object.entries(state.pluginPermissions)) {
+    if (pluginName === 'browser') continue;
+    if (!config.reviewedVersion) continue;
+
+    const plugin = state.registry.plugins.get(pluginName);
+    if (!plugin) continue;
+
+    if (config.reviewedVersion !== plugin.version) {
+      log.info(
+        `Plugin "${pluginName}" updated from v${config.reviewedVersion} to v${plugin.version} — resetting permission to 'off'`,
+      );
+      config.permission = 'off';
+      config.reviewedVersion = undefined;
+      resetCount++;
+    }
+  }
+
+  if (resetCount > 0) {
+    void savePluginPermissions(state, state.pluginPermissions).catch((err: unknown) => {
+      log.error('Failed to persist version-reset permissions:', err);
+    });
+  }
+};
+
+/**
  * Shared reload core: discovery, state swap, pruning, and extension sync.
  * Callers notify MCP clients of tool list changes after this returns.
  * In dev mode, file watchers and config watching are started after discovery.
@@ -251,6 +283,10 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
 
     // Prune stale entries against the updated registry.
     pruneStaleState(state);
+
+    // Reset permissions for plugins whose reviewed version no longer matches the installed version.
+    // When a plugin is updated, its permission reverts to 'off' until re-reviewed.
+    resetStaleReviewedVersions(state);
   } catch (err) {
     log.error('Reload failed, keeping previous state:', err);
   }

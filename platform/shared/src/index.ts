@@ -96,6 +96,8 @@ export interface PluginPermissionConfig {
   permission?: ToolPermission;
   /** Per-tool permission overrides (tool base name → permission) */
   tools?: Record<string, ToolPermission>;
+  /** Plugin version that was reviewed. When present and matching the installed version, the plugin is considered reviewed. */
+  reviewedVersion?: string;
 }
 
 /** Confirmation request sent to the extension when a tool requires user approval */
