@@ -86,11 +86,11 @@ describe('scaffoldPlugin', () => {
     expect(existsSync(join(projectDir, '.gitignore'))).toBe(true);
   });
 
-  test("domain 'slack.com' produces URL pattern '*://slack.com/*'", async () => {
+  test("domain 'slack.com' produces URL pattern '*://*.slack.com/*'", async () => {
     await scaffoldPlugin({ name: 'slack', domain: 'slack.com' });
 
     const indexContent = await readFile(join(tmpDir, 'slack', 'src', 'index.ts'), 'utf-8');
-    expect(indexContent).toContain('*://slack.com/*');
+    expect(indexContent).toContain('*://*.slack.com/*');
   });
 
   test("domain '.slack.com' produces URL pattern '*://*.slack.com/*'", async () => {
@@ -98,6 +98,13 @@ describe('scaffoldPlugin', () => {
 
     const indexContent = await readFile(join(tmpDir, 'wildcard', 'src', 'index.ts'), 'utf-8');
     expect(indexContent).toContain('*://*.slack.com/*');
+  });
+
+  test("domain 'localhost' produces URL pattern '*://localhost/*' (no wildcard)", async () => {
+    await scaffoldPlugin({ name: 'local', domain: 'localhost' });
+
+    const indexContent = await readFile(join(tmpDir, 'local', 'src', 'index.ts'), 'utf-8');
+    expect(indexContent).toContain('*://localhost/*');
   });
 
   test('invalid name throws ScaffoldError', async () => {
@@ -132,6 +139,22 @@ describe('scaffoldPlugin', () => {
     expect(config.$schema).toContain('biomejs.dev');
     expect(config.javascript.formatter.quoteStyle).toBe('single');
     expect(config.linter.rules.correctness.noUnusedVariables).toBe('error');
+  });
+
+  test('generated package.json uses scoped name, publishConfig, and resolved version', async () => {
+    mockNpmViewSuccess('0.0.60');
+
+    await scaffoldPlugin({ name: 'figma', domain: 'figma.com' });
+
+    const pkg = JSON.parse(await readFile(join(tmpDir, 'figma', 'package.json'), 'utf-8')) as {
+      name: string;
+      version: string;
+      publishConfig: { access: string };
+    };
+
+    expect(pkg.name).toBe('@opentabs-dev/opentabs-plugin-figma');
+    expect(pkg.publishConfig).toEqual({ access: 'restricted' });
+    expect(pkg.version).toBe('0.0.60');
   });
 
   test('cleans up partial directory if a file write fails, allowing retry', async () => {
@@ -250,10 +273,16 @@ describe('scaffoldPlugin version resolution', () => {
     await scaffoldPlugin({ name: 'registry-test', domain: 'example.com' });
 
     const pkg = JSON.parse(await readFile(join(tmpDir, 'registry-test', 'package.json'), 'utf-8')) as {
+      name: string;
+      version: string;
+      publishConfig: { access: string };
       dependencies: Record<string, string>;
       devDependencies: Record<string, string>;
     };
 
+    expect(pkg.name).toBe('@opentabs-dev/opentabs-plugin-registry-test');
+    expect(pkg.version).toBe('0.0.99');
+    expect(pkg.publishConfig).toEqual({ access: 'restricted' });
     expect(pkg.dependencies['@opentabs-dev/plugin-sdk']).toBe('^0.0.99');
     expect(pkg.devDependencies['@opentabs-dev/plugin-tools']).toBe('^0.0.99');
   });

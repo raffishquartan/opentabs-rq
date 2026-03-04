@@ -140,9 +140,10 @@ const generatePackageJson = (
   const { openTabsVersion, zodVersion } = versions;
 
   const pkg = {
-    name: `opentabs-plugin-${args.name}`,
+    name: `@opentabs-dev/opentabs-plugin-${args.name}`,
     description: desc,
-    version: '0.0.1',
+    version: openTabsVersion.replace(/^\^/, ''),
+    publishConfig: { access: 'restricted' },
     type: 'module',
     main: 'dist/adapter.iife.js',
     keywords: ['opentabs-plugin'],
@@ -585,7 +586,7 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
     throw new ScaffoldError(nameError);
   }
 
-  const urlPattern = args.domain.startsWith('.') ? `*://*${args.domain}/*` : `*://${args.domain}/*`;
+  const urlPattern = args.domain.includes('.') ? `*://*.${args.domain.replace(/^\./, '')}/*` : `*://${args.domain}/*`;
   const patternError = validateUrlPattern(urlPattern);
   if (patternError) {
     throw new ScaffoldError(patternError);
@@ -600,7 +601,7 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
   const sourceLabel =
     versions.source === 'registry' ? 'from npm registry' : 'from local CLI — npm registry unreachable';
   console.log(`Using @opentabs-dev packages ${pc.bold(versions.openTabsVersion)} (${sourceLabel})`);
-  console.log(`Creating ${pc.bold(`opentabs-plugin-${args.name}`)}...`);
+  console.log(`Creating ${pc.bold(`@opentabs-dev/opentabs-plugin-${args.name}`)}...`);
 
   try {
     mkdirSync(projectDir, { recursive: true });
