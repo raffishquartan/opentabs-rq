@@ -6,6 +6,7 @@
  * `@opentabs-dev/*` npm packages. There is no monorepo special-casing.
  */
 
+import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -50,43 +51,93 @@ const toTitleCase = (name: string): string =>
 /** Wrap a string value in a single-quoted TypeScript string literal with proper escaping. */
 const singleQuote = (value: string): string => `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
 
-// --- Template generation ---
+// --- Version resolution ---
+
+interface ResolvedVersions {
+  openTabsVersion: string;
+  zodVersion: string;
+  source: 'registry' | 'local';
+}
 
 /**
- * Resolve version strings from the installed @opentabs-dev/plugin-sdk package.json.
- *
- * All @opentabs-dev packages are published at the same version. The SDK is a
- * direct dependency of the CLI, so `import.meta.resolve` reliably finds it
- * even in global installs. We read its package.json once to extract the
- * @opentabs-dev version and the zod peer dependency version, using both in
- * the scaffolded package.json.
+ * Query the npm registry for the latest published @opentabs-dev/plugin-sdk version.
+ * Uses `npm view` which respects the user's ~/.npmrc auth token (required for
+ * private @opentabs-dev packages). Returns the version string or null on failure.
  */
-const resolvePluginSdkVersions = async (): Promise<{ openTabsVersion: string; zodVersion: string }> => {
+const queryNpmRegistryVersion = (): Promise<string | null> =>
+  new Promise(resolve => {
+    execFile('npm', ['view', '@opentabs-dev/plugin-sdk', 'version'], { timeout: 5000 }, (error, stdout) => {
+      if (error) {
+        resolve(null);
+        return;
+      }
+      const version = stdout.trim();
+      resolve(version || null);
+    });
+  });
+
+/**
+ * Read version strings from the locally installed @opentabs-dev/plugin-sdk.
+ *
+ * The SDK is a direct dependency of the CLI, so `import.meta.resolve` reliably
+ * finds it even in global installs. Returns the @opentabs-dev version and the
+ * zod peer dependency version, or null if resolution fails.
+ */
+const readLocalSdkVersions = async (): Promise<{ version: string; zodVersion: string } | null> => {
   try {
     const entryUrl = import.meta.resolve('@opentabs-dev/plugin-sdk');
     const entryDir = dirname(new URL(entryUrl).pathname);
     const pkg: unknown = JSON.parse(await readFile(join(entryDir, '..', 'package.json'), 'utf-8'));
-    if (pkg === null || typeof pkg !== 'object') {
-      return { openTabsVersion: '*', zodVersion: '*' };
-    }
-    const openTabsVersion = 'version' in pkg && typeof pkg.version === 'string' ? `^${pkg.version}` : '*';
+    if (pkg === null || typeof pkg !== 'object') return null;
+    const version = 'version' in pkg && typeof pkg.version === 'string' ? pkg.version : null;
+    if (!version) return null;
     const peerDeps =
       'peerDependencies' in pkg && pkg.peerDependencies !== null && typeof pkg.peerDependencies === 'object'
         ? (pkg.peerDependencies as Record<string, unknown>)
         : {};
     const zodVersion = typeof peerDeps.zod === 'string' ? peerDeps.zod : '*';
-    return { openTabsVersion, zodVersion };
+    return { version, zodVersion };
   } catch {
-    // Resolution failed
+    return null;
   }
-  return { openTabsVersion: '*', zodVersion: '*' };
 };
 
-const generatePackageJson = async (args: ScaffoldArgs, urlPattern: string): Promise<string> => {
+/**
+ * Resolve @opentabs-dev package versions for the scaffolded plugin.
+ *
+ * Primary source: npm registry (via `npm view`), which always returns the
+ * latest published version regardless of which CLI version is installed.
+ * Fallback: the locally bundled SDK version (for offline/auth-failure scenarios).
+ * The zod peer dependency version always comes from the local SDK since it
+ * tracks SDK API compatibility.
+ */
+const resolvePluginSdkVersions = async (): Promise<ResolvedVersions> => {
+  const local = await readLocalSdkVersions();
+  const zodVersion = local?.zodVersion ?? '*';
+
+  const registryVersion = await queryNpmRegistryVersion();
+  if (registryVersion) {
+    return { openTabsVersion: `^${registryVersion}`, zodVersion, source: 'registry' };
+  }
+
+  if (local) {
+    return { openTabsVersion: `^${local.version}`, zodVersion, source: 'local' };
+  }
+
+  return { openTabsVersion: '*', zodVersion: '*', source: 'local' };
+};
+
+// --- Template generation ---
+
+const generatePackageJson = (
+  args: ScaffoldArgs,
+  urlPattern: string,
+  versions: { openTabsVersion: string; zodVersion: string },
+): string => {
   const displayName = args.display ?? toTitleCase(args.name);
   const desc = args.description ?? `OpenTabs plugin for ${displayName}`;
 
-  const { openTabsVersion, zodVersion } = await resolvePluginSdkVersions();
+  const { openTabsVersion, zodVersion } = versions;
 
   const pkg = {
     name: `opentabs-plugin-${args.name}`,
@@ -545,13 +596,17 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
     throw new ScaffoldError(`Directory "${args.name}" already exists`);
   }
 
+  const versions = await resolvePluginSdkVersions();
+  const sourceLabel =
+    versions.source === 'registry' ? 'from npm registry' : 'from local CLI — npm registry unreachable';
+  console.log(`Using @opentabs-dev packages ${pc.bold(versions.openTabsVersion)} (${sourceLabel})`);
   console.log(`Creating ${pc.bold(`opentabs-plugin-${args.name}`)}...`);
 
   try {
     mkdirSync(projectDir, { recursive: true });
     mkdirSync(join(projectDir, 'src', 'tools'), { recursive: true });
 
-    await writeFile(join(projectDir, 'package.json'), await generatePackageJson(args, urlPattern), 'utf-8');
+    await writeFile(join(projectDir, 'package.json'), generatePackageJson(args, urlPattern, versions), 'utf-8');
     console.log(`  ${pc.dim('Created:')} ${pc.bold('package.json')}`);
 
     await writeFile(join(projectDir, 'tsconfig.json'), TSCONFIG_CONTENT, 'utf-8');
@@ -592,5 +647,5 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
   return projectDir;
 };
 
-export { scaffoldPlugin, promptForMissingArgs, ScaffoldError, toPascalCase, toTitleCase };
-export type { ScaffoldArgs, PartialScaffoldArgs };
+export { scaffoldPlugin, promptForMissingArgs, resolvePluginSdkVersions, ScaffoldError, toPascalCase, toTitleCase };
+export type { ScaffoldArgs, PartialScaffoldArgs, ResolvedVersions };
