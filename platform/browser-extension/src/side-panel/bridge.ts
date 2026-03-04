@@ -48,10 +48,8 @@ interface PluginInstallResult {
 interface FullStateConfirmation {
   id: string;
   tool: string;
-  domain: string | null;
-  tabId?: number;
-  paramsPreview: string;
-  timeoutMs: number;
+  plugin: string;
+  params: Record<string, unknown>;
   receivedAt: number;
 }
 
@@ -63,6 +61,7 @@ interface FullStateResult {
   failedPlugins: FailedPluginState[];
   browserTools: BrowserToolState[];
   serverVersion?: string;
+  skipPermissions?: boolean;
   pendingConfirmations?: FullStateConfirmation[];
 }
 
@@ -138,15 +137,11 @@ const updatePlugin = (name: string): Promise<PluginInstallResult> =>
   sendBgMessage<PluginInstallResult>({ type: 'bg:updatePlugin', name });
 
 /** Send a confirmation response to the MCP server via the background script (fire-and-forget) */
-const sendConfirmationResponse = (
-  id: string,
-  decision: 'allow_once' | 'allow_always' | 'deny',
-  scope?: 'tool_domain' | 'tool_all' | 'domain_all',
-): void => {
+const sendConfirmationResponse = (id: string, decision: 'allow' | 'deny', alwaysAllow?: boolean): void => {
   chrome.runtime
     .sendMessage({
       type: 'sp:confirmationResponse' as const,
-      data: { id, decision, ...(scope ? { scope } : {}) },
+      data: { id, decision, ...(alwaysAllow ? { alwaysAllow } : {}) },
     })
     .catch((err: unknown) => {
       console.warn('[opentabs:side-panel] Failed to send confirmation response:', err);

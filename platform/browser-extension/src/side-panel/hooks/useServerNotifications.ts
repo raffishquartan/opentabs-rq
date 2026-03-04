@@ -57,21 +57,17 @@ const useServerNotifications = ({
   const handleNotification = (data: Record<string, unknown>): void => {
     if (data.method === 'confirmation.request' && data.params) {
       const params = data.params as Record<string, unknown>;
-      if (typeof params.id === 'string' && typeof params.tool === 'string' && typeof params.timeoutMs === 'number') {
+      if (typeof params.id === 'string' && typeof params.tool === 'string') {
         // Use the background's receivedAt when hydrating from bg:getFullState so
-        // the countdown bar reflects true elapsed time since the request arrived.
+        // the UI reflects true elapsed time since the request arrived.
         const receivedAt =
           typeof params.receivedAt === 'number' && params.receivedAt > 0 ? params.receivedAt : Date.now();
         const confirmation: ConfirmationData = {
           id: params.id,
           tool: params.tool,
-          domain: typeof params.domain === 'string' ? params.domain : null,
-          tabId:
-            typeof params.tabId === 'number' && Number.isInteger(params.tabId) && params.tabId > 0
-              ? params.tabId
-              : undefined,
-          paramsPreview: typeof params.paramsPreview === 'string' ? params.paramsPreview : '',
-          timeoutMs: params.timeoutMs,
+          domain: null,
+          paramsPreview: typeof params.params === 'object' && params.params ? JSON.stringify(params.params) : '',
+          timeoutMs: 0,
           receivedAt,
         };
         // Skip duplicate confirmations (e.g., real-time sp:serverMessage
@@ -79,16 +75,11 @@ const useServerNotifications = ({
         if (timeoutIds.current.has(confirmation.id)) return;
 
         setPendingConfirmations(prev => (prev.some(c => c.id === confirmation.id) ? prev : [...prev, confirmation]));
-        // Compute remaining time from the original receivedAt so hydrated
-        // confirmations expire at the correct wall-clock time.
-        const elapsed = Date.now() - receivedAt;
-        const removeDelay = Math.max(0, params.timeoutMs + 1000 - elapsed);
-        const tid = setTimeout(() => {
-          timeoutIds.current.delete(confirmation.id);
-          setPendingConfirmations(prev => prev.filter(c => c.id !== confirmation.id));
-          chrome.runtime.sendMessage({ type: 'sp:confirmationTimeout', id: confirmation.id }).catch(() => {});
-        }, removeDelay);
-        timeoutIds.current.set(confirmation.id, tid);
+        // Mark this confirmation id so duplicates are skipped
+        timeoutIds.current.set(
+          confirmation.id,
+          setTimeout(() => {}, 0),
+        );
       }
     }
 

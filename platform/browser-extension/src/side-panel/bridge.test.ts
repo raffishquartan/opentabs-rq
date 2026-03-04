@@ -398,32 +398,32 @@ describe('extractShortName', () => {
 // --- sendConfirmationResponse ---
 
 describe('sendConfirmationResponse', () => {
-  test('sends sp:confirmationResponse with correct type and data', () => {
-    sendConfirmationResponse('conf-123', 'allow_once');
+  test('sends sp:confirmationResponse with allow decision', () => {
+    sendConfirmationResponse('conf-123', 'allow');
 
     expect(sendMessageCalls).toHaveLength(1);
     expect(sendMessageCalls[0]?.message).toEqual({
       type: 'sp:confirmationResponse',
-      data: { id: 'conf-123', decision: 'allow_once' },
+      data: { id: 'conf-123', decision: 'allow' },
     });
   });
 
-  test('includes scope in data when provided', () => {
-    sendConfirmationResponse('conf-456', 'allow_always', 'tool_domain');
+  test('includes alwaysAllow in data when true', () => {
+    sendConfirmationResponse('conf-456', 'allow', true);
 
     expect(sendMessageCalls).toHaveLength(1);
     expect(sendMessageCalls[0]?.message).toEqual({
       type: 'sp:confirmationResponse',
-      data: { id: 'conf-456', decision: 'allow_always', scope: 'tool_domain' },
+      data: { id: 'conf-456', decision: 'allow', alwaysAllow: true },
     });
   });
 
-  test('omits scope from data when not provided', () => {
+  test('omits alwaysAllow from data when not provided', () => {
     sendConfirmationResponse('conf-789', 'deny');
 
     const message = sendMessageCalls[0]?.message as Record<string, unknown>;
     const data = message.data as Record<string, unknown>;
-    expect(Object.hasOwn(data, 'scope')).toBe(false);
+    expect(Object.hasOwn(data, 'alwaysAllow')).toBe(false);
   });
 
   test('handles chrome.runtime.sendMessage rejection gracefully', () => {

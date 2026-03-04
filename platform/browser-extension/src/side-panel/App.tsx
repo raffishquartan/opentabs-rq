@@ -231,10 +231,8 @@ const App = () => {
           params: {
             id: c.id,
             tool: c.tool,
-            domain: c.domain,
-            tabId: c.tabId,
-            paramsPreview: c.paramsPreview,
-            timeoutMs: c.timeoutMs,
+            plugin: c.plugin,
+            params: c.params,
             receivedAt: c.receivedAt,
           },
         });
@@ -333,10 +331,13 @@ const App = () => {
   const handleConfirmationRespond = (
     id: string,
     decision: 'allow_once' | 'allow_always' | 'deny',
-    scope?: 'tool_domain' | 'tool_all' | 'domain_all',
+    _scope?: 'tool_domain' | 'tool_all' | 'domain_all',
   ) => {
     clearConfirmationTimeout(id);
-    sendConfirmationResponse(id, decision, scope);
+    // Translate old ConfirmationDialog decision to new bridge API
+    const newDecision = decision === 'deny' ? 'deny' : 'allow';
+    const alwaysAllow = decision === 'allow_always' ? true : undefined;
+    sendConfirmationResponse(id, newDecision, alwaysAllow);
     setPendingConfirmations(prev => prev.filter(c => c.id !== id));
   };
 
