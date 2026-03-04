@@ -315,6 +315,7 @@ const buildConfigStatePayload = (state: ServerState): ConfigStateResult => {
       description: ct.description,
       enabled: isBrowserToolEnabled(state, ct.name),
       ...(ct.icon ? { icon: ct.icon } : {}),
+      ...(ct.group ? { group: ct.group } : {}),
     }));
 
   return {
