@@ -114,6 +114,13 @@ for (const tool of browserTools) {
       `Browser tool "${tool.name}" icon mismatch: definition has "${actualIcon}" but catalog has "${catalogEntry.icon}" — run \`npm run generate:browser-tools-catalog\` to update`,
     );
   }
+  const actualGroup = tool.group ?? undefined;
+  const catalogGroup = catalogEntry.group ?? undefined;
+  if (actualGroup !== catalogGroup) {
+    throw new Error(
+      `Browser tool "${tool.name}" group mismatch: definition has "${actualGroup}" but catalog has "${catalogGroup}" — run \`npm run generate:browser-tools-catalog\` to update`,
+    );
+  }
 }
 
 for (const entry of BROWSER_TOOLS_CATALOG) {

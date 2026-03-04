@@ -31,7 +31,7 @@ try {
 
 // Dynamic import of the compiled barrel to get actual tool definitions
 const { browserTools } = (await import(barrelPath)) as {
-  browserTools: readonly { name: string; description: string; icon?: string }[];
+  browserTools: readonly { name: string; description: string; icon?: string; group?: string }[];
 };
 
 /** Escape a string for use inside a single-quoted TypeScript string literal */
@@ -43,6 +43,7 @@ const entries = browserTools
     name: t.name,
     description: t.description,
     icon: t.icon ?? 'globe',
+    group: t.group,
   }))
   .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -59,6 +60,7 @@ const lines: string[] = [
   '  readonly name: string;',
   '  readonly description: string;',
   '  readonly icon: string;',
+  '  readonly group?: string;',
   '}',
   '',
   'export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [',
@@ -69,6 +71,7 @@ for (const entry of entries) {
   lines.push(`    name: ${singleQuote(entry.name)},`);
   lines.push(`    description: ${singleQuote(entry.description)},`);
   lines.push(`    icon: ${singleQuote(entry.icon)},`);
+  if (entry.group) lines.push(`    group: ${singleQuote(entry.group)},`);
   lines.push('  },');
 }
 
