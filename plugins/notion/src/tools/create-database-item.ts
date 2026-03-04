@@ -39,6 +39,10 @@ export const createDatabaseItem = defineTool({
 
     const schema = (collData.schema as Record<string, Record<string, unknown>>) ?? {};
     const parentId = (collData.parent_id as string) ?? '';
+    if (!parentId)
+      throw ToolError.internal(
+        `Database ${params.database_id} has no parent_id — cannot add item to parent content list`,
+      );
 
     // Build properties object with schema property IDs
     const blockProperties: Record<string, unknown> = {

@@ -30,6 +30,8 @@ export const deletePage = defineTool({
     if (!pageData) throw ToolError.notFound(`Page not found: ${params.page_id}`);
 
     const parentId = (pageData.parent_id as string) ?? '';
+    if (!parentId)
+      throw ToolError.internal(`Page ${params.page_id} has no parent_id — cannot remove from parent content list`);
     const parentTable = (pageData.parent_table as string) ?? 'space';
     const listPath = parentTable === 'space' ? 'pages' : 'content';
 
