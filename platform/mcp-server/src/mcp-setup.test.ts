@@ -2,6 +2,7 @@ import { CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import type { BrowserToolDefinition } from './browser-tools/definition.js';
+import { buildConfigStatePayload } from './extension-handlers.js';
 import type { McpServerInstance, RequestHandlerExtra } from './mcp-setup.js';
 import {
   checkToolCallable,
@@ -831,6 +832,55 @@ describe('getAllToolsList — platform tools', () => {
 
   test('PLATFORM_TOOL_NAMES contains plugin_inspect', () => {
     expect(PLATFORM_TOOL_NAMES.has('plugin_inspect')).toBe(true);
+  });
+
+  test('plugin_mark_reviewed is included in tools list', () => {
+    const state = createState();
+
+    const tools = getAllToolsList(state);
+    const reviewTool = tools.find(t => t.name === 'plugin_mark_reviewed');
+
+    expect(reviewTool).toBeDefined();
+    expect(reviewTool?.description).toContain('reviewed');
+    expect(reviewTool?.inputSchema).toHaveProperty('properties');
+  });
+
+  test('plugin_mark_reviewed has no permission prefix', () => {
+    const state = createState();
+    state.pluginPermissions = {};
+
+    const tools = getAllToolsList(state);
+    const reviewTool = tools.find(t => t.name === 'plugin_mark_reviewed');
+
+    expect(reviewTool?.description).not.toMatch(/^\[/);
+  });
+
+  test('plugin_mark_reviewed does not have tabId injected', () => {
+    const state = createState();
+
+    const tools = getAllToolsList(state);
+    const reviewTool = tools.find(t => t.name === 'plugin_mark_reviewed');
+
+    const properties = reviewTool?.inputSchema.properties as Record<string, unknown> | undefined;
+    expect(properties?.tabId).toBeUndefined();
+  });
+
+  test('PLATFORM_TOOL_NAMES contains plugin_mark_reviewed', () => {
+    expect(PLATFORM_TOOL_NAMES.has('plugin_mark_reviewed')).toBe(true);
+  });
+
+  test('platform tools are not included in buildConfigStatePayload', () => {
+    const state = createState();
+    state.registry = buildRegistry([createPlugin('test', ['ping'])], []);
+
+    const payload = buildConfigStatePayload(state);
+
+    const allToolNames = [
+      ...payload.browserTools.map(t => t.name),
+      ...payload.plugins.flatMap(p => p.tools.map(t => t.name)),
+    ];
+    expect(allToolNames).not.toContain('plugin_inspect');
+    expect(allToolNames).not.toContain('plugin_mark_reviewed');
   });
 });
 
