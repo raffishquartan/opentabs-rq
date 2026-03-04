@@ -13,6 +13,7 @@ import { PluginMenu } from './PluginMenu.js';
 import { Accordion } from './retro/Accordion.js';
 import { Alert } from './retro/Alert.js';
 import { Badge } from './retro/Badge.js';
+import { Switch } from './retro/Switch.js';
 import { Tooltip } from './retro/Tooltip.js';
 import { PermissionSelect, ToolRow } from './ToolRow.js';
 
@@ -27,6 +28,7 @@ const PluginCard = ({
   removingPlugin,
   actionError,
   skipPermissions,
+  transitionClass,
 }: {
   plugin: PluginState;
   activeTools: Set<string>;
@@ -38,6 +40,7 @@ const PluginCard = ({
   removingPlugin?: boolean;
   actionError?: string | null;
   skipPermissions?: boolean;
+  transitionClass?: string;
 }) => {
   const [toggleError, setToggleError] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -87,6 +90,13 @@ const PluginCard = ({
     });
   };
 
+  const handleGroupToggle = (groupTools: WireToolDef[], checked: boolean) => {
+    const newPermission: ToolPermission = checked ? 'auto' : 'off';
+    for (const tool of groupTools) {
+      handleToolPermissionChange(tool.name, newPermission);
+    }
+  };
+
   const filterLower = toolFilter?.toLowerCase() ?? '';
   const visibleTools = filterLower ? pluginTools.filter(t => matchesTool(t, filterLower)) : pluginTools;
   const hasActiveTool = pluginTools.some(t => activeTools.has(`${plugin.name}:${t.name}`));
@@ -119,7 +129,14 @@ const PluginCard = ({
   return (
     <Accordion.Item
       value={plugin.name}
-      className={removingPlugin ? 'pointer-events-none opacity-60 transition-opacity' : undefined}>
+      className={
+        transitionClass ??
+        (removingPlugin
+          ? 'pointer-events-none opacity-60 transition-opacity'
+          : plugin.tabState !== 'ready'
+            ? 'opacity-70 transition-opacity'
+            : undefined)
+      }>
       <AccordionPrimitive.Header className="flex">
         <AccordionPrimitive.Trigger className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2 focus:outline-hidden [&[data-state=open]>svg]:rotate-180">
           <Tooltip>
@@ -201,8 +218,15 @@ const PluginCard = ({
         {hasAnyGroup
           ? toolGroups.map(group => (
               <div key={group.name}>
-                <div className="border-border border-b bg-muted/20 px-3 py-1">
+                <div className="flex items-center justify-between border-border border-b bg-muted/20 px-3 py-1">
                   <span className="font-head text-muted-foreground text-xs uppercase tracking-wider">{group.name}</span>
+                  <Switch
+                    checked={group.tools.every(t => t.permission !== 'off')}
+                    onCheckedChange={checked => handleGroupToggle(group.tools, checked)}
+                    disabled={skipPermissions}
+                    aria-label={`Toggle all ${group.name} tools`}
+                    className="h-4 w-8 [&>span]:h-2.5 [&>span]:w-2.5 [&>span]:data-[state=checked]:translate-x-3.5"
+                  />
                 </div>
                 {group.tools.map(tool => (
                   <ToolRow

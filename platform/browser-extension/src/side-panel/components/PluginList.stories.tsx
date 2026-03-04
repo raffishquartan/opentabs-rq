@@ -78,6 +78,126 @@ const mockFailedPlugins: FailedPluginState[] = [
   { specifier: '@opentabs-dev/plugin-legacy', error: 'SDK version 0.0.1 is incompatible with server 0.0.3' },
 ];
 
+const allReadyPlugins: PluginState[] = [
+  mockPlugin(),
+  mockPlugin({
+    name: 'github',
+    displayName: 'GitHub',
+    urlPatterns: ['*://github.com/*'],
+    tabState: 'ready',
+    tools: [
+      {
+        name: 'create_issue',
+        displayName: 'Create Issue',
+        description: 'Create a new issue',
+        icon: 'plus',
+        permission: 'auto',
+      },
+    ],
+  }),
+  mockPlugin({
+    name: 'datadog',
+    displayName: 'Datadog',
+    urlPatterns: ['*://*.datadoghq.com/*'],
+    tabState: 'ready',
+    source: 'npm',
+    tools: [
+      {
+        name: 'query_metrics',
+        displayName: 'Query Metrics',
+        description: 'Query metrics data',
+        icon: 'bar-chart',
+        permission: 'auto',
+      },
+    ],
+  }),
+];
+
+const allNotReadyPlugins: PluginState[] = [
+  mockPlugin({ tabState: 'closed' }),
+  mockPlugin({
+    name: 'github',
+    displayName: 'GitHub',
+    urlPatterns: ['*://github.com/*'],
+    tabState: 'closed',
+    tools: [
+      {
+        name: 'create_issue',
+        displayName: 'Create Issue',
+        description: 'Create a new issue',
+        icon: 'plus',
+        permission: 'auto',
+      },
+    ],
+  }),
+  mockPlugin({
+    name: 'datadog',
+    displayName: 'Datadog',
+    urlPatterns: ['*://*.datadoghq.com/*'],
+    tabState: 'unavailable',
+    source: 'npm',
+    tools: [
+      {
+        name: 'query_metrics',
+        displayName: 'Query Metrics',
+        description: 'Query metrics data',
+        icon: 'bar-chart',
+        permission: 'auto',
+      },
+    ],
+  }),
+];
+
+const mixedReadinessPlugins: PluginState[] = [
+  mockPlugin(),
+  mockPlugin({
+    name: 'github',
+    displayName: 'GitHub',
+    urlPatterns: ['*://github.com/*'],
+    tabState: 'ready',
+    tools: [
+      {
+        name: 'create_issue',
+        displayName: 'Create Issue',
+        description: 'Create a new issue',
+        icon: 'plus',
+        permission: 'auto',
+      },
+    ],
+  }),
+  mockPlugin({
+    name: 'datadog',
+    displayName: 'Datadog',
+    urlPatterns: ['*://*.datadoghq.com/*'],
+    tabState: 'unavailable',
+    source: 'npm',
+    tools: [
+      {
+        name: 'query_metrics',
+        displayName: 'Query Metrics',
+        description: 'Query metrics data',
+        icon: 'bar-chart',
+        permission: 'auto',
+      },
+    ],
+  }),
+  mockPlugin({
+    name: 'jira',
+    displayName: 'Jira',
+    urlPatterns: ['*://*.atlassian.net/*'],
+    tabState: 'closed',
+    tools: [
+      {
+        name: 'create_ticket',
+        displayName: 'Create Ticket',
+        description: 'Create a new Jira ticket',
+        icon: 'ticket',
+        permission: 'auto',
+      },
+    ],
+  }),
+];
+
 const meta: Meta<typeof PluginList> = {
   title: 'Components/PluginList',
   component: PluginList,
@@ -148,5 +268,38 @@ const NoFilterMatch: Story = {
   render: () => <NoFilterMatchDemo />,
 };
 
+const AllReadyDemo = () => {
+  const [plugins, setPlugins] = useState(allReadyPlugins);
+  return (
+    <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+  );
+};
+
+const AllReady: Story = {
+  render: () => <AllReadyDemo />,
+};
+
+const AllNotReadyDemo = () => {
+  const [plugins, setPlugins] = useState(allNotReadyPlugins);
+  return (
+    <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+  );
+};
+
+const AllNotReady: Story = {
+  render: () => <AllNotReadyDemo />,
+};
+
+const MixedReadinessDemo = () => {
+  const [plugins, setPlugins] = useState(mixedReadinessPlugins);
+  return (
+    <PluginList plugins={plugins} failedPlugins={[]} activeTools={new Set()} setPlugins={setPlugins} toolFilter="" />
+  );
+};
+
+const MixedReadiness: Story = {
+  render: () => <MixedReadinessDemo />,
+};
+
 export default meta;
-export { Default, WithFailedPlugins, FilteredByTool, NoFilterMatch };
+export { Default, WithFailedPlugins, FilteredByTool, NoFilterMatch, AllReady, AllNotReady, MixedReadiness };
