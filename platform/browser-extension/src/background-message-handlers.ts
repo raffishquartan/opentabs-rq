@@ -7,6 +7,7 @@ import { forwardToSidePanel, sendToServer } from './messaging.js';
 import { getAllPluginMeta } from './plugin-storage.js';
 import { rejectAllPendingServerRequests, sendServerRequest } from './server-request.js';
 import {
+  addPendingBrowserToolUpdate,
   addPendingPluginAllToolsUpdate,
   addPendingPluginPermissionUpdate,
   addPendingPluginToolUpdate,
@@ -14,6 +15,7 @@ import {
   getCachesInitialized,
   getServerStateCache,
   loadServerStateCacheFromSession,
+  removePendingBrowserToolUpdate,
   removePendingPluginAllToolsUpdate,
   removePendingPluginPermissionUpdate,
   removePendingPluginToolUpdate,
@@ -321,6 +323,31 @@ const handleBgSetToolPermission: MessageHandler = (message, sendResponse) => {
   const plugin = message.plugin as string;
   const tool = message.tool as string;
   const permission = message.permission as ToolPermission;
+
+  if (plugin === 'browser') {
+    const cache = getServerStateCache();
+    const originalPermission = cache.browserTools.find(t => t.name === tool)?.permission ?? 'auto';
+
+    const updatedBrowserTools = cache.browserTools.map(t => (t.name === tool ? { ...t, permission } : t));
+    addPendingBrowserToolUpdate(tool, permission);
+    updateServerStateCache({ browserTools: updatedBrowserTools });
+
+    sendServerRequest('config.setToolPermission', { plugin, tool, permission })
+      .then((result: unknown) => {
+        removePendingBrowserToolUpdate(tool);
+        sendResponse(result);
+      })
+      .catch((err: unknown) => {
+        removePendingBrowserToolUpdate(tool);
+        const currentCache = getServerStateCache();
+        const revertedBrowserTools = currentCache.browserTools.map(t =>
+          t.name === tool ? { ...t, permission: originalPermission } : t,
+        );
+        updateServerStateCache({ browserTools: revertedBrowserTools });
+        sendResponse({ error: err instanceof Error ? err.message : String(err) });
+      });
+    return;
+  }
 
   // Capture the original permission value for surgical rollback
   const cache = getServerStateCache();
