@@ -22,6 +22,7 @@ import {
   buildConfigStatePayload,
   handleConfigGetState,
   handleConfigSetPluginPermission,
+  handleConfigSetSkipPermissions,
   handleConfigSetToolPermission,
   handleConfirmationResponse,
   handlePluginCheckUpdates,
@@ -400,6 +401,11 @@ const handleExtensionMessage = (
 
   if (method === 'config.setPluginPermission' && id !== undefined) {
     handleConfigSetPluginPermission(state, params, id, callbacks);
+    return;
+  }
+
+  if (method === 'config.setSkipPermissions' && id !== undefined) {
+    handleConfigSetSkipPermissions(state, params, id, callbacks);
     return;
   }
 

@@ -2054,6 +2054,133 @@ describe('handleExtensionMessage — config.setPluginPermission', () => {
   });
 });
 
+describe('handleExtensionMessage — config.setSkipPermissions', () => {
+  test('setting skipPermissions to false updates state and sends plugins.changed + ok result', () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+    state.skipPermissions = true;
+
+    let configChangedCalled = false;
+    const callbacks = {
+      ...noopCallbacks,
+      onToolConfigChanged: () => {
+        configChangedCalled = true;
+      },
+    };
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'config.setSkipPermissions',
+        params: { skipPermissions: false },
+        id: 1,
+      }),
+      callbacks,
+    );
+
+    expect(state.skipPermissions).toBe(false);
+    expect(configChangedCalled).toBe(true);
+
+    // First message is plugins.changed notification
+    expect(ws.sent.length).toBeGreaterThanOrEqual(2);
+    const notification = JSON.parse(ws.sent[0] as string) as {
+      method?: string;
+      params?: { skipPermissions?: boolean };
+    };
+    expect(notification.method).toBe('plugins.changed');
+    expect(notification.params?.skipPermissions).toBe(false);
+
+    // Second message is the ok result
+    const result = JSON.parse(ws.sent[1] as string) as { jsonrpc: string; id: number; result: { ok: boolean } };
+    expect(result.jsonrpc).toBe('2.0');
+    expect(result.id).toBe(1);
+    expect(result.result).toEqual({ ok: true });
+  });
+
+  test('setting skipPermissions to true updates state', () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+    state.skipPermissions = false;
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'config.setSkipPermissions',
+        params: { skipPermissions: true },
+        id: 2,
+      }),
+      noopCallbacks,
+    );
+
+    expect(state.skipPermissions).toBe(true);
+  });
+
+  test('non-boolean skipPermissions sends -32602 error', () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'config.setSkipPermissions',
+        params: { skipPermissions: 'false' },
+        id: 3,
+      }),
+      noopCallbacks,
+    );
+
+    expect(ws.sent).toHaveLength(1);
+    const response = JSON.parse(ws.sent[0] as string) as { error: { code: number; message: string } };
+    expect(response.error.code).toBe(-32602);
+    expect(response.error.message).toContain('skipPermissions must be a boolean');
+  });
+
+  test('missing params sends -32602 error', () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({ jsonrpc: '2.0', method: 'config.setSkipPermissions', id: 4 }),
+      noopCallbacks,
+    );
+
+    expect(ws.sent).toHaveLength(1);
+    const response = JSON.parse(ws.sent[0] as string) as { error: { code: number; message: string } };
+    expect(response.error.code).toBe(-32602);
+    expect(response.error.message).toContain('Missing params');
+  });
+
+  test('missing id is treated as unrecognized request (no crash)', () => {
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    // Without an id, the method falls through to the "unrecognized method with id" check,
+    // but since id is undefined, it falls through to the final "unrecognized notification" branch.
+    // Either way, the handler is not called and the server does not crash.
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'config.setSkipPermissions',
+        params: { skipPermissions: false },
+      }),
+      noopCallbacks,
+    );
+
+    // No crash, and no ok result sent (since the handler requires id)
+    expect(state.skipPermissions).toBe(false); // unchanged from default
+  });
+});
+
 describe('dispatchToExtension — timeout', () => {
   beforeEach(() => {
     vi.useFakeTimers();

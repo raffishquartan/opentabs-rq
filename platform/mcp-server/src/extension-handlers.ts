@@ -488,6 +488,45 @@ const handleConfigSetPluginPermission = (
   });
 };
 
+/**
+ * Handle config.setSkipPermissions: set the runtime skipPermissions flag.
+ * Allows the extension to disable skip-permissions mode at runtime
+ * (e.g., when the user clicks "Restore approvals" in the side panel).
+ */
+const handleConfigSetSkipPermissions = (
+  state: ServerState,
+  params: Record<string, unknown> | undefined,
+  id: string | number,
+  callbacks: McpCallbacks,
+): void => {
+  if (!params) {
+    sendJsonRpcError(state, id, -32602, 'Missing params');
+    return;
+  }
+
+  const skipPermissions = params.skipPermissions;
+  if (typeof skipPermissions !== 'boolean') {
+    sendJsonRpcError(state, id, -32602, 'skipPermissions must be a boolean');
+    return;
+  }
+
+  state.skipPermissions = skipPermissions;
+
+  sendToExtension(state, {
+    jsonrpc: '2.0',
+    method: 'plugins.changed',
+    params: { ...buildConfigStatePayload(state) },
+  });
+
+  callbacks.onToolConfigChanged();
+
+  sendToExtension(state, {
+    jsonrpc: '2.0',
+    result: { ok: true },
+    id,
+  });
+};
+
 // --- Tool progress handler ---
 
 /**
@@ -764,6 +803,7 @@ export {
   handleConfigGetState,
   handleConfigSetToolPermission,
   handleConfigSetPluginPermission,
+  handleConfigSetSkipPermissions,
   handlePluginSearch,
   handlePluginInstall,
   handlePluginUpdateFromRegistry,
