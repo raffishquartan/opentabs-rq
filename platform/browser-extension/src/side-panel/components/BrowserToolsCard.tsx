@@ -140,7 +140,7 @@ const BrowserToolsCard = ({
   return (
     <Accordion.Item value="browser-tools">
       <AccordionPrimitive.Header className="flex">
-        <AccordionPrimitive.Trigger className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2 focus:outline-hidden [&[data-state=open]>svg.chevron]:rotate-180">
+        <AccordionPrimitive.Trigger className="focus-ring flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-3 py-2 [&[data-state=open]>svg.chevron]:rotate-180">
           <PluginIcon
             pluginName="browser"
             displayName="Browser"

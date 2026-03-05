@@ -206,3 +206,12 @@ body {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* Keyboard focus ring — flat retro style using primary accent */
+.focus-ring {
+  outline: none;
+}
+.focus-ring:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
