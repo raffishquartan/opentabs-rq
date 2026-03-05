@@ -530,3 +530,13 @@ export const replaceIifeClosing = (iife: string, injection: string): string => {
   }
   return modified;
 };
+
+// ---------------------------------------------------------------------------
+// Side panel permission helpers
+// ---------------------------------------------------------------------------
+
+/** Click a Radix Select trigger (by aria-label) and choose an option by display text. */
+export const selectPermission = async (page: Page, ariaLabel: string, optionText: string): Promise<void> => {
+  await page.locator(`[aria-label="${ariaLabel}"]`).click();
+  await page.locator('[role="option"]', { hasText: optionText }).click();
+};

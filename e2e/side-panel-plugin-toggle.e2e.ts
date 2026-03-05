@@ -26,7 +26,6 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Page } from '@playwright/test';
 import {
   cleanupTestConfigDir,
   createMcpClient,
@@ -44,20 +43,19 @@ import {
   BROWSER_TOOL_NAMES,
   openSidePanel,
   openTestAppTab,
+  selectPermission,
   setupAdapterSymlink,
   waitForExtensionConnected,
   waitForLog,
   waitForToolResult,
 } from './helpers.js';
 
-// ---------------------------------------------------------------------------
-// Radix Select helpers
-// ---------------------------------------------------------------------------
-
-/** Click a Radix Select trigger (by aria-label) and choose an option by display text. */
-const selectPermission = async (page: Page, ariaLabel: string, optionText: string) => {
-  await page.locator(`[aria-label="${ariaLabel}"]`).click();
-  await page.locator('[role="option"]', { hasText: optionText }).click();
+/** Read the e2e-test plugin version from its package.json. */
+const getPluginVersion = (): string => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(E2E_TEST_PLUGIN_DIR, 'package.json'), 'utf-8')) as {
+    version: string;
+  };
+  return pkg.version;
 };
 
 // ---------------------------------------------------------------------------
@@ -155,8 +153,12 @@ test.describe('Side panel — tool permission change', () => {
     const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-toggle-'));
-    // Start with e2e-test plugin at 'auto' so all tools default to auto
-    writeTestConfig(configDir, { localPlugins: [absPluginPath], permissions: { 'e2e-test': { permission: 'auto' } } });
+    // Start with e2e-test plugin at 'auto' and mark as reviewed so the unreviewed dialog doesn't interfere
+    const pluginVersion = getPluginVersion();
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto', reviewedVersion: pluginVersion } },
+    });
 
     // Disable skipPermissions so permission selects are interactive
     const server = await startMcpServer(configDir, true, undefined, { OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS: '' });
@@ -282,8 +284,12 @@ test.describe('Side panel — disabled tool dispatch rejection', () => {
     const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-dispatch-'));
-    // Start with e2e-test plugin at 'auto' so tools are callable initially
-    writeTestConfig(configDir, { localPlugins: [absPluginPath], permissions: { 'e2e-test': { permission: 'auto' } } });
+    // Start with e2e-test plugin at 'auto' and mark as reviewed so the unreviewed dialog doesn't interfere
+    const pluginVersion = getPluginVersion();
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto', reviewedVersion: pluginVersion } },
+    });
 
     // Disable skipPermissions so permission selects are interactive
     const server = await startMcpServer(configDir, true, undefined, { OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS: '' });
@@ -398,8 +404,12 @@ test.describe('Side panel — plugin-level permission select', () => {
     const prefixedToolNames = readPluginToolNames();
 
     const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-toggle-all-'));
-    // Start with e2e-test plugin at 'auto' so tools default to auto
-    writeTestConfig(configDir, { localPlugins: [absPluginPath], permissions: { 'e2e-test': { permission: 'auto' } } });
+    // Start with e2e-test plugin at 'auto' and mark as reviewed so the unreviewed dialog doesn't interfere
+    const pluginVersion = getPluginVersion();
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto', reviewedVersion: pluginVersion } },
+    });
 
     // Disable skipPermissions so permission selects are interactive
     const server = await startMcpServer(configDir, true, undefined, { OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS: '' });

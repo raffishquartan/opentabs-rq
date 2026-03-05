@@ -42,7 +42,12 @@ const PluginCard = ({
   transitionClass?: string;
 }) => {
   const [toggleError, setToggleError] = useState<string | null>(null);
-  const [pendingPermission, setPendingPermission] = useState<ToolPermission | null>(null);
+  /** Pending unreviewed permission change awaiting user confirmation. */
+  const [pendingChange, setPendingChange] = useState<{
+    permission: ToolPermission;
+    /** Tool name if this is a per-tool change, undefined for plugin-level. */
+    tool?: string;
+  } | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toggleCounter = useRef(0);
   const preToggleRef = useRef<WireToolDef[]>([]);
@@ -84,20 +89,26 @@ const PluginCard = ({
 
   const handlePluginPermissionChange = (newPermission: ToolPermission) => {
     if (!plugin.reviewed && plugin.permission === 'off' && newPermission !== 'off') {
-      setPendingPermission(newPermission);
+      setPendingChange({ permission: newPermission });
       return;
     }
     applyPluginPermission(newPermission);
   };
 
   const handleEnableAnyway = () => {
-    if (pendingPermission) {
-      applyPluginPermission(pendingPermission, plugin.version);
+    if (!pendingChange) return;
+    if (pendingChange.tool) {
+      // Tool-level: mark plugin reviewed and apply the tool permission change
+      applyPluginPermission(plugin.permission, plugin.version);
+      applyToolPermission(pendingChange.tool, pendingChange.permission);
+    } else {
+      // Plugin-level: set permission and mark reviewed
+      applyPluginPermission(pendingChange.permission, plugin.version);
     }
-    setPendingPermission(null);
+    setPendingChange(null);
   };
 
-  const handleToolPermissionChange = (toolName: string, newPermission: ToolPermission) => {
+  const applyToolPermission = (toolName: string, newPermission: ToolPermission) => {
     const myVersion = ++toggleCounter.current;
     updatePluginTools(prev => {
       preToggleRef.current = prev;
@@ -109,6 +120,17 @@ const PluginCard = ({
       }
       showToggleError(`Failed to update ${toolName}`);
     });
+  };
+
+  const handleToolPermissionChange = (toolName: string, newPermission: ToolPermission) => {
+    if (!plugin.reviewed && newPermission !== 'off') {
+      const currentToolPerm = pluginTools.find(t => t.name === toolName)?.permission ?? 'off';
+      if (currentToolPerm === 'off') {
+        setPendingChange({ permission: newPermission, tool: toolName });
+        return;
+      }
+    }
+    applyToolPermission(toolName, newPermission);
   };
 
   const filterLower = toolFilter?.toLowerCase() ?? '';
@@ -282,7 +304,7 @@ const PluginCard = ({
             ))}
       </Accordion.Content>
 
-      <Dialog open={pendingPermission !== null} onOpenChange={open => !open && setPendingPermission(null)}>
+      <Dialog open={pendingChange !== null} onOpenChange={open => !open && setPendingChange(null)}>
         <Dialog.Content onInteractOutside={(e: Event) => e.preventDefault()}>
           <Dialog.Header>Unreviewed Plugin</Dialog.Header>
           <Dialog.Body>

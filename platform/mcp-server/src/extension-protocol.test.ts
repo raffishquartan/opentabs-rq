@@ -777,6 +777,37 @@ describe('sendSyncFull', () => {
     expect(typeof msg.params.serverVersion).toBe('string');
   });
 
+  test('includes browserPermission in sync.full payload', async () => {
+    setupTmpConfigDir();
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+    state.pluginPermissions = { browser: { permission: 'ask' } };
+
+    await sendSyncFull(state);
+
+    expect(ws.sent).toHaveLength(1);
+    const msg = JSON.parse(ws.sent[0] as string) as {
+      params: { browserPermission?: string };
+    };
+    expect(msg.params.browserPermission).toBe('ask');
+  });
+
+  test('browserPermission defaults to "off" in sync.full when not configured', async () => {
+    setupTmpConfigDir();
+    const state = createState();
+    const ws = createMockWs();
+    state.extensionWs = ws;
+
+    await sendSyncFull(state);
+
+    expect(ws.sent).toHaveLength(1);
+    const msg = JSON.parse(ws.sent[0] as string) as {
+      params: { browserPermission?: string };
+    };
+    expect(msg.params.browserPermission).toBe('off');
+  });
+
   test('includes iconSvg and iconInactiveSvg in sync.full payload when present', async () => {
     setupTmpConfigDir();
     const state = createState();

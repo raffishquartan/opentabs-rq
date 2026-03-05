@@ -4,6 +4,7 @@ import {
   createState,
   EMPTY_REGISTRY,
   generateReviewToken,
+  getConfiguredToolPermission,
   getNextRequestId,
   getToolPermission,
   prefixedToolName,
@@ -153,6 +154,45 @@ describe('getToolPermission', () => {
     const state = createState();
     state.pluginPermissions = { slack: { tools: { read_messages: 'auto' } } };
     expect(getToolPermission(state, 'slack', 'send_message')).toBe('off');
+  });
+});
+
+describe('getConfiguredToolPermission', () => {
+  test('returns "off" for unconfigured plugin', () => {
+    const state = createState();
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('off');
+  });
+
+  test('returns plugin-level permission when tool is not overridden', () => {
+    const state = createState();
+    state.pluginPermissions = { slack: { permission: 'ask' } };
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('ask');
+  });
+
+  test('returns per-tool override over plugin default', () => {
+    const state = createState();
+    state.pluginPermissions = { slack: { permission: 'ask', tools: { send_message: 'auto' } } };
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('auto');
+  });
+
+  test('ignores skipPermissions — returns "ask" even when skipPermissions is true', () => {
+    const state = createState();
+    state.skipPermissions = true;
+    state.pluginPermissions = { slack: { permission: 'ask' } };
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('ask');
+  });
+
+  test('ignores skipPermissions for per-tool override of "ask"', () => {
+    const state = createState();
+    state.skipPermissions = true;
+    state.pluginPermissions = { slack: { permission: 'auto', tools: { send_message: 'ask' } } };
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('ask');
+  });
+
+  test('returns "off" when skipPermissions is true but no plugin config', () => {
+    const state = createState();
+    state.skipPermissions = true;
+    expect(getConfiguredToolPermission(state, 'slack', 'send_message')).toBe('off');
   });
 });
 

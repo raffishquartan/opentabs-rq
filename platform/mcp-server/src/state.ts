@@ -373,11 +373,22 @@ export const getNextRequestId = (): string => crypto.randomUUID();
 /** Get the prefixed tool name: plugin_tool */
 export const prefixedToolName = (plugin: string, tool: string): string => `${plugin}_${tool}`;
 
+/** Resolve the configured permission for a tool (ignoring skipPermissions).
+ *  Resolution order: per-tool override → plugin default → 'off'.
+ *  Used by the side panel to display what the user actually configured. */
+export const getConfiguredToolPermission = (
+  state: ServerState,
+  pluginName: string,
+  toolName: string,
+): ToolPermission => {
+  const pluginConfig = state.pluginPermissions[pluginName];
+  return pluginConfig ? (pluginConfig.tools?.[toolName] ?? pluginConfig.permission ?? 'off') : 'off';
+};
+
 /** Resolve the effective permission for a tool.
  *  Resolution order: per-tool override → plugin default → 'off', then skipPermissions converts 'ask' to 'auto'. */
 export const getToolPermission = (state: ServerState, pluginName: string, toolName: string): ToolPermission => {
-  const pluginConfig = state.pluginPermissions[pluginName];
-  const resolved = pluginConfig ? (pluginConfig.tools?.[toolName] ?? pluginConfig.permission ?? 'off') : 'off';
+  const resolved = getConfiguredToolPermission(state, pluginName, toolName);
   if (state.skipPermissions && resolved === 'ask') return 'auto';
   return resolved;
 };

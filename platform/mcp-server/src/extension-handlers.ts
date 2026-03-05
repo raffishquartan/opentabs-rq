@@ -28,7 +28,7 @@ import {
   updatePlugin,
 } from './plugin-management.js';
 import type { RegisteredPlugin, ServerState, TabMapping } from './state.js';
-import { DISPATCH_TIMEOUT_MS, getToolPermission, MAX_DISPATCH_TIMEOUT_MS } from './state.js';
+import { DISPATCH_TIMEOUT_MS, getConfiguredToolPermission, MAX_DISPATCH_TIMEOUT_MS } from './state.js';
 import { version } from './version.js';
 
 /** Valid ToolPermission values for parameter validation */
@@ -103,7 +103,7 @@ const sendPluginManagementError = (state: ServerState, id: string | number, err:
  * or tabState, source, sdkVersion for config.getState).
  *
  * The plugin-level permission comes from pluginPermissions[plugin.name]?.permission ?? 'off'.
- * Each tool's permission is resolved via getToolPermission() (per-tool override → plugin default → 'off').
+ * Each tool's permission is resolved via getConfiguredToolPermission() (per-tool override → plugin default → 'off').
  */
 const serializePluginForExtension = (
   state: ServerState,
@@ -154,7 +154,7 @@ const serializePluginForExtension = (
       ...(t.iconSvg ? { iconSvg: t.iconSvg } : {}),
       ...(t.iconInactiveSvg ? { iconInactiveSvg: t.iconInactiveSvg } : {}),
       ...(t.group ? { group: t.group } : {}),
-      permission: getToolPermission(state, plugin.name, t.name),
+      permission: getConfiguredToolPermission(state, plugin.name, t.name),
     })),
   };
 };
@@ -318,7 +318,7 @@ const buildConfigStatePayload = (state: ServerState): ConfigStateResult => {
       name: ct.name,
       description: ct.description,
       ...(ct.summary ? { summary: ct.summary } : {}),
-      permission: getToolPermission(state, 'browser', ct.name),
+      permission: getConfiguredToolPermission(state, 'browser', ct.name),
       ...(ct.icon ? { icon: ct.icon } : {}),
       ...(ct.group ? { group: ct.group } : {}),
     }));

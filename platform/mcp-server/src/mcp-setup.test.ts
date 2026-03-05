@@ -900,6 +900,54 @@ describe('getAllToolsList — platform tools', () => {
     expect(allToolNames).not.toContain('plugin_inspect');
     expect(allToolNames).not.toContain('plugin_mark_reviewed');
   });
+
+  test('buildConfigStatePayload returns configured permissions, not effective (ignores skipPermissions)', () => {
+    const state = createState();
+    state.skipPermissions = true;
+    state.registry = buildRegistry([createPlugin('test', ['ping', 'pong'])], []);
+    state.pluginPermissions = {
+      test: { permission: 'ask', tools: { pong: 'off' } },
+    };
+    rebuildCachedBrowserTools(state);
+
+    const payload = buildConfigStatePayload(state);
+
+    // Plugin tools: ping inherits plugin default 'ask', pong has per-tool 'off'
+    const testPlugin = payload.plugins.find(p => p.name === 'test');
+    expect(testPlugin).toBeDefined();
+    const ping = testPlugin?.tools.find(t => t.name === 'ping');
+    const pong = testPlugin?.tools.find(t => t.name === 'pong');
+    // With skipPermissions, getToolPermission would return 'auto' for 'ask' — but
+    // buildConfigStatePayload should return the configured value 'ask'
+    expect(ping?.permission).toBe('ask');
+    expect(pong?.permission).toBe('off');
+  });
+
+  test('buildConfigStatePayload returns configured browser tool permissions (ignores skipPermissions)', () => {
+    const state = createState();
+    state.skipPermissions = true;
+    state.pluginPermissions = { browser: { permission: 'ask' } };
+    state.browserTools = [
+      {
+        name: 'browser_test',
+        description: 'Test browser tool',
+        input: z.object({}),
+        handler: async () => ({ content: [] }),
+      },
+    ];
+    rebuildCachedBrowserTools(state);
+
+    const payload = buildConfigStatePayload(state);
+
+    const bt = payload.browserTools.find(t => t.name === 'browser_test');
+    expect(bt).toBeDefined();
+    // With skipPermissions, getToolPermission returns 'auto' for 'ask' — but
+    // buildConfigStatePayload should return the configured 'ask'
+    expect(bt?.permission).toBe('ask');
+
+    // browserPermission should also reflect configured value
+    expect(payload.browserPermission).toBe('ask');
+  });
 });
 
 describe('registerMcpHandlers — generic dispatch error sanitization', () => {

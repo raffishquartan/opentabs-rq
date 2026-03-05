@@ -109,6 +109,7 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
       plugins,
       failedPlugins: configState.failedPlugins,
       browserTools: configState.browserTools,
+      browserPermission: configState.browserPermission,
       serverVersion: configState.serverVersion,
       skipPermissions: configState.skipPermissions,
     },
