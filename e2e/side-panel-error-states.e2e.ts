@@ -5,6 +5,8 @@
  *   1. Failed plugin cards render with "Failed to load" header, specifier, and error message
  *   2. Long error messages (>100 chars) show a "Show more"/"Show less" toggle
  *   3. Permission change via the UI persists to config.json and is reflected in MCP tools/list
+ *   4. Connection loss wipes transient state (search query, npm results) but preserves
+ *      persisted state (accordion expand via chrome.storage.session)
  *
  * Note on optimistic rollback: PluginCard.tsx rolls back the Select value if
  * the bridge call fails (e.g., setToolPermission rejects). However, this cannot
@@ -22,8 +24,10 @@ import {
   cleanupTestConfigDir,
   createMcpClient,
   createMinimalPlugin,
+  E2E_TEST_PLUGIN_DIR,
   expect,
   launchExtensionContext,
+  readPluginToolNames,
   readTestConfig,
   startMcpServer,
   test,
@@ -169,7 +173,7 @@ test.describe('Side panel error states', () => {
       await expect(sidePanel.getByText('Failed to load')).toBeVisible({ timeout: 15_000 });
 
       // The plugin specifier (the local path) is displayed
-      await expect(sidePanel.getByText(brokenPath)).toBeVisible();
+      await expect(sidePanel.getByText(brokenPath, { exact: true })).toBeVisible();
 
       // The error card container is rendered with destructive styling
       const errorCard = sidePanel.locator('.bg-destructive\\/10');
@@ -235,6 +239,90 @@ test.describe('Side panel error states', () => {
       cleanupTestConfigDir(configDir);
       fs.rmSync(tmpDir, { recursive: true, force: true });
       fs.rmSync(cleanupDir, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US-003: Connection loss — transient state wiped, persisted state survives
+// ---------------------------------------------------------------------------
+
+test.describe('Side panel — connection loss state behavior', () => {
+  test('disconnect wipes transient state but preserves accordion expand', async () => {
+    // Use the e2e-test plugin so the side panel has a real plugin card
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-conn-loss-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const serverPort = server.port;
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sidePanel = await openSidePanel(context);
+
+      // 1. Wait for connected state: plugin card visible
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // 2. Expand the Browser tools accordion (persisted in chrome.storage.session)
+      const browserCard = sidePanel.locator('button[aria-expanded]').filter({ hasText: 'Browser' });
+      await expect(browserCard).toBeVisible({ timeout: 5_000 });
+      // Click to expand if not already expanded
+      const isExpanded = await browserCard.getAttribute('aria-expanded');
+      if (isExpanded !== 'true') {
+        await browserCard.click();
+      }
+      await expect(browserCard).toHaveAttribute('aria-expanded', 'true', { timeout: 5_000 });
+
+      // 3. Type a search query to create transient state (searchQuery + search mode).
+      // The search input is visible when connected and has the placeholder text.
+      const searchInput = sidePanel.getByPlaceholder('Search plugins and tools...');
+      await expect(searchInput).toBeVisible({ timeout: 5_000 });
+      await searchInput.fill('test-search-query');
+      await expect(searchInput).toHaveValue('test-search-query');
+
+      // 4. Kill server → disconnect screen appears
+      await server.kill();
+      await expect(sidePanel.getByText('Cannot Reach MCP Server')).toBeVisible({ timeout: 30_000 });
+
+      // Search bar should be hidden when disconnected (showSearchBar = connected && !loading)
+      await expect(searchInput).toBeHidden({ timeout: 5_000 });
+
+      // 5. Restart server on the same port → reconnection
+      const server2 = await startMcpServer(configDir, true, serverPort);
+
+      try {
+        // Wait for the side panel to reconnect and show plugin cards again
+        await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 45_000 });
+
+        // 6. Verify transient state is wiped: search bar is visible again but empty
+        const searchInputAfter = sidePanel.getByPlaceholder('Search plugins and tools...');
+        await expect(searchInputAfter).toBeVisible({ timeout: 5_000 });
+        await expect(searchInputAfter).toHaveValue('');
+
+        // 7. Verify persisted state survives: Browser accordion still expanded
+        // (browserToolsOpen is stored in chrome.storage.session, not wiped by disconnect)
+        const browserCardAfter = sidePanel.locator('button[aria-expanded]').filter({ hasText: 'Browser' });
+        await expect(browserCardAfter).toHaveAttribute('aria-expanded', 'true', { timeout: 5_000 });
+      } finally {
+        await server2.kill();
+      }
+
+      await sidePanel.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
     }
   });
 });
