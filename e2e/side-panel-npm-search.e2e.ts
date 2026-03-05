@@ -74,4 +74,69 @@ test.describe('Side panel npm search', () => {
       cleanupTestConfigDir(configDir);
     }
   });
+
+  test('install plugin from search results via Install button', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-install-'));
+    const prefixDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-npm-sp-install-'));
+
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: {
+        'e2e-test': { permission: 'auto' },
+        browser: { permission: 'auto' },
+      },
+    });
+
+    // Server needs npm discovery enabled (OPENTABS_SKIP_NPM_DISCOVERY: undefined)
+    // and NPM_CONFIG_PREFIX to isolate the global install to a temp dir
+    const server = await startMcpServer(configDir, false, undefined, {
+      OPENTABS_SKIP_NPM_DISCOVERY: undefined,
+      NPM_CONFIG_PREFIX: prefixDir,
+    });
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sidePanelPage = await openSidePanel(context);
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Search for 'slack' to find the Slack plugin
+      const searchInput = sidePanelPage.getByPlaceholder('Search plugins and tools...');
+      await searchInput.fill('slack');
+
+      // Wait for Available section with results
+      await expect(sidePanelPage.getByText('Available')).toBeVisible({ timeout: 15_000 });
+      const installButton = sidePanelPage.getByRole('button', { name: 'Install' }).first();
+      await expect(installButton).toBeVisible();
+
+      // Click Install on the first available plugin
+      await installButton.click();
+
+      // After install completes, handleSearchChange('') auto-clears the search.
+      // The plugin then appears as a PluginCard in the main installed list.
+      // Wait for the Slack plugin card to appear (accordion trigger with display name).
+      // Use a generous timeout since npm install -g takes time.
+      const slackCard = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'Slack' });
+      await expect(slackCard).toBeVisible({ timeout: 120_000 });
+
+      // Verify the search was cleared (Available section gone)
+      await expect(sidePanelPage.getByText('Available')).toBeHidden({ timeout: 5_000 });
+
+      // Verify the plugin displays the correct name
+      await expect(slackCard).toContainText('Slack');
+
+      await sidePanelPage.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      fs.rmSync(prefixDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
 });
