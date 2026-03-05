@@ -14,10 +14,11 @@
  * layer end-to-end, including param validation, error handling, and response
  * shapes.
  *
- * For install/remove/update, only error paths are tested at the API level
- * because the happy paths require actual npm install -g, which modifies
- * global state. The local plugin remove path is tested with a temporary
- * minimal plugin added to localPlugins.
+ * For install/remove/update, error paths are tested using the shared
+ * mcpServer fixture. The install+remove happy path uses NPM_CONFIG_PREFIX
+ * to redirect npm global operations to a temp directory, exercising the
+ * real npm registry without modifying host state. The local plugin remove
+ * path is tested with a temporary minimal plugin added to localPlugins.
  */
 
 import fs from 'node:fs';
@@ -63,7 +64,7 @@ const connectWs = async (
   secret?: string,
 ): Promise<{
   ws: WebSocket;
-  sendRequest: (method: string, params?: Record<string, unknown>) => Promise<JsonRpcResponse>;
+  sendRequest: (method: string, params?: Record<string, unknown>, timeoutMs?: number) => Promise<JsonRpcResponse>;
   close: () => void;
 }> => {
   const { wsUrl, wsSecret } = await fetchWsInfo(port, secret);
@@ -102,13 +103,17 @@ const connectWs = async (
     }
   };
 
-  const sendRequest = (method: string, params?: Record<string, unknown>): Promise<JsonRpcResponse> => {
+  const sendRequest = (
+    method: string,
+    params?: Record<string, unknown>,
+    timeoutMs = 30_000,
+  ): Promise<JsonRpcResponse> => {
     const id = crypto.randomUUID();
     return new Promise<JsonRpcResponse>((resolve, reject) => {
       const timeout = setTimeout(() => {
         pending.delete(id);
         reject(new Error(`JSON-RPC request timed out: ${method} (id=${id})`));
-      }, 30_000);
+      }, timeoutMs);
 
       pending.set(id, resp => {
         clearTimeout(timeout);
@@ -751,6 +756,82 @@ test.describe('WebSocket authentication', () => {
       expect(Array.isArray(result.outdatedPlugins)).toBe(true);
     } finally {
       close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// plugin.install + plugin.remove happy path (real npm registry, isolated prefix)
+// ---------------------------------------------------------------------------
+
+test.describe('plugin.install + plugin.remove happy path', () => {
+  test('installs an npm plugin via NPM_CONFIG_PREFIX and then removes it', async () => {
+    test.slow(); // real npm install + uninstall over the network
+    const configDir = createTestConfigDir();
+    const prefixDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-npm-install-'));
+
+    let server: Awaited<ReturnType<typeof startMcpServer>> | undefined;
+    let client: Awaited<ReturnType<typeof connectWs>> | undefined;
+    let mcpClient: ReturnType<typeof createMcpClient> | undefined;
+
+    try {
+      // Start server with npm discovery enabled, prefix isolated to temp dir
+      server = await startMcpServer(configDir, false, undefined, {
+        OPENTABS_SKIP_NPM_DISCOVERY: undefined,
+        NPM_CONFIG_PREFIX: prefixDir,
+      });
+
+      // Connect a WebSocket client for plugin management RPC
+      client = await connectWs(server.port, server.secret);
+
+      // Install the slack plugin via the shorthand name (generous timeout for npm install -g)
+      const installResp = await client.sendRequest('plugin.install', { name: 'slack' }, 120_000);
+
+      expect(installResp.error).toBeUndefined();
+      expect(installResp.result).toBeDefined();
+      const installResult = installResp.result as {
+        ok: boolean;
+        plugin: { name: string; displayName: string; version: string; toolCount: number };
+      };
+      expect(installResult.ok).toBe(true);
+      expect(installResult.plugin.name).toBe('slack');
+      expect(installResult.plugin.toolCount).toBeGreaterThan(0);
+
+      // Verify the plugin appears in /health with source='npm'
+      const health = await server.waitForHealth(h => {
+        const slackPlugin = h.pluginDetails?.find(p => p.name === 'slack');
+        return slackPlugin !== undefined && slackPlugin.source === 'npm';
+      }, 15_000);
+      const slackPlugin = health.pluginDetails?.find(p => p.name === 'slack');
+      expect(slackPlugin).toBeDefined();
+      expect(slackPlugin?.source).toBe('npm');
+
+      // Verify slack tools appear in MCP tools/list
+      mcpClient = createMcpClient(server.port, server.secret);
+      await mcpClient.initialize();
+      const tools = await mcpClient.listTools();
+      expect(tools.some(t => t.name.startsWith('slack_'))).toBe(true);
+
+      // Remove the plugin (generous timeout for npm uninstall -g + rediscovery)
+      const removeResp = await client.sendRequest('plugin.remove', { name: 'slack' }, 60_000);
+      expect(removeResp.error).toBeUndefined();
+      expect((removeResp.result as { ok: boolean }).ok).toBe(true);
+
+      // Verify the plugin is gone from /health
+      await server.waitForHealth(h => {
+        const slack = h.pluginDetails?.find(p => p.name === 'slack');
+        return slack === undefined;
+      }, 30_000);
+
+      // Verify slack tools are gone from MCP tools/list
+      const toolsAfter = await mcpClient.listTools();
+      expect(toolsAfter.some(t => t.name.startsWith('slack_'))).toBe(false);
+    } finally {
+      await mcpClient?.close();
+      client?.close();
+      if (server) await server.kill();
+      cleanupTestConfigDir(configDir);
+      fs.rmSync(prefixDir, { recursive: true, force: true });
     }
   });
 });
