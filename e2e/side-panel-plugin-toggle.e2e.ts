@@ -915,4 +915,78 @@ test.describe('Side panel — skipPermissions mode and group headers', () => {
       cleanupTestConfigDir(configDir);
     }
   });
+
+  test('Restore approvals button disables skipPermissions and survives permission change reload', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const pluginVersion = getPluginVersion();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-restore-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: {
+        browser: { permission: 'auto' },
+        'e2e-test': { permission: 'auto', reviewedVersion: pluginVersion },
+      },
+    });
+
+    // Enable skipPermissions so the banner appears
+    const server = await startMcpServer(configDir, true, undefined, { OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS: '1' });
+    const mcpClient = createMcpClient(server.port, server.secret);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await mcpClient.initialize();
+
+      const sidePanelPage = await openSidePanel(context);
+
+      // Verify the 'Approvals skipped' banner is visible
+      await expect(sidePanelPage.getByText('Approvals skipped')).toBeVisible({ timeout: 15_000 });
+
+      // Click 'Restore approvals' button
+      await sidePanelPage.getByRole('button', { name: 'Restore approvals' }).click();
+
+      // Verify the banner disappears
+      await expect(sidePanelPage.getByText('Approvals skipped')).toBeHidden({ timeout: 5_000 });
+
+      // Change browser permission to 'off' — this triggers a hot reload via plugins.changed
+      await selectPermission(sidePanelPage, 'Permission for browser tools', 'Off');
+
+      // Wait for the permission change to propagate via MCP
+      await expect
+        .poll(
+          async () => {
+            const toolList = await mcpClient.listTools();
+            const tool = toolList.find(t => t.name === 'browser_list_tabs');
+            return tool?.description?.startsWith('[Disabled]') ?? false;
+          },
+          {
+            timeout: 15_000,
+            message: 'browser_list_tabs should have [Disabled] prefix after setting browser to off',
+          },
+        )
+        .toBe(true);
+
+      // Verify the banner is still hidden after the reload (skipPermissions was not re-enabled)
+      await expect(sidePanelPage.getByText('Approvals skipped')).toBeHidden({ timeout: 5_000 });
+
+      // Verify permission selects remain interactive
+      const browserTrigger = sidePanelPage.locator('[aria-label="Permission for browser tools"]');
+      await expect(browserTrigger).toBeEnabled();
+
+      // Change browser permission back to 'auto' to verify selects still work
+      await selectPermission(sidePanelPage, 'Permission for browser tools', 'Auto');
+      await expect(browserTrigger).toContainText('Auto', { timeout: 5_000 });
+
+      await sidePanelPage.close();
+    } finally {
+      await mcpClient.close().catch(() => {});
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
 });
