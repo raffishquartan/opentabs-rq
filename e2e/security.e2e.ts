@@ -343,6 +343,75 @@ const askTest = base.extend<AskPermissionFixtures>({
   },
 });
 
+// ---------------------------------------------------------------------------
+// US-005: Rate limiting on POST /reload endpoint
+// ---------------------------------------------------------------------------
+
+test.describe('Rate limiting on POST /reload endpoint', () => {
+  let configDir = '';
+
+  test.beforeEach(() => {
+    configDir = createTestConfigDir();
+  });
+
+  test.afterEach(() => {
+    if (configDir) cleanupTestConfigDir(configDir);
+  });
+
+  test('returns 429 after exceeding rate limit of 10 requests per minute', async () => {
+    const server = await startMcpServer(configDir, true);
+    try {
+      await server.waitForHealth(h => h.status === 'ok');
+
+      const url = `http://localhost:${server.port}/reload`;
+      const headers: Record<string, string> = {};
+      if (server.secret) headers.Authorization = `Bearer ${server.secret}`;
+
+      const statuses: number[] = [];
+      for (let i = 0; i < 12; i++) {
+        const res = await fetch(url, { method: 'POST', headers });
+        statuses.push(res.status);
+      }
+
+      // First 10 should succeed (200), remaining should be rate-limited (429)
+      const successes = statuses.filter(s => s === 200);
+      const rateLimited = statuses.filter(s => s === 429);
+      expect(successes).toHaveLength(10);
+      expect(rateLimited.length).toBeGreaterThanOrEqual(2);
+    } finally {
+      await server.kill();
+    }
+  });
+
+  test('429 response includes Retry-After header', async () => {
+    const server = await startMcpServer(configDir, true);
+    try {
+      await server.waitForHealth(h => h.status === 'ok');
+
+      const url = `http://localhost:${server.port}/reload`;
+      const headers: Record<string, string> = {};
+      if (server.secret) headers.Authorization = `Bearer ${server.secret}`;
+
+      // Exhaust the rate limit
+      for (let i = 0; i < 10; i++) {
+        await fetch(url, { method: 'POST', headers });
+      }
+
+      // 11th request should be rate-limited with Retry-After header
+      const res = await fetch(url, { method: 'POST', headers });
+      expect(res.status).toBe(429);
+      expect(await res.text()).toBe('Too Many Requests');
+      expect(res.headers.get('Retry-After')).toBe('60');
+    } finally {
+      await server.kill();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US-004: Extension disconnect during pending ask confirmation
+// ---------------------------------------------------------------------------
+
 askTest.describe('Extension disconnect during pending ask confirmation', () => {
   askTest(
     'disconnecting extension while confirmation is pending returns error quickly',
