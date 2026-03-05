@@ -181,19 +181,6 @@ const PluginCard = ({
                 DEV
               </Badge>
             )}
-            {!plugin.sdkVersion && (
-              <Tooltip>
-                <Tooltip.Trigger asChild>
-                  <Badge
-                    variant="outline"
-                    size="sm"
-                    className="border-accent bg-accent/10 align-middle text-accent-foreground">
-                    SDK
-                  </Badge>
-                </Tooltip.Trigger>
-                <Tooltip.Content>SDK version mismatch — rebuild plugin</Tooltip.Content>
-              </Tooltip>
-            )}
             {!plugin.reviewed && (
               <Tooltip>
                 <Tooltip.Trigger asChild>
