@@ -27,6 +27,12 @@ RUN rm -rf /ms-playwright/firefox-* /ms-playwright/webkit-* \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Install Claude CLI ---
+# --- Pin Node.js to v22 LTS ---
+# The Playwright base image ships Node 24, but the project lockfile was
+# generated with npm 10 (Node 22). Mismatched npm versions cause
+# package-lock.json drift on every npm install.
+RUN npm install -g n && n 22 && hash -r \n    && node --version && npm --version
+
 # Claude Code is distributed as a standalone binary via npm.
 # Install globally so it's available as `claude` in PATH.
 RUN npm install -g @anthropic-ai/claude-code@latest \
