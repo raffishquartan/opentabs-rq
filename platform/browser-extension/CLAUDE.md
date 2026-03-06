@@ -43,12 +43,12 @@ The full definitions live in `styles.css`. Key tokens:
 | Token          | Light     | Dark      | Tailwind class    |
 | -------------- | --------- | --------- | ----------------- |
 | `--radius`     | `0`       | (same)    | `rounded`         |
-| `--background` | `#fff`    | `#1a1a1a` | `bg-background`   |
+| `--background` | `#fff`    | `#111111` | `bg-background`   |
 | `--foreground` | `#000`    | `#f5f5f5` | `text-foreground` |
 | `--primary`    | `#ffdb33` | `#ffdb33` | `bg-primary`      |
-| `--border`     | `#000`    | `#5c5c5c` | `border-border`   |
-| `--card`       | `#fff`    | `#242424` | `bg-card`         |
-| `--muted`      | `#cccccc` | `#3f3f46` | `bg-muted`        |
+| `--border`     | `#000`    | `#777777` | `border-border`   |
+| `--card`       | `#fff`    | `#1c1c1c` | `bg-card`         |
+| `--muted`      | `#cccccc` | `#333333` | `bg-muted`        |
 
 Shadows are flat offsets using `var(--border)` — no blur, no spread. Fonts: `font-head` (Archivo Black), `font-sans` (Space Grotesk), `font-mono` (Space Mono).
 

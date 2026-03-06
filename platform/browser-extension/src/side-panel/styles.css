@@ -75,17 +75,17 @@
 }
 
 .dark {
-  --background: #1a1a1a;
+  --background: #111111;
   --foreground: #f5f5f5;
-  --card: #242424;
+  --card: #1c1c1c;
   --card-foreground: #f5f5f5;
   --primary: #ffdb33;
   --primary-hover: #ffcc00;
   --primary-foreground: #000;
-  --secondary: #3a3a3a;
-  --secondary-hover: #4a4a4a;
+  --secondary: #333333;
+  --secondary-hover: #444444;
   --secondary-foreground: #f5f5f5;
-  --muted: #3f3f46;
+  --muted: #333333;
   --muted-foreground: #a0a0a0;
   --accent: #fae583;
   --accent-foreground: #000;
@@ -93,7 +93,7 @@
   --destructive-foreground: #fff;
   --success: #22c55e;
   --success-foreground: #000;
-  --border: #5c5c5c;
+  --border: #777777;
 
   /* Lighter/brighter avatar palette for dark backgrounds */
   --avatar-0: #ef5350;

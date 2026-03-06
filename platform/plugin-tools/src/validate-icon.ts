@@ -257,8 +257,8 @@ const contrastRatio = (lum1: number, lum2: number): number => {
   return (lighter + 0.05) / (darker + 0.05);
 };
 
-/** Dark card background color (#242424) relative luminance, precomputed. */
-const DARK_BG_LUMINANCE = wcagRelativeLuminance(36, 36, 36);
+/** Dark card background color (#1c1c1c) relative luminance, precomputed. */
+const DARK_BG_LUMINANCE = wcagRelativeLuminance(28, 28, 28);
 
 /**
  * Minimum contrast ratio required for an icon color to be considered visible
@@ -623,9 +623,9 @@ const generateInactiveIcon = (svgContent: string): string => {
 
 /**
  * Adapt a single color value for dark mode by inverting its lightness when the
- * color has insufficient contrast against the dark card background (#242424).
+ * color has insufficient contrast against the dark card background (#1c1c1c).
  *
- * Colors with a WCAG contrast ratio >= 3:1 against #242424 are left unchanged
+ * Colors with a WCAG contrast ratio >= 3:1 against #1c1c1c are left unchanged
  * (they are already visible on dark backgrounds — e.g. Slack's brand colors,
  * Discord's blurple). Colors below that threshold (e.g. black, dark grays) have
  * their HSL lightness inverted (L → 100% - L) so they become light enough to see.
@@ -674,7 +674,7 @@ const convertColorForDark = (value: string): string => {
 
 /**
  * Generate a dark-mode variant of an SVG icon by selectively adapting colors
- * that would be invisible or hard to see against a dark background (#242424).
+ * that would be invisible or hard to see against a dark background (#1c1c1c).
  *
  * Colors with sufficient contrast (>= 3:1 WCAG) against the dark card background
  * are left unchanged — colorful brand icons (Slack, Discord) pass through untouched.

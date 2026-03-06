@@ -992,7 +992,7 @@ describe('generateDarkIcon', () => {
     expect(MIN_ICON_CONTRAST).toBe(3);
   });
 
-  // -- Black / very dark colors should be inverted (invisible on #242424) --
+  // -- Black / very dark colors should be inverted (invisible on #1c1c1c) --
 
   test('fill="black" → inverted to a light color (visible on dark bg)', () => {
     const svg = svgWrap('<rect fill="black"/>');
@@ -1016,7 +1016,7 @@ describe('generateDarkIcon', () => {
   test('fill="#333333" (very dark gray) → inverted to a light gray', () => {
     const svg = svgWrap('<rect fill="#333333"/>');
     const result = generateDarkIcon(svg);
-    // #333333 has low contrast against #242424 → lightness inverted
+    // #333333 has low contrast against #1c1c1c → lightness inverted
     // Should NOT still be #333333
     expect(result).not.toContain('fill="#333333"');
     // Result should be a lighter hex
@@ -1121,8 +1121,8 @@ describe('generateDarkIcon', () => {
   });
 
   test('fill="rgb(255, 0, 0)" (pure red) → unchanged (sufficient contrast)', () => {
-    // Pure red (#ff0000) has relative luminance ~0.2126 and contrast vs #242424 (~0.0186) is
-    // (0.2126 + 0.05) / (0.0186 + 0.05) ≈ 3.83 — above 3:1 threshold
+    // Pure red (#ff0000) has relative luminance ~0.2126 and contrast vs #1c1c1c (~0.0113) is
+    // (0.2126 + 0.05) / (0.0113 + 0.05) ≈ 4.28 — above 3:1 threshold
     const svg = svgWrap('<rect fill="rgb(255, 0, 0)"/>');
     const result = generateDarkIcon(svg);
     expect(result).toContain('fill="rgb(255, 0, 0)"');
@@ -1145,7 +1145,7 @@ describe('generateDarkIcon', () => {
   });
 
   test('fill="navy" → inverted (too dark)', () => {
-    // navy = #000080, very dark blue, low contrast against #242424
+    // navy = #000080, very dark blue, low contrast against #1c1c1c
     const svg = svgWrap('<rect fill="navy"/>');
     const result = generateDarkIcon(svg);
     expect(result).not.toContain('fill="navy"');
@@ -1300,7 +1300,7 @@ describe('generateDarkIcon', () => {
     expect(b).toBe(255); // blue channel should stay maxed
   });
 
-  test('fill="darkgreen" → inverted (too dark against #242424)', () => {
+  test('fill="darkgreen" → inverted (too dark against #1c1c1c)', () => {
     // darkgreen = #006400, very low luminance
     const svg = svgWrap('<rect fill="darkgreen"/>');
     const result = generateDarkIcon(svg);

@@ -65,11 +65,11 @@ docs/
 | Token          | Light     | Dark      | Tailwind class    |
 | -------------- | --------- | --------- | ----------------- |
 | `--radius`     | `0`       | (same)    | `rounded`         |
-| `--background` | `#fff`    | `#1a1a1a` | `bg-background`   |
+| `--background` | `#fff`    | `#111111` | `bg-background`   |
 | `--foreground` | `#000`    | `#f5f5f5` | `text-foreground` |
 | `--primary`    | `#ffdb33` | `#ffdb33` | `bg-primary`      |
-| `--border`     | `#000`    | `#5c5c5c` | `border-border`   |
-| `--card`       | `#fff`    | `#242424` | `bg-card`         |
+| `--border`     | `#000`    | `#777777` | `border-border`   |
+| `--card`       | `#fff`    | `#1c1c1c` | `bg-card`         |
 
 Shadows are flat offsets using `var(--border)` with no blur or spread.
 
