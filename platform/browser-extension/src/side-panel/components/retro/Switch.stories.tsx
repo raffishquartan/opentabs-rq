@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
+import { expect, userEvent, within } from 'storybook/test';
 import { Switch } from './Switch';
 
 const meta: Meta<typeof Switch> = { title: 'Retro/Switch', component: Switch };
@@ -20,7 +21,16 @@ const InteractiveDemo = () => {
   );
 };
 
-const Interactive: Story = { render: () => <InteractiveDemo /> };
+const Interactive: Story = {
+  render: () => <InteractiveDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const switchEl = canvas.getByRole('switch');
+    await expect(switchEl).toHaveAttribute('data-state', 'unchecked');
+    await userEvent.click(switchEl);
+    await expect(switchEl).toHaveAttribute('data-state', 'checked');
+  },
+};
 
 export default meta;
 export { Default, Checked, Disabled, Interactive };

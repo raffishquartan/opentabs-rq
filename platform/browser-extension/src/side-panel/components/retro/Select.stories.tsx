@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useState } from 'react';
+import { expect, screen, userEvent, within } from 'storybook/test';
 import { Select } from './Select';
 
 const meta: Meta = {
@@ -98,7 +99,17 @@ const InteractiveDemo = () => {
   );
 };
 
-const Interactive: Story = { render: () => <InteractiveDemo /> };
+const Interactive: Story = {
+  render: () => <InteractiveDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('combobox');
+    await userEvent.click(trigger);
+    const option = await screen.findByRole('option', { name: 'Banana' });
+    await userEvent.click(option);
+    await expect(canvas.getByText('banana')).toBeInTheDocument();
+  },
+};
 
 export default meta;
 export { Default, Disabled, WithGroups, WithSeparator, Interactive };

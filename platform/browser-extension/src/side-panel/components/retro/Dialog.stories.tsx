@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { expect, screen, userEvent, within } from 'storybook/test';
 import { Button } from './Button';
 import { Dialog } from './Dialog';
 
@@ -31,6 +32,13 @@ const Default: Story = {
       </Dialog.Content>
     </Dialog>
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByRole('button', { name: 'Open Dialog' });
+    await userEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog');
+    await expect(dialog).toBeVisible();
+  },
 };
 
 const Destructive: Story = {
