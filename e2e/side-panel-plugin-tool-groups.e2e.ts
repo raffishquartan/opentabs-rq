@@ -144,8 +144,8 @@ test.describe('Side panel — plugin tool groups', () => {
       const groupHeaders = pluginItem.locator('span.uppercase.tracking-wider');
       await expect(groupHeaders.first()).toBeVisible({ timeout: 5_000 });
 
-      // Group headers live inside bg-muted/20 containers
-      const groupHeaderContainers = pluginItem.locator('div.bg-muted\\/20');
+      // Group headers live inside bg-muted/30 containers with a left accent bar
+      const groupHeaderContainers = pluginItem.locator('div.bg-muted\\/30');
       const containerCount = await groupHeaderContainers.count();
       expect(containerCount).toBeGreaterThanOrEqual(2);
 

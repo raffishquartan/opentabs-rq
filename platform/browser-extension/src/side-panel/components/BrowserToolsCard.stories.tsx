@@ -198,7 +198,7 @@ const WithGroupsDemo = () => {
   );
 };
 
-/** Tools with group assignments render group header dividers with uppercase text and bg-muted/20 styling. */
+/** Tools with group assignments render group header dividers with uppercase text and bg-muted/30 styling. */
 const WithGroups: Story = {
   render: () => <WithGroupsDemo />,
 };
