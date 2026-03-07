@@ -17,7 +17,8 @@
       "*://www.reddit.com/*",
       "*://old.reddit.com/*",
       "*://new.reddit.com/*"
-    ]
+    ],
+    "homepage": "https://www.reddit.com"
   },
   "exports": {
     ".": {
