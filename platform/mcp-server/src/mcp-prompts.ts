@@ -159,6 +159,19 @@ Ask the user if they want to enable \`skipPermissions\` to bypass approval promp
 
 ---
 
+## Core Principle: Use the Real APIs, Never the DOM
+
+Every plugin tool must use the web app's own APIs — the same HTTP endpoints, WebSocket channels, or internal RPC methods that the web app's JavaScript calls. DOM scraping is never acceptable as a tool implementation strategy. It is fragile (breaks on any UI change), limited (cannot access data not rendered on screen), and slow (parsing HTML is orders of magnitude slower than a JSON API call).
+
+When an API is hard to discover, spend time reverse-engineering it (network capture, XHR interception, source code reading). Do not fall back to DOM scraping because it is faster to implement.
+
+**Only three uses of the DOM are acceptable:**
+1. \`isReady()\` — checking authentication signals (meta tags, page globals, indicator cookies)
+2. URL hash navigation — triggering client-side route changes
+3. Last-resort compose flows — when the app has no API for creating content and the UI is the only path (rare)
+
+---
+
 ## Phase 1: Research the Codebase
 
 Before writing any code, study the existing plugin infrastructure using the filesystem:
@@ -253,7 +266,45 @@ const data = await resp.json();
 return data;
 \`\`\`
 
-### Step 7: Map the API Surface
+### Step 7: Intercept Internal API Traffic (for apps without clean REST APIs)
+
+Some web apps do not expose clean REST or GraphQL APIs. Instead they use internal RPC endpoints, obfuscated paths, or proprietary protocols that are hard to discover via network capture alone. For these apps, monkey-patch \`XMLHttpRequest\` and \`fetch\` to intercept all API traffic and capture auth headers at runtime.
+
+Install the interceptor at adapter load time to capture auth tokens from early boot requests. Store captured data on \`globalThis\` so it survives adapter re-injection.
+
+\`\`\`javascript
+// XHR interceptor — captures internal API requests and auth headers
+const captured = { authHeader: null, requests: [] };
+
+const origOpen = XMLHttpRequest.prototype.open;
+const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+const origSend = XMLHttpRequest.prototype.send;
+
+XMLHttpRequest.prototype.open = function (method, url) {
+  this._method = method;
+  this._url = url;
+  return origOpen.apply(this, arguments);
+};
+
+XMLHttpRequest.prototype.setRequestHeader = function (name, value) {
+  if (/auth|token|x-api|x-csrf/i.test(name)) {
+    captured.authHeader = { name, value };
+  }
+  return origSetHeader.apply(this, arguments);
+};
+
+XMLHttpRequest.prototype.send = function (body) {
+  captured.requests.push({ method: this._method, url: this._url });
+  return origSend.apply(this, arguments);
+};
+\`\`\`
+
+Use this when:
+- The app uses internal RPC endpoints not visible in standard network capture
+- Auth tokens are computed by obfuscated JavaScript and cannot be extracted from storage
+- You need to discover which headers the app sends on its own API calls
+
+### Step 8: Map the API Surface
 
 Discover the key endpoints: user/profile, list resources, get single resource, create/update/delete, search, messaging, reactions.
 
