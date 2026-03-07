@@ -207,7 +207,7 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
   {
     name: 'browser_press_key',
     description:
-      'Press a keyboard key on the page. Dispatches a full keyboard event sequence (keydown, keypress for printable keys, keyup) and an InputEvent for printable characters on input/textarea elements. Common use cases: Enter to submit forms, Escape to close modals/dialogs, Tab to move between fields, arrow keys to navigate custom menus/dropdowns, Ctrl+K or Cmd+K for search. Supports Ctrl and Meta (Cmd) as independent modifiers. Uses standard KeyboardEvent.key values.',
+      'Press a keyboard key on the page. Dispatches trusted (isTrusted: true) keyboard events via Chrome DevTools Protocol Input.dispatchKeyEvent. Named keys (Enter, Escape, etc.) dispatch rawKeyDown + keyUp; printable characters dispatch keyDown + char + keyUp. Common use cases: Enter to submit forms, Escape to close modals/dialogs, Tab to move between fields, arrow keys to navigate custom menus/dropdowns, Ctrl+K or Cmd+K for search. Supports Ctrl and Meta (Cmd) as independent modifiers. Uses standard KeyboardEvent.key values.',
     summary: 'Press a keyboard key on the page',
     icon: 'command',
     group: 'Page Interaction',

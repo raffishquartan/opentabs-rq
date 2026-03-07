@@ -17,13 +17,24 @@ vi.mock('../sanitize-error.js', () => ({
   sanitizeErrorMessage: (msg: string) => msg,
 }));
 
-// Stub chrome.scripting
+// Stub chrome APIs (debugger/tabs stubs required for network-capture module-level listeners)
 const mockExecuteScript = vi.fn<(opts: unknown) => Promise<unknown[]>>().mockResolvedValue([]);
 Object.assign(globalThis, {
   chrome: {
     ...((globalThis as Record<string, unknown>).chrome as object),
     runtime: { id: 'test-extension-id' },
     scripting: { executeScript: mockExecuteScript },
+    debugger: {
+      attach: vi.fn(),
+      detach: vi.fn(),
+      sendCommand: vi.fn(),
+      onEvent: { addListener: vi.fn() },
+      onDetach: { addListener: vi.fn() },
+    },
+    tabs: {
+      ...((globalThis as Record<string, unknown>).chrome as { tabs?: object } | undefined)?.tabs,
+      onRemoved: { addListener: vi.fn() },
+    },
   },
 });
 

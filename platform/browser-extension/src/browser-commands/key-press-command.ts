@@ -5,6 +5,7 @@ import {
   sendErrorResult,
   sendSuccessResult,
 } from './helpers.js';
+import { withDebugger } from './resource-commands.js';
 
 // Exported for testing — maps shifted punctuation characters to their physical key codes.
 export const SHIFTED_PUNCTUATION_CODES: Record<string, string> = {
@@ -46,6 +47,69 @@ export const UNSHIFTED_PUNCTUATION_CODES: Record<string, string> = {
   '`': 'Backquote',
 };
 
+// Maps named keys to their Windows virtual key codes for CDP Input.dispatchKeyEvent.
+const NAMED_KEY_CODES: Record<string, number> = {
+  Enter: 13,
+  Escape: 27,
+  Tab: 9,
+  Backspace: 8,
+  Delete: 46,
+  ArrowUp: 38,
+  ArrowDown: 40,
+  ArrowLeft: 37,
+  ArrowRight: 39,
+  Home: 36,
+  End: 35,
+  PageUp: 33,
+  PageDown: 34,
+  ' ': 32,
+  F1: 112,
+  F2: 113,
+  F3: 114,
+  F4: 115,
+  F5: 116,
+  F6: 117,
+  F7: 118,
+  F8: 119,
+  F9: 120,
+  F10: 121,
+  F11: 122,
+  F12: 123,
+  Insert: 45,
+};
+
+/** Derives the physical key code (KeyboardEvent.code) from a key value. */
+const deriveCode = (key: string): string => {
+  if (key.length === 1) {
+    const upper = key.toUpperCase();
+    if (upper >= 'A' && upper <= 'Z') return `Key${upper}`;
+    if (key >= '0' && key <= '9') return `Digit${key}`;
+    if (key === ' ') return 'Space';
+    return SHIFTED_PUNCTUATION_CODES[key] ?? UNSHIFTED_PUNCTUATION_CODES[key] ?? key;
+  }
+  return key;
+};
+
+/** Returns the Windows virtual key code for CDP dispatch. */
+const getVirtualKeyCode = (key: string): number => {
+  if (NAMED_KEY_CODES[key] !== undefined) return NAMED_KEY_CODES[key];
+  if (key.length === 1) return key.toUpperCase().charCodeAt(0);
+  return 0;
+};
+
+/** Builds the CDP modifier bitmask: Alt=1, Ctrl=2, Meta=4, Shift=8. */
+const buildModifiers = (shift: boolean, ctrl: boolean, alt: boolean, meta: boolean): number =>
+  (alt ? 1 : 0) | (ctrl ? 2 : 0) | (meta ? 4 : 0) | (shift ? 8 : 0);
+
+/** A printable key press is a single character without Ctrl or Meta held. */
+const isPrintableKeyPress = (key: string, ctrl: boolean, meta: boolean): boolean => key.length === 1 && !ctrl && !meta;
+
+/**
+ * Presses a keyboard key via CDP Input.dispatchKeyEvent for trusted (isTrusted: true) events.
+ * Optionally focuses an element by selector via scripting before dispatching.
+ * @param params - Expects `{ tabId, key, selector?, modifiers? }`.
+ * @returns `{ pressed, key, target: { tagName, id? } }`.
+ */
 export const handleBrowserPressKey = async (params: Record<string, unknown>, id: string | number): Promise<void> => {
   try {
     const tabId = requireTabId(params, id);
@@ -62,140 +126,84 @@ export const handleBrowserPressKey = async (params: Record<string, unknown>, id:
     const altKey = modifiers.alt === true;
     const metaKey = modifiers.meta === true;
 
-    const results = await chrome.scripting.executeScript({
-      target: { tabId },
-      world: 'MAIN',
-      func: (
-        k: string,
-        sel: string | null,
-        shift: boolean,
-        ctrl: boolean,
-        alt: boolean,
-        meta: boolean,
-        shiftedPunct: Record<string, string>,
-        unshiftedPunct: Record<string, string>,
-      ) => {
-        // Resolve target element
-        let target: Element | null = null;
-        if (sel) {
-          target = document.querySelector(sel);
-          if (!target) return { error: `Element not found: ${sel}` };
-          (target as HTMLElement).focus();
-        } else {
-          target = document.activeElement ?? document.body;
-        }
+    // If a selector is provided, focus the element and capture its info
+    let focusTarget: { tagName: string; id?: string } | undefined;
+    if (selector) {
+      const focusResults = await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: (sel: string) => {
+          const el = document.querySelector(sel);
+          if (!el) return { error: `Element not found: ${sel}` };
+          (el as HTMLElement).focus();
+          return {
+            tagName: el.tagName.toLowerCase(),
+            id: (el as HTMLElement).id || undefined,
+          };
+        },
+        args: [selector],
+      });
+      const focusResult = extractScriptResult(focusResults, id);
+      if (!focusResult) return;
+      focusTarget = { tagName: focusResult.tagName as string, id: focusResult.id as string | undefined };
+    }
 
-        // Derive physical key code from key value
-        const deriveCode = (k: string): string => {
-          if (k.length === 1) {
-            const upper = k.toUpperCase();
-            if (upper >= 'A' && upper <= 'Z') return `Key${upper}`;
-            if (k >= '0' && k <= '9') return `Digit${k}`;
-            if (k === ' ') return 'Space';
-            return shiftedPunct[k] ?? unshiftedPunct[k] ?? k;
-          }
-          return k;
-        };
+    // Compute CDP key event parameters
+    const code = deriveCode(key);
+    const windowsVirtualKeyCode = getVirtualKeyCode(key);
+    const cdpModifiers = buildModifiers(shiftKey, ctrlKey, altKey, metaKey);
+    const printable = isPrintableKeyPress(key, ctrlKey, metaKey);
+    const text = printable ? key : key === 'Enter' ? '\r' : key === 'Tab' ? '\t' : '';
 
-        // Map key to legacy keyCode
-        const KEY_CODES: Record<string, number> = {
-          Enter: 13,
-          Escape: 27,
-          Tab: 9,
-          Backspace: 8,
-          Delete: 46,
-          ArrowUp: 38,
-          ArrowDown: 40,
-          ArrowLeft: 37,
-          ArrowRight: 39,
-          Home: 36,
-          End: 35,
-          PageUp: 33,
-          PageDown: 34,
-          ' ': 32,
-        };
-
-        const getKeyCode = (k: string): number => {
-          if (KEY_CODES[k] !== undefined) return KEY_CODES[k];
-          if (k.length === 1) return k.toUpperCase().charCodeAt(0);
-          return 0;
-        };
-
-        const code = deriveCode(k);
-        const keyCode = getKeyCode(k);
-        const isPrintable = k.length === 1;
-
-        const eventInit: KeyboardEventInit = {
-          key: k,
+    // Dispatch trusted key events via CDP
+    await withDebugger(tabId, async () => {
+      await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', {
+        type: printable ? 'keyDown' : 'rawKeyDown',
+        modifiers: cdpModifiers,
+        windowsVirtualKeyCode,
+        code,
+        key,
+        text: printable ? text : '',
+      });
+      if (printable) {
+        await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', {
+          type: 'char',
+          modifiers: cdpModifiers,
+          windowsVirtualKeyCode: key.charCodeAt(0),
           code,
-          keyCode,
-          which: keyCode,
-          bubbles: true,
-          cancelable: true,
-          shiftKey: shift,
-          ctrlKey: ctrl,
-          metaKey: meta,
-          altKey: alt,
-        };
-
-        // Dispatch keyboard event sequence
-        target.dispatchEvent(new KeyboardEvent('keydown', eventInit));
-
-        if (isPrintable) {
-          target.dispatchEvent(new KeyboardEvent('keypress', eventInit));
-        }
-
-        target.dispatchEvent(new KeyboardEvent('keyup', eventInit));
-
-        // For printable characters, insert the character and dispatch InputEvent on editable elements
-        if (isPrintable) {
-          const tag = target.tagName.toLowerCase();
-          const isEditable = tag === 'input' || tag === 'textarea' || (target as HTMLElement).isContentEditable;
-          if (isEditable) {
-            if (tag === 'input' || tag === 'textarea') {
-              const input = target as HTMLInputElement | HTMLTextAreaElement;
-              const start = input.selectionStart ?? input.value.length;
-              const end = input.selectionEnd ?? start;
-              input.value = input.value.slice(0, start) + k + input.value.slice(end);
-              input.selectionStart = input.selectionEnd = start + 1;
-            } else {
-              // contentEditable — insert via Selection/Range API
-              const selection = window.getSelection();
-              if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(document.createTextNode(k));
-                range.collapse(false);
-                selection.removeAllRanges();
-                selection.addRange(range);
-              }
-            }
-            target.dispatchEvent(
-              new InputEvent('input', {
-                bubbles: true,
-                cancelable: true,
-                inputType: 'insertText',
-                data: k,
-              }),
-            );
-          }
-        }
-
-        return {
-          pressed: true,
-          key: k,
-          target: {
-            tagName: target.tagName.toLowerCase(),
-            id: (target as HTMLElement).id || undefined,
-          },
-        };
-      },
-      args: [key, selector, shiftKey, ctrlKey, altKey, metaKey, SHIFTED_PUNCTUATION_CODES, UNSHIFTED_PUNCTUATION_CODES],
+          key,
+          text,
+        });
+      }
+      await chrome.debugger.sendCommand({ tabId }, 'Input.dispatchKeyEvent', {
+        type: 'keyUp',
+        modifiers: cdpModifiers,
+        windowsVirtualKeyCode,
+        code,
+        key,
+      });
     });
 
-    const result = extractScriptResult(results, id);
-    if (!result) return;
-    sendSuccessResult(id, { pressed: result.pressed, key: result.key, target: result.target });
+    // If no selector was provided, query the active element for the response
+    if (!focusTarget) {
+      const activeResults = await chrome.scripting.executeScript({
+        target: { tabId },
+        world: 'MAIN',
+        func: () => {
+          const el = document.activeElement ?? document.body;
+          return {
+            tagName: el.tagName.toLowerCase(),
+            id: (el as HTMLElement).id || undefined,
+          };
+        },
+        args: [],
+      });
+      const activeResult = extractScriptResult(activeResults, id);
+      if (!activeResult) return;
+      focusTarget = { tagName: activeResult.tagName as string, id: activeResult.id as string | undefined };
+    }
+
+    sendSuccessResult(id, { pressed: true, key, target: focusTarget });
   } catch (err) {
     sendErrorResult(id, err);
   }
