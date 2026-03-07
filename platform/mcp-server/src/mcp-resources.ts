@@ -718,6 +718,156 @@ const result = await retry(
   { maxAttempts: 3, delay: 1000, backoff: true }
 );
 \`\`\`
+
+## Core Principle: APIs Not DOM
+
+Every tool must use the web app's own APIs — the same endpoints the web app calls internally. DOM scraping is never acceptable as a tool implementation strategy: it is fragile (breaks on UI changes), limited (only sees what's rendered), and slow (requires waiting for DOM mutations).
+
+When an API is hard to discover, invest time reverse-engineering network traffic rather than falling back to DOM. The only acceptable DOM uses are:
+- **\`isReady()\`** — checking auth indicators (e.g., a logged-in avatar)
+- **URL hash navigation** — changing views via \`window.location.hash\`
+- **Last-resort compose flows** — when no API exists for creating content (extremely rare)
+
+## Token Persistence
+
+Module-level variables (\`let cachedAuth = null\`) are reset when the Chrome extension reloads and re-injects the adapter IIFE. If the host app has already deleted the token from localStorage by this point, the plugin becomes unavailable.
+
+Persist auth tokens to \`globalThis.__openTabs.tokenCache.<pluginName>\`, which survives adapter re-injection (the page itself is not reloaded — only the IIFE is re-executed).
+
+\`\`\`typescript
+const getPersistedToken = (): string | null => {
+  try {
+    const ns = (globalThis as Record<string, unknown>).__openTabs as
+      | Record<string, unknown>
+      | undefined;
+    const cache = ns?.tokenCache as
+      | Record<string, string | undefined>
+      | undefined;
+    return cache?.myPlugin ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const setPersistedToken = (token: string): void => {
+  try {
+    const g = globalThis as Record<string, unknown>;
+    if (!g.__openTabs) g.__openTabs = {};
+    const ns = g.__openTabs as Record<string, unknown>;
+    if (!ns.tokenCache) ns.tokenCache = {};
+    const cache = ns.tokenCache as Record<string, string | undefined>;
+    cache.myPlugin = token;
+  } catch {}
+};
+
+const clearPersistedToken = (): void => {
+  try {
+    const ns = (globalThis as Record<string, unknown>).__openTabs as
+      | Record<string, unknown>
+      | undefined;
+    const cache = ns?.tokenCache as
+      | Record<string, string | undefined>
+      | undefined;
+    if (cache) cache.myPlugin = undefined;
+  } catch {}
+};
+
+// In getAuth():
+const getAuth = (): Auth | null => {
+  const persisted = getPersistedToken();
+  if (persisted) return { token: persisted };
+
+  const raw = readLocalStorage('token');
+  if (!raw) return null;
+  setPersistedToken(raw);
+  return { token: raw };
+};
+\`\`\`
+
+Always clear the persisted token on 401 responses to handle token rotation.
+
+## Adapter Injection Timing
+
+Adapters are injected at **two points** during page load:
+
+1. **\`loading\`** — before page JavaScript runs. The adapter IIFE registers on \`globalThis.__openTabs\` and can read localStorage/cookies before the host app modifies them.
+2. **\`complete\`** — after the page is fully loaded. The adapter is re-injected (idempotent) and \`isReady()\` is probed to determine tab state.
+
+This means:
+- \`isReady()\` may be called at both injection points. At \`loading\` time, page globals do not exist yet — return \`false\` gracefully. At \`complete\` time, everything is ready.
+- Auth tokens from localStorage should be cached at \`loading\` time before the host app can delete them.
+
+## Advanced Auth Patterns
+
+### XHR/Fetch Interception
+
+Some web apps use internal RPC endpoints or obfuscated API paths that are hard to discover via network capture. Monkey-patch \`XMLHttpRequest\` to intercept all API traffic and capture auth headers at runtime.
+
+\`\`\`typescript
+const origOpen = XMLHttpRequest.prototype.open;
+const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+const origSend = XMLHttpRequest.prototype.send;
+
+XMLHttpRequest.prototype.open = function (method: string, url: string) {
+  (this as Record<string, unknown>)._url = url;
+  (this as Record<string, unknown>)._method = method;
+  return origOpen.apply(this, arguments as unknown as Parameters<typeof origOpen>);
+};
+XMLHttpRequest.prototype.setRequestHeader = function (name: string, value: string) {
+  if (name.toLowerCase() === 'authorization') {
+    setPersistedToken(value); // Capture auth header
+  }
+  return origSetHeader.apply(this, arguments as unknown as Parameters<typeof origSetHeader>);
+};
+\`\`\`
+
+Install the interceptor at adapter load time to capture auth tokens from early boot requests. Store captured tokens on \`globalThis\` so they survive adapter re-injection.
+
+### Cookie-Based Auth with CSRF
+
+Many web apps use HttpOnly session cookies for auth but require a CSRF token for write operations. The CSRF token is typically in a non-HttpOnly cookie (e.g., \`csrftoken\`, \`sentry-sc\`).
+
+\`\`\`typescript
+const csrfToken = getCookie('csrftoken');
+const response = await fetch('/api/endpoint', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRFToken': csrfToken ?? '',
+  },
+  body: JSON.stringify(payload),
+  credentials: 'include', // HttpOnly cookies sent automatically
+});
+\`\`\`
+
+Check \`window.__initialData.csrfCookieName\` or similar bootstrap globals to discover the cookie name. GET requests work without the CSRF token.
+
+### Opaque Auth Headers
+
+Some apps compute cryptographic auth tokens via obfuscated JavaScript. These tokens cannot be generated — only captured and replayed. Use the XHR interceptor pattern above to capture them, then implement a polling wait:
+
+\`\`\`typescript
+const waitForToken = async (): Promise<string> => {
+  for (let i = 0; i < 50; i++) {
+    const token = getPersistedToken();
+    if (token) return token;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  throw ToolError.auth('Auth token not captured — try refreshing the page');
+};
+\`\`\`
+
+If a write operation returns 200 but the action does not take effect, the cryptographic token may be missing or stale. Omit the tool rather than shipping one that silently fails.
+
+## CSP Considerations
+
+The adapter IIFE bypasses the page's Content Security Policy via file-based injection (\`chrome.scripting.executeScript({ files: [...] })\`). Plugin code runs as extension-origin code and is not subject to inline script restrictions.
+
+**Trusted Types**: Some pages enforce Trusted Types CSP, which blocks \`innerHTML\`, \`outerHTML\`, and \`insertAdjacentHTML\`. If you need to extract text from HTML strings, use regex instead:
+
+\`\`\`typescript
+const text = html.replace(/<[^>]+>/g, '');
+\`\`\`
 `;
 
 const TROUBLESHOOTING_CONTENT = `# Troubleshooting Guide
