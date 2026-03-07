@@ -15,7 +15,8 @@
     "description": "OpenTabs plugin for Sentry",
     "urlPatterns": [
       "*://*.sentry.io/*"
-    ]
+    ],
+    "homepage": "https://sentry.io"
   },
   "exports": {
     ".": {
