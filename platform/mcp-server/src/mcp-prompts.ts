@@ -542,7 +542,9 @@ npm run check  # build + type-check + lint + format:check
 15. **Intercepted headers must survive adapter re-injection** — store captured tokens on \`globalThis.__<pluginName>CapturedTokens\`. Re-patch XHR on each adapter load. Avoid stale \`if (installed) return\` guards that skip re-patching after re-injection.
 16. **Trusted Types CSP blocks \`innerHTML\`** — use regex \`html.replace(/<[^>]+>/g, '')\` for HTML-to-text conversion instead. Never use \`innerHTML\`, \`outerHTML\`, or \`insertAdjacentHTML\` in plugin code.
 17. **Opaque auth headers can only be captured, not generated** — some apps use cryptographic tokens computed by obfuscated JS. Capture them from the XHR interceptor and implement a polling wait with timeout for the header to appear.
-18. **Write operations may silently fail without cryptographic tokens** — if a write returns 200 but the action does not take effect, the API likely requires an opaque auth header. Omit the tool rather than shipping one that silently fails.`;
+18. **When one API path is blocked, find another** — if a write operation requires an undocumented cryptographic payload, don't give up. Explore the web app's internal extension APIs, JavaScript-exposed programmatic interfaces, or other internal endpoints. Complex apps usually expose higher-level APIs for extensions/accessibility. Use \`browser_execute_script\` to enumerate non-standard page globals.
+19. **Web apps expose programmatic extension APIs on the page** — complex web apps often expose internal scripting APIs on \`window\` that provide higher-level operations than raw XHR endpoints. Discovery: use \`browser_execute_script\` with \`Object.keys(window).filter(...)\` to find non-standard globals, then explore their methods.
+20. **Internal API endpoints can be deprecated without warning** — when building plugins for web apps with multiple API generations, test each endpoint independently. If an endpoint returns 404 or 403, it may be deprecated for that account or region. Remove tools that depend on deprecated endpoints rather than shipping broken tools.`;
 };
 
 // ---------------------------------------------------------------------------
