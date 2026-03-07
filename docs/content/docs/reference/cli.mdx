@@ -628,14 +628,14 @@ opentabs config set <key> [value]
   </Table.Header>
   <Table.Body>
     <Table.Row>
-      <Table.Cell className="font-medium">`tool.<plugin>_<tool>`</Table.Cell>
-      <Table.Cell>`enabled` or `disabled`</Table.Cell>
-      <Table.Cell>Enable or disable a plugin tool.</Table.Cell>
+      <Table.Cell className="font-medium">`tool-permission.<plugin>.<tool>`</Table.Cell>
+      <Table.Cell>`off | ask | auto`</Table.Cell>
+      <Table.Cell>Set a per-tool permission.</Table.Cell>
     </Table.Row>
     <Table.Row>
-      <Table.Cell className="font-medium">`browser-tool.<name>`</Table.Cell>
-      <Table.Cell>`enabled` or `disabled`</Table.Cell>
-      <Table.Cell>Enable or disable a browser tool (names start with `browser_` or `extension_`).</Table.Cell>
+      <Table.Cell className="font-medium">`plugin-permission.<plugin>`</Table.Cell>
+      <Table.Cell>`off | ask | auto`</Table.Cell>
+      <Table.Cell>Set a plugin-level default permission for all tools in the plugin.</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`port`</Table.Cell>
@@ -670,17 +670,15 @@ opentabs config set <key> [value]
   </Table.Body>
 </Table>
 
-Running `opentabs config set tool.` (with a trailing dot and no value) lists all available tool names from the running server. Running `opentabs config set browser-tool.` (with a trailing dot and no value) lists all available browser tool names from the running server.
-
 ```bash
-# Disable a plugin tool
-opentabs config set tool.slack_send_message disabled
+# Set a tool to auto-approve (no confirmation prompt)
+opentabs config set tool-permission.slack.send_message auto
 
-# Re-enable a plugin tool
-opentabs config set tool.slack_send_message enabled
+# Disable a tool entirely
+opentabs config set tool-permission.slack.send_message off
 
-# Disable a browser tool
-opentabs config set browser-tool.browser_execute_script disabled
+# Set a plugin default to require approval for all its tools
+opentabs config set plugin-permission.slack ask
 
 # Change the server port
 opentabs config set port 3000
