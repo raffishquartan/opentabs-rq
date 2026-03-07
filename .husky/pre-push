@@ -1,4 +1,0 @@
-npm run build
-npm run build:plugins
-npm run type-check
-npm run test

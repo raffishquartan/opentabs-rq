@@ -86,7 +86,7 @@ Workspace dependency resolution, type-check vs build equivalence, undocumented s
 Documentation accuracy is audited by perfect-docs.sh.
 
 ### Phase 10: Test git hooks
-Verify husky hooks are set up and execute correctly.
+Verify lefthook hooks are set up and execute correctly.
 
 ### Phase 11: Test CLI entrypoints
 `npx opentabs --help`, `npx opentabs-plugin --help`.

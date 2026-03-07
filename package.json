@@ -42,7 +42,7 @@
     "storybook": "npm run --prefix platform/browser-extension storybook",
     "clean": "tsx scripts/clean.ts",
     "clean:all": "tsx scripts/clean.ts --all",
-    "prepare": "husky"
+    "prepare": "lefthook install"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -61,25 +61,13 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "esbuild-plugin-babel": "^0.2.3",
     "glob": "^13.0.6",
-    "husky": "^9.1.7",
     "knip": "^5.85.0",
-    "lint-staged": "^16.2.7",
+    "lefthook": "^1.11.13",
     "minimatch": "^10.2.4",
     "tailwindcss": "^4.2.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18",
     "ws": "^8.19.0"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "biome check --write --no-errors-on-unmatched"
-    ],
-    "*.json": [
-      "biome format --write --no-errors-on-unmatched"
-    ],
-    "*.md": [
-      "biome format --write --no-errors-on-unmatched"
-    ]
   }
 }
