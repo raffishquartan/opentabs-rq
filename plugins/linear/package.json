@@ -15,7 +15,8 @@
     "description": "OpenTabs plugin for Linear",
     "urlPatterns": [
       "*://linear.app/*"
-    ]
+    ],
+    "homepage": "https://linear.app"
   },
   "exports": {
     ".": {

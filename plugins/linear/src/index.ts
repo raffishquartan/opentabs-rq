@@ -28,6 +28,7 @@ class LinearPlugin extends OpenTabsPlugin {
   readonly description = 'OpenTabs plugin for Linear';
   override readonly displayName = 'Linear';
   readonly urlPatterns = ['*://linear.app/*'];
+  override readonly homepage = 'https://linear.app';
   readonly tools: ToolDefinition[] = [
     searchIssues,
     getIssue,
