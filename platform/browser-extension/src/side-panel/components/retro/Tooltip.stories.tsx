@@ -38,6 +38,22 @@ const Default: Story = { render: () => <TooltipDemo /> };
 const Primary: Story = { render: () => <TooltipDemo variant="primary" /> };
 const Solid: Story = { render: () => <TooltipDemo variant="solid" /> };
 const LongContent: Story = { render: () => <LongContentDemo /> };
+const Positions: Story = {
+  render: () => (
+    <div className="grid grid-cols-2 gap-16 p-24">
+      {(['top', 'right', 'bottom', 'left'] as const).map(side => (
+        <Tooltip.Provider key={side} delayDuration={0}>
+          <Tooltip defaultOpen>
+            <Tooltip.Trigger asChild>
+              <Button size="sm">{side}</Button>
+            </Tooltip.Trigger>
+            <Tooltip.Content side={side}>{side} tooltip</Tooltip.Content>
+          </Tooltip>
+        </Tooltip.Provider>
+      ))}
+    </div>
+  ),
+};
 
 export default meta;
-export { Default, Primary, Solid, LongContent };
+export { Default, Primary, Solid, LongContent, Positions };
