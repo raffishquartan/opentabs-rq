@@ -129,6 +129,10 @@ Every tool must use the web app's own APIs — HTTP endpoints, WebSocket channel
 
 9. **Map the API surface** — user/profile, list/get/create/update/delete resources, search, messaging, reactions.
 
+10. **Document the raw response shapes** — for every endpoint you plan to use, capture and save the actual JSON response structure. Do not assume field names. The real API may use `id` where you expect `tableId`, nest data under `data.tableDatas` instead of `data.rows`, or use a completely different structure than the one you guess from the endpoint name. Verify by inspecting real responses via `browser_execute_script` before writing any mappers.
+
+11. **Test write endpoints early** — do not assume writes work just because reads do. Some apps route reads through HTTP but writes through WebSocket. Some require extra headers for POST that GET does not need. Call at least one write endpoint during Phase 2 to confirm the write path before designing write tools.
+
 ---
 
 ## Phase 3: Scaffold the Plugin
@@ -350,7 +354,19 @@ export const mapMessage = (m: RawMessage) => ({
 
 ## Phase 6: Icon
 
-Web search for the service's official brand SVG logo. Prefer the **dark/black** variant for `icon.svg` (light mode has a light background).
+### Finding the Icon
+
+**Try Simple Icons first** — it covers 3000+ brands with consistent, clean SVGs under CC0 license:
+
+```
+https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/<name>.svg
+```
+
+Fetch the SVG, then clean it up: remove `role="img"` and `<title>`, add `fill="black"`.
+
+If the service is not in Simple Icons, web search for the service's official brand SVG logo. Prefer the **dark/black** variant for `icon.svg` (light mode has a light background).
+
+If you cannot find a suitable SVG from either source, skip the icon. The system provides a default letter avatar. Tell the user they can provide a high-quality logo SVG later.
 
 ### SVG Requirements
 
@@ -377,12 +393,6 @@ Web search for the service's official brand SVG logo. Prefer the **dark/black** 
 Provide explicit `icon-dark.svg` when the brand has official light/dark variants or auto-generation is unsatisfactory.
 
 **Verify SVG content before using.** Some brands use "dark" and "light" to mean the background color, not the icon color — a file named "logo-dark" may contain a white icon (designed for dark backgrounds), which is the opposite of what you need. Always open/inspect the SVG to confirm the actual fill colors match the intended use: `icon.svg` needs a dark-colored icon (for light backgrounds), `icon-dark.svg` needs a light-colored icon (for dark backgrounds).
-
-### Fallback
-
-If official brand assets are unavailable, try **Simple Icons** (`https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/<name>.svg`, CC0). Remove `role="img"` and `<title>`, add `fill="black"`.
-
-If you cannot find a suitable SVG, skip the icon. The system provides a default letter avatar. Tell the user they can provide a high-quality logo SVG later.
 
 ### Placement
 
@@ -441,7 +451,7 @@ curl -s -X POST http://127.0.0.1:$PORT/mcp \
 
 **Test every tool:**
 
-1. Call every read-only tool — verify real data with correct field mappings
+1. Call every read-only tool — verify real data with correct field mappings. If a tool returns empty results when you know data exists, the response shape assumption is wrong. Use `browser_execute_script` to fetch the raw JSON and compare actual field names against your interface definitions.
 2. Call every write tool with round-trip tests (create → verify → update → delete → verify)
 3. Test error classification — call with invalid ID, verify `ToolError.notFound`
 4. Fix every failure — use `browser_execute_script` to inspect raw API responses
@@ -465,7 +475,30 @@ Remove tools you cannot verify rather than shipping them broken.
 
 ## Phase 8: Write Learnings Back
 
-After completing a plugin build, review your session for reusable knowledge and contribute it back.
+**This phase is mandatory, not optional.** After all tools pass testing, explicitly evaluate your session for reusable knowledge. You must **show your reasoning to the user** — even if the conclusion is "nothing new to contribute."
+
+### Evaluation Checklist
+
+Walk through each category below. For each, state what you encountered and whether it's new:
+
+1. **Auth pattern** — How did you detect authentication? How did you extract CSRF tokens? Was this pattern already documented in "Auth Patterns" below? If not, add it.
+2. **API discovery technique** — Did you use a new approach to find endpoints (e.g., reading webpack chunks, intercepting WebSocket frames, probing undocumented paths)? Is this technique already in Phase 2? If not, add it.
+3. **Error classification** — Did the API return errors in an unusual way (e.g., 403 for permissions vs auth, error objects nested in 200 responses, error codes in response bodies)? Is this covered by existing gotchas? If not, add a gotcha.
+4. **Schema/typing pattern** — Did you discover a Zod pattern, defensive mapper technique, or TypeScript workaround that other plugins would benefit from? Is this in "Conventions"? If not, add it.
+5. **Architectural constraint** — Did you hit a limitation of the browser environment, API transport, or platform that affected your design? Is this in "Gotchas"? If not, evaluate if it's generic enough to add.
+6. **Platform improvement** — Did you work around a missing SDK utility, build tool limitation, or MCP server bug? These do NOT go in the skill file — report them to the user as action items.
+
+### Output format
+
+Tell the user what you found. Example:
+
+> **Phase 8 — Learnings evaluation:**
+> - Auth: HttpOnly cookies + CSRF from `window.initData` — already covered by Auth Patterns > Session Cookies. No change needed.
+> - API: Found that writes go through WebSocket, not HTTP — new generic pattern. Added as gotcha #18.
+> - Errors: API uses 403 for both auth and permission — already gotcha #6. No change needed.
+> - No new schema patterns or platform issues to report.
+
+If everything was already documented, say so explicitly. Do not silently skip this phase.
 
 ### What belongs in this skill file
 
@@ -476,8 +509,9 @@ Update `.claude/skills/build-plugin/__SKILL__.md` directly with:
 | New auth pattern (cookie, header interception, window globals) | "Auth Patterns" section below |
 | New API discovery technique | Phase 2 above |
 | New Zod schema pattern | "Conventions" section below |
+| New architectural constraint | "Gotchas" section below |
 
-### What belongs in Gotchas
+### What qualifies as a gotcha
 
 Gotchas are **immutable constraints** that the platform cannot fix — they are facts of the browser environment, web standards, or third-party API behavior. Before adding a gotcha, ask: "Can this be fixed by improving the SDK, build tool, or MCP server?" If yes, it is not a gotcha — tell the user to file an issue or PR to improve the platform instead.
 
@@ -569,7 +603,7 @@ Plugin code serves as a learning reference for other agents and developers. Ever
 ## Auth Patterns
 
 ### Session Cookies (most common)
-Apps using HttpOnly session cookies: use `credentials: 'include'`, detect auth via page globals or DOM signals. Mutating requests often need a CSRF token from a meta tag or non-HttpOnly cookie.
+Apps using HttpOnly session cookies: use `credentials: 'include'`, detect auth via page globals or DOM signals. Mutating requests often need a CSRF token — check three sources: `<meta name="csrf-token">` tag, non-HttpOnly cookies, or bootstrap globals (e.g., `window.initData.csrfToken`). The CSRF value is typically sent as a header (`X-CSRF-Token`) or a body field (`_csrf`).
 
 ### Bearer Tokens
 Extract from localStorage, sessionStorage, page globals (`window.__APP_STATE__`, `window.boot_data`), or intercepted XHR headers. Cache on `globalThis.__openTabs.tokenCache.<pluginName>` to survive adapter re-injection (module-level variables reset on extension reload). Clear on 401 to handle rotation.
@@ -604,6 +638,7 @@ Some apps compute cryptographic tokens via obfuscated JS — capture and replay,
 15. Internal API endpoints can be deprecated without warning — test each endpoint independently, remove broken tools
 16. When using sub-agents to write tool files in parallel, define ALL shared types (Raw interfaces, response envelope types, OPT_FIELDS constants) in `schemas.ts` **before** dispatching tool file generation — otherwise each agent invents its own local types and you end up rewriting everything for consistency
 17. Some APIs authorize GET and POST differently — GET may work with just cookies while POST requires an additional header. Always test both read and write operations during Phase 2 discovery, not just reads
+18. Some apps split read vs write across different transports — HTTP for reads, WebSocket for mutations. If POST endpoints for creating/updating resources all return 404 but the app clearly works, capture WebSocket frames to find the mutation protocol. In this case, cell-level update endpoints may exist via HTTP (e.g., `updatePrimitiveCell`) while row creation is WebSocket-only. Document which operations are available via HTTP vs WebSocket-only in Phase 4 and only build tools for HTTP-accessible endpoints
 
 ---
 
