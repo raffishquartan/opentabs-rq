@@ -192,6 +192,7 @@ export {
   fetchFromPage,
   fetchJSON,
   fetchJSONImpl,
+  fetchText,
   httpStatusToToolError,
   parseRetryAfterMs,
   patchJSON,

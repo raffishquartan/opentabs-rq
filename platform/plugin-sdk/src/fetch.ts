@@ -372,3 +372,12 @@ export const deleteJSON: DeleteJSON = (async (
   init?: FetchFromPageOptions,
   schema?: z.ZodType,
 ): Promise<unknown> => fetchJSONImpl(url, { ...init, method: 'DELETE' }, schema)) as DeleteJSON;
+
+/** Fetches a URL and returns the response body as a string instead of JSON. */
+export const fetchText = async (url: string, init?: FetchFromPageOptions): Promise<string> => {
+  const response = await fetchFromPage(url, init);
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return '';
+  }
+  return response.text();
+};
