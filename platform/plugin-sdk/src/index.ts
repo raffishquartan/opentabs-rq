@@ -171,7 +171,14 @@ export { ToolError } from './errors.js';
 // ---------------------------------------------------------------------------
 
 export type { ObserveDOMOptions, WaitForSelectorOptions } from './dom.js';
-export { getTextContent, observeDOM, querySelectorAll, waitForSelector, waitForSelectorRemoval } from './dom.js';
+export {
+  getMetaContent,
+  getTextContent,
+  observeDOM,
+  querySelectorAll,
+  waitForSelector,
+  waitForSelectorRemoval,
+} from './dom.js';
 
 // ---------------------------------------------------------------------------
 // SDK utilities — Fetch
@@ -188,10 +195,12 @@ export type {
   PutJSON,
 } from './fetch.js';
 export {
+  buildQueryString,
   deleteJSON,
   fetchFromPage,
   fetchJSON,
   fetchJSONImpl,
+  fetchText,
   httpStatusToToolError,
   parseRetryAfterMs,
   patchJSON,
@@ -213,11 +222,15 @@ export { retry, sleep, waitUntil } from './timing.js';
 // ---------------------------------------------------------------------------
 
 export {
+  clearAuthCache,
+  findLocalStorageEntry,
+  getAuthCache,
   getCookie,
   getLocalStorage,
   getSessionStorage,
   removeLocalStorage,
   removeSessionStorage,
+  setAuthCache,
   setLocalStorage,
   setSessionStorage,
 } from './storage.js';

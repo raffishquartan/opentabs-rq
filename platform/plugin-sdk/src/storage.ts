@@ -52,6 +52,53 @@ export const getLocalStorage = (key: string): string | null => {
 };
 
 /**
+ * Searches localStorage keys using a predicate and returns the first matching
+ * entry. Returns null if no match is found or if localStorage is inaccessible.
+ * Uses the same iframe fallback as getLocalStorage for environments where
+ * localStorage is deleted (e.g., Discord).
+ */
+export const findLocalStorageEntry = (predicate: (key: string) => boolean): { key: string; value: string } | null => {
+  const search = (storage: Storage): { key: string; value: string } | null => {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key !== null && predicate(key)) {
+        const value = storage.getItem(key);
+        if (value !== null) return { key, value };
+      }
+    }
+    return null;
+  };
+
+  try {
+    return search(localStorage);
+  } catch {
+    // Direct access failed — localStorage may be deleted or inaccessible.
+  }
+
+  let storage: Storage | undefined;
+  try {
+    storage = localStorage as Storage | undefined;
+  } catch {
+    return null;
+  }
+  if (storage !== undefined) return null;
+
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    try {
+      const iframeStorage = iframe.contentWindow?.localStorage;
+      return iframeStorage ? search(iframeStorage) : null;
+    } finally {
+      document.body.removeChild(iframe);
+    }
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Writes a value to localStorage. Logs a warning if storage access throws
  * (e.g., SecurityError in sandboxed iframes or QuotaExceededError when storage is full).
  */
@@ -133,4 +180,46 @@ export const getCookie = (name: string): string | null => {
   } catch {
     return null;
   }
+};
+
+/**
+ * Reads a cached auth value from globalThis.__openTabs.tokenCache[namespace].
+ * Returns null if the namespace is not found or if access throws.
+ * The generic T allows both primitive strings and complex objects.
+ */
+export const getAuthCache = <T>(namespace: string): T | null => {
+  try {
+    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
+    const cache = ns?.tokenCache as Record<string, unknown> | undefined;
+    return (cache?.[namespace] as T) ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Writes a value to globalThis.__openTabs.tokenCache[namespace].
+ * Initializes __openTabs and tokenCache objects if absent.
+ * Silently handles errors (consistent with existing storage patterns).
+ */
+export const setAuthCache = <T>(namespace: string, value: T): void => {
+  try {
+    const g = globalThis as Record<string, unknown>;
+    if (!g.__openTabs) g.__openTabs = {};
+    const ns = g.__openTabs as Record<string, unknown>;
+    if (!ns.tokenCache) ns.tokenCache = {};
+    (ns.tokenCache as Record<string, unknown>)[namespace] = value;
+  } catch {}
+};
+
+/**
+ * Clears the cached auth value at globalThis.__openTabs.tokenCache[namespace].
+ * Silently handles errors.
+ */
+export const clearAuthCache = (namespace: string): void => {
+  try {
+    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
+    const cache = ns?.tokenCache as Record<string, unknown> | undefined;
+    if (cache) cache[namespace] = undefined;
+  } catch {}
 };

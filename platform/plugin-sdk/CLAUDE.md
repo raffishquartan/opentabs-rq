@@ -39,20 +39,37 @@ The plugin SDK provides utility functions that run in the page context, reducing
 - `waitForSelectorRemoval(selector, opts?)` → `Promise<void>` — waits for an element to be removed from the DOM, configurable timeout (default 10s)
 - `querySelectorAll<T>(selector)` → `T[]` — typed wrapper returning a real array instead of NodeList
 - `getTextContent(selector)` → `string | null` — returns trimmed textContent of the first match, or null
+- `getMetaContent(name)` → `string | null` — returns the `content` attribute of `<meta name="...">`, or null if absent
 - `observeDOM(selector, callback, options?)` → `() => void` — sets up a MutationObserver on the matching element, returns a cleanup function (defaults: childList+subtree true)
 
 ### Fetch Utilities (`fetch.ts`)
 
 - `fetchFromPage(url, init?)` → `Promise<Response>` — fetch with credentials:'include' (page session cookies), configurable timeout via AbortSignal (default 30s), throws `ToolError` on non-ok status
-- `fetchJSON<T>(url, init?)` → `Promise<T>` — calls fetchFromPage and parses JSON, throws on parse failure
-- `postJSON<T>(url, body, init?)` → `Promise<T>` — POST with JSON body (sets Content-Type, stringifies), returns parsed JSON
+- `fetchJSON<T>(url, init?, schema?)` → `Promise<T>` — calls fetchFromPage and parses JSON, throws on parse failure
+- `fetchText(url, init?)` → `Promise<string>` — calls fetchFromPage and returns the response body as a string (for diffs, raw content, job logs)
+- `postJSON<T>(url, body, init?, schema?)` → `Promise<T>` — POST with JSON body (sets Content-Type, stringifies), returns parsed JSON
+- `putJSON<T>(url, body, init?, schema?)` → `Promise<T>` — PUT with JSON body, returns parsed JSON
+- `patchJSON<T>(url, body, init?, schema?)` → `Promise<T>` — PATCH with JSON body, returns parsed JSON
+- `deleteJSON<T>(url, init?, schema?)` → `Promise<T>` — DELETE request, returns parsed JSON
+- `postForm<T>(url, body, init?, schema?)` → `Promise<T>` — POST with URL-encoded form body (sets Content-Type: application/x-www-form-urlencoded), returns parsed JSON
+- `postFormData<T>(url, body: FormData, init?, schema?)` → `Promise<T>` — POST with multipart/form-data body, returns parsed JSON
+- `httpStatusToToolError(response, message)` → `ToolError` — maps HTTP status codes to the appropriate `ToolError` category (auth, not_found, rate_limit, etc.)
+- `parseRetryAfterMs(value)` → `number | undefined` — parses a `Retry-After` header value (seconds or HTTP-date) into milliseconds
+- `buildQueryString(params)` → `string` — converts a record of key-value pairs to a URL query string (no leading `?`), filtering out undefined values
 
 ### Storage Utilities (`storage.ts`)
 
 - `getLocalStorage(key)` → `string | null` — wraps localStorage.getItem with try-catch (returns null on SecurityError)
 - `setLocalStorage(key, value)` → `void` — wraps localStorage.setItem with try-catch (silently fails on SecurityError)
+- `removeLocalStorage(key)` → `void` — wraps localStorage.removeItem with try-catch
 - `getSessionStorage(key)` → `string | null` — wraps sessionStorage.getItem with try-catch
+- `setSessionStorage(key, value)` → `void` — wraps sessionStorage.setItem with try-catch
+- `removeSessionStorage(key)` → `void` — wraps sessionStorage.removeItem with try-catch
 - `getCookie(name)` → `string | null` — parses document.cookie, handles URI-encoded values
+- `getAuthCache<T>(namespace)` → `T | null` — reads a typed value from `globalThis.__openTabs.tokenCache[namespace]`
+- `setAuthCache<T>(namespace, value)` → `void` — writes a typed value to `globalThis.__openTabs.tokenCache[namespace]`, initializing the cache objects if absent
+- `clearAuthCache(namespace)` → `void` — sets `globalThis.__openTabs.tokenCache[namespace]` to undefined
+- `findLocalStorageEntry(predicate)` → `{ key: string; value: string } | null` — iterates localStorage keys and returns the first entry where the predicate returns true
 
 ### Page State Utilities (`page-state.ts`)
 

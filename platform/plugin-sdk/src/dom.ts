@@ -248,6 +248,20 @@ export const getTextContent = (selector: string): string | null => {
 };
 
 /**
+ * Returns the `content` attribute of the `<meta>` tag with the given `name`,
+ * or `null` if the tag is not found or has no content attribute.
+ */
+export const getMetaContent = (name: string): string | null => {
+  if (!name) return null;
+  try {
+    const meta = document.querySelector<HTMLMetaElement>(`meta[name="${CSS.escape(name)}"]`);
+    return meta?.content ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Sets up a MutationObserver on the element matching `selector`.
  * Returns a cleanup function that disconnects the observer.
  */
