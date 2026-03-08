@@ -728,12 +728,7 @@ const generateDarkIcon = (svgContent: string): string => {
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const namespaceSvgIds = (svgContent: string, prefix: string): string => {
-  const idPattern = /\bid\s*=\s*"([^"]+)"/g;
-  const ids: string[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = idPattern.exec(svgContent)) !== null) {
-    ids.push(match[1]!);
-  }
+  const ids = Array.from(svgContent.matchAll(/\bid\s*=\s*"([^"]+)"/g), m => m[1] as string);
 
   if (ids.length === 0) return svgContent;
 
