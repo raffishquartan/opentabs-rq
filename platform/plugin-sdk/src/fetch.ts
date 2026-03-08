@@ -58,6 +58,22 @@ export const parseRetryAfterMs = (value: string): number | undefined => {
   return undefined;
 };
 
+/** Builds a URL query string from a record, filtering out undefined values. */
+export const buildQueryString = (params: Record<string, string | number | boolean | string[] | undefined>): string => {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        searchParams.append(key, item);
+      }
+    } else {
+      searchParams.append(key, String(value));
+    }
+  }
+  return searchParams.toString();
+};
+
 /**
  * Fetches a URL using the page's authenticated session (credentials: 'include').
  * Provides built-in timeout via AbortSignal and throws a descriptive ToolError

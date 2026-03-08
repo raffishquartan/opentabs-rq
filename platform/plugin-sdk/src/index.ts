@@ -195,6 +195,7 @@ export type {
   PutJSON,
 } from './fetch.js';
 export {
+  buildQueryString,
   deleteJSON,
   fetchFromPage,
   fetchJSON,
