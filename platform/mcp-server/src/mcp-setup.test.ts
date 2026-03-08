@@ -895,6 +895,31 @@ describe('getAllToolsList — platform tools', () => {
     expect(PLATFORM_TOOL_NAMES.has('plugin_mark_reviewed')).toBe(true);
   });
 
+  test('plugin_get_workflow is included in tools list', () => {
+    const state = createState();
+
+    const tools = getAllToolsList(state);
+    const workflowTool = tools.find(t => t.name === 'plugin_get_workflow');
+
+    expect(workflowTool).toBeDefined();
+    expect(workflowTool?.description).toContain('workflow');
+    expect(workflowTool?.inputSchema).toHaveProperty('properties');
+  });
+
+  test('plugin_get_workflow does not have tabId injected', () => {
+    const state = createState();
+
+    const tools = getAllToolsList(state);
+    const workflowTool = tools.find(t => t.name === 'plugin_get_workflow');
+
+    const properties = workflowTool?.inputSchema.properties as Record<string, unknown> | undefined;
+    expect(properties?.tabId).toBeUndefined();
+  });
+
+  test('PLATFORM_TOOL_NAMES contains plugin_get_workflow', () => {
+    expect(PLATFORM_TOOL_NAMES.has('plugin_get_workflow')).toBe(true);
+  });
+
   test('platform tools are not included in buildConfigStatePayload', () => {
     const state = createState();
     state.registry = buildRegistry([createPlugin('test', ['ping'])], []);
@@ -907,6 +932,7 @@ describe('getAllToolsList — platform tools', () => {
     ];
     expect(allToolNames).not.toContain('plugin_inspect');
     expect(allToolNames).not.toContain('plugin_mark_reviewed');
+    expect(allToolNames).not.toContain('plugin_get_workflow');
   });
 
   test('buildConfigStatePayload returns configured permissions, not effective (ignores skipPermissions)', () => {
@@ -1077,6 +1103,91 @@ describe('registerMcpHandlers — handler count', () => {
     registerMcpHandlers(server, state);
 
     expect(handlers.size).toBe(7);
+  });
+});
+
+describe('registerMcpHandlers — plugin_get_workflow tool call', () => {
+  test('returns build_plugin workflow content by default', async () => {
+    const state = createState();
+    const { server, handlers } = createMockServer();
+    registerMcpHandlers(server, state);
+
+    const handler = getHandler(handlers, CallToolRequestSchema);
+    const result = (await handler(
+      { params: { name: 'plugin_get_workflow', arguments: { url: 'https://example.com' } } },
+      mockExtra,
+    )) as { content: Array<{ type: string; text: string }> };
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]?.type).toBe('text');
+    expect(result.content[0]?.text).toContain('https://example.com');
+  });
+
+  test('returns troubleshoot workflow when specified', async () => {
+    const state = createState();
+    const { server, handlers } = createMockServer();
+    registerMcpHandlers(server, state);
+
+    const handler = getHandler(handlers, CallToolRequestSchema);
+    const result = (await handler(
+      {
+        params: {
+          name: 'plugin_get_workflow',
+          arguments: { workflow: 'troubleshoot', error: 'Extension not connected' },
+        },
+      },
+      mockExtra,
+    )) as { content: Array<{ type: string; text: string }> };
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]?.type).toBe('text');
+    expect(result.content[0]?.text).toContain('Extension not connected');
+  });
+
+  test('returns setup_plugin workflow when specified', async () => {
+    const state = createState();
+    const { server, handlers } = createMockServer();
+    registerMcpHandlers(server, state);
+
+    const handler = getHandler(handlers, CallToolRequestSchema);
+    const result = (await handler(
+      { params: { name: 'plugin_get_workflow', arguments: { workflow: 'setup_plugin', name: 'slack' } } },
+      mockExtra,
+    )) as { content: Array<{ type: string; text: string }> };
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]?.type).toBe('text');
+    expect(result.content[0]?.text).toContain('slack');
+  });
+
+  test('returns error for unknown workflow', async () => {
+    const state = createState();
+    const { server, handlers } = createMockServer();
+    registerMcpHandlers(server, state);
+
+    const handler = getHandler(handlers, CallToolRequestSchema);
+    const result = (await handler(
+      { params: { name: 'plugin_get_workflow', arguments: { workflow: 'nonexistent' } } },
+      mockExtra,
+    )) as { content: Array<{ type: string; text: string }> };
+
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0]?.text).toContain('Unknown workflow');
+  });
+
+  test('includes embedded resource content in response', async () => {
+    const state = createState();
+    const { server, handlers } = createMockServer();
+    registerMcpHandlers(server, state);
+
+    const handler = getHandler(handlers, CallToolRequestSchema);
+    const result = (await handler(
+      { params: { name: 'plugin_get_workflow', arguments: { url: 'https://example.com' } } },
+      mockExtra,
+    )) as { content: Array<{ type: string; text: string }> };
+
+    // build_plugin embeds plugin-development and sdk-api resources
+    expect(result.content[0]?.text).toContain('Resource:');
   });
 });
 
