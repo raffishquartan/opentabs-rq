@@ -362,6 +362,8 @@ export interface ConfigStateResult {
   /** Plugin-level default permission for the browser pseudo-plugin */
   browserPermission?: ToolPermission;
   serverVersion?: string;
+  /** Absolute path to the MCP server's package directory on disk */
+  serverSourcePath?: string;
   /** When true, all permission checks are bypassed (all tools run as auto) */
   skipPermissions?: boolean;
 }

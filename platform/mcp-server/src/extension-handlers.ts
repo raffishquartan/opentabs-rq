@@ -5,6 +5,8 @@
  * handleExtensionMessage router in extension-protocol.ts.
  */
 
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   ConfigSetPluginPermissionParams,
   ConfigSetToolPermissionParams,
@@ -17,6 +19,7 @@ import type {
   TabSyncAllParams,
   ToolPermission,
 } from '@opentabs-dev/shared';
+import open from 'open';
 import type { PluginLogEntry } from './log-buffer.js';
 import { appendLog } from './log-buffer.js';
 import { log } from './logger.js';
@@ -31,6 +34,9 @@ import {
 import type { RegisteredPlugin, ServerState, TabMapping } from './state.js';
 import { DISPATCH_TIMEOUT_MS, getConfiguredToolPermission, MAX_DISPATCH_TIMEOUT_MS } from './state.js';
 import { version } from './version.js';
+
+/** Absolute path to the MCP server's package directory (parent of dist/) */
+const serverSourcePath = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Valid ToolPermission values for parameter validation */
 const VALID_PERMISSIONS = new Set<string>(['off', 'ask', 'auto']);
@@ -339,6 +345,7 @@ const buildConfigStatePayload = (state: ServerState): ConfigStateResult => {
     browserTools,
     browserPermission,
     serverVersion: version,
+    serverSourcePath,
     skipPermissions: state.skipPermissions,
   };
 };
@@ -669,6 +676,27 @@ const rejectAllPendingConfirmations = (state: ServerState): void => {
   }
 };
 
+// --- Folder open handler ---
+
+const handleFolderOpen = async (
+  state: ServerState,
+  params: Record<string, unknown> | undefined,
+  id: string | number,
+): Promise<void> => {
+  if (!params || typeof params.path !== 'string' || params.path.length === 0) {
+    sendJsonRpcError(state, id, -32602, 'Invalid params: path must be a non-empty string');
+    return;
+  }
+
+  try {
+    await open(params.path);
+    sendToExtension(state, { jsonrpc: '2.0', result: { ok: true }, id });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to open folder';
+    sendJsonRpcError(state, id, -32603, message);
+  }
+};
+
 // --- Plugin management handlers ---
 
 const handlePluginSearch = async (
@@ -865,6 +893,7 @@ export {
   handlePluginCheckUpdates,
   handleToolProgress,
   handlePluginLog,
+  handleFolderOpen,
   handleConfirmationResponse,
   rejectAllPendingConfirmations,
 };

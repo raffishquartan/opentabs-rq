@@ -25,6 +25,7 @@ import {
   handleConfigSetSkipPermissions,
   handleConfigSetToolPermission,
   handleConfirmationResponse,
+  handleFolderOpen,
   handlePluginCheckUpdates,
   handlePluginInstall,
   handlePluginLog,
@@ -113,6 +114,7 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
       browserTools: configState.browserTools,
       browserPermission: configState.browserPermission,
       serverVersion: configState.serverVersion,
+      serverSourcePath: configState.serverSourcePath,
       skipPermissions: configState.skipPermissions,
     },
   });
@@ -438,6 +440,11 @@ const handleExtensionMessage = (
 
   if (method === 'plugin.checkUpdates' && id !== undefined) {
     void handlePluginCheckUpdates(state, id);
+    return;
+  }
+
+  if (method === 'folder.open' && id !== undefined) {
+    void handleFolderOpen(state, params, id);
     return;
   }
 
