@@ -52,6 +52,53 @@ export const getLocalStorage = (key: string): string | null => {
 };
 
 /**
+ * Searches localStorage keys using a predicate and returns the first matching
+ * entry. Returns null if no match is found or if localStorage is inaccessible.
+ * Uses the same iframe fallback as getLocalStorage for environments where
+ * localStorage is deleted (e.g., Discord).
+ */
+export const findLocalStorageEntry = (predicate: (key: string) => boolean): { key: string; value: string } | null => {
+  const search = (storage: Storage): { key: string; value: string } | null => {
+    for (let i = 0; i < storage.length; i++) {
+      const key = storage.key(i);
+      if (key !== null && predicate(key)) {
+        const value = storage.getItem(key);
+        if (value !== null) return { key, value };
+      }
+    }
+    return null;
+  };
+
+  try {
+    return search(localStorage);
+  } catch {
+    // Direct access failed — localStorage may be deleted or inaccessible.
+  }
+
+  let storage: Storage | undefined;
+  try {
+    storage = localStorage as Storage | undefined;
+  } catch {
+    return null;
+  }
+  if (storage !== undefined) return null;
+
+  try {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    try {
+      const iframeStorage = iframe.contentWindow?.localStorage;
+      return iframeStorage ? search(iframeStorage) : null;
+    } finally {
+      document.body.removeChild(iframe);
+    }
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Writes a value to localStorage. Logs a warning if storage access throws
  * (e.g., SecurityError in sandboxed iframes or QuotaExceededError when storage is full).
  */

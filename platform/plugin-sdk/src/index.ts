@@ -223,6 +223,7 @@ export { retry, sleep, waitUntil } from './timing.js';
 
 export {
   clearAuthCache,
+  findLocalStorageEntry,
   getAuthCache,
   getCookie,
   getLocalStorage,
