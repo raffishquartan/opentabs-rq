@@ -1029,41 +1029,11 @@ interface ProgressNotification {
  * session state via the `mcp-session-id` header and includes Bearer auth
  * when a secret is provided.
  */
-/** A single prompt argument definition returned by prompts/list */
-interface PromptArgument {
-  name: string;
-  description?: string;
-  required?: boolean;
-}
-
-/** A prompt definition returned by prompts/list */
-interface PromptInfo {
-  name: string;
-  description?: string;
-  arguments?: PromptArgument[];
-}
-
-/** A resolved prompt message returned by prompts/get */
-interface PromptMessage {
-  role: string;
-  content: { type: string; text: string };
-}
-
-/** Result of prompts/get */
-interface PromptGetResult {
-  description?: string;
-  messages: PromptMessage[];
-}
-
 interface McpClient {
   /** Send `initialize` + `notifications/initialized` to create a new MCP session. */
   initialize: () => Promise<void>;
   /** List all registered tools via `tools/list`. */
   listTools: () => Promise<Array<{ name: string; description: string; inputSchema?: unknown }>>;
-  /** List all registered prompts via `prompts/list`. */
-  listPrompts: () => Promise<PromptInfo[]>;
-  /** Get a resolved prompt via `prompts/get`. */
-  getPrompt: (name: string, args?: Record<string, string>) => Promise<PromptGetResult>;
   /** Call a tool via `tools/call` and return the concatenated text content. */
   callTool: (
     name: string,
@@ -1245,31 +1215,6 @@ const createMcpClient = (port: number, secret?: string): McpClient => {
         tools: Array<{ name: string; description: string; inputSchema?: unknown }>;
       };
       return result.tools;
-    },
-
-    listPrompts: async () => {
-      const res = await request({
-        jsonrpc: '2.0',
-        method: 'prompts/list',
-        params: {},
-        id: nextId++,
-      });
-      const result = res.result as { prompts: PromptInfo[] };
-      return result.prompts;
-    },
-
-    getPrompt: async (name, args = {}) => {
-      const res = await request({
-        jsonrpc: '2.0',
-        method: 'prompts/get',
-        params: { name, arguments: args },
-        id: nextId++,
-      });
-      if (res.error) {
-        const err = res.error as { message: string };
-        throw new Error(`prompts/get failed: ${err.message}`);
-      }
-      return res.result as PromptGetResult;
     },
 
     callTool: async (name, args = {}, options) => {
