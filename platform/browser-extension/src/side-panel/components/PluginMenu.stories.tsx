@@ -206,5 +206,25 @@ const VersionInMenu: Story = {
   },
 };
 
+const FullMenu: Story = {
+  render: () => (
+    <PluginMenu
+      plugin={mockNpmPlugin({ update: { latestVersion: '0.2.0', updateCommand: 'npm update slack' } })}
+      onUpdate={() => undefined}
+      onRemove={() => undefined}
+      updating={false}
+      removing={false}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const trigger = canvas.getByLabelText('Plugin options');
+    await userEvent.click(trigger);
+    await expect(screen.getByText('v0.1.0')).toBeVisible();
+    await expect(screen.getByText(/Update to v0\.2\.0/)).toBeVisible();
+    await expect(screen.getByText('Uninstall')).toBeVisible();
+  },
+};
+
 export default meta;
-export { Default, WithUpdate, LocalPlugin, WithConfirmDialog, UpdateBadge, AllStates, Muted, VersionInMenu };
+export { Default, WithUpdate, LocalPlugin, WithConfirmDialog, UpdateBadge, AllStates, Muted, VersionInMenu, FullMenu };
