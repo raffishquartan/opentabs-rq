@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getPageGlobal, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const API_BASE = 'https://app.asana.com/api/1.0';
 
@@ -8,35 +8,21 @@ const API_BASE = 'https://app.asana.com/api/1.0';
 // injects on every page for logged-in users. The actual API auth uses
 // session cookies sent automatically via credentials: 'include'.
 
-declare const window: Window & {
-  env?: { _user_id?: number };
-  page_load_globals?: { user_id?: number };
-};
-
 const getUserId = (): number | null => {
-  return window.env?._user_id ?? window.page_load_globals?.user_id ?? null;
+  const envUserId = getPageGlobal('env._user_id');
+  if (typeof envUserId === 'number') return envUserId;
+  const globalUserId = getPageGlobal('page_load_globals.user_id');
+  if (typeof globalUserId === 'number') return globalUserId;
+  return null;
 };
 
 export const isAuthenticated = (): boolean => getUserId() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 // --- API caller ---
 

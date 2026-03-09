@@ -1,4 +1,12 @@
-import { getCookie, parseRetryAfterMs, ToolError } from '@opentabs-dev/plugin-sdk';
+import {
+  clearAuthCache,
+  getAuthCache,
+  getCookie,
+  parseRetryAfterMs,
+  setAuthCache,
+  ToolError,
+  waitUntil,
+} from '@opentabs-dev/plugin-sdk';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -8,39 +16,6 @@ interface FigmaAuth {
   fuid: string;
   teamId: string;
 }
-
-// ---------------------------------------------------------------------------
-// Token persistence (survives adapter re-injection)
-// ---------------------------------------------------------------------------
-
-const getPersistedAuth = (): FigmaAuth | null => {
-  try {
-    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
-    const cache = ns?.tokenCache as Record<string, FigmaAuth | undefined> | undefined;
-    return cache?.figma ?? null;
-  } catch {
-    return null;
-  }
-};
-
-const setPersistedAuth = (auth: FigmaAuth): void => {
-  try {
-    const g = globalThis as Record<string, unknown>;
-    if (!g.__openTabs) g.__openTabs = {};
-    const ns = g.__openTabs as Record<string, unknown>;
-    if (!ns.tokenCache) ns.tokenCache = {};
-    const cache = ns.tokenCache as Record<string, FigmaAuth | undefined>;
-    cache.figma = auth;
-  } catch {}
-};
-
-const clearPersistedAuth = (): void => {
-  try {
-    const ns = (globalThis as Record<string, unknown>).__openTabs as Record<string, unknown> | undefined;
-    const cache = ns?.tokenCache as Record<string, FigmaAuth | undefined> | undefined;
-    if (cache) cache.figma = undefined;
-  } catch {}
-};
 
 // ---------------------------------------------------------------------------
 // Auth extraction
@@ -100,7 +75,7 @@ const extractTeamIdFromUserState = (): string | null => {
 };
 
 const getAuth = (): FigmaAuth | null => {
-  const persisted = getPersistedAuth();
+  const persisted = getAuthCache<FigmaAuth>('figma');
   if (persisted) return persisted;
 
   // Detect auth status via non-HttpOnly cookie
@@ -129,7 +104,7 @@ const getAuth = (): FigmaAuth | null => {
   if (!teamId) teamId = '';
 
   const auth: FigmaAuth = { fuid, teamId };
-  setPersistedAuth(auth);
+  setAuthCache('figma', auth);
   return auth;
 };
 
@@ -140,23 +115,10 @@ const getAuth = (): FigmaAuth | null => {
 export const isFigmaAuthenticated = (): boolean => getAuth() !== null;
 
 export const waitForFigmaAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isFigmaAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isFigmaAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 // ---------------------------------------------------------------------------
 // API caller
@@ -224,7 +186,7 @@ export const figmaApi = async <T extends Record<string, unknown>>(
       throw ToolError.rateLimited(`Rate limited: ${endpoint} — ${errorBody}`, retryMs);
     }
     if (response.status === 401 || response.status === 403) {
-      clearPersistedAuth();
+      clearAuthCache('figma');
       throw ToolError.auth(`Auth error (${response.status}): ${errorBody}`);
     }
     if (response.status === 404) throw ToolError.notFound(`Not found: ${endpoint} — ${errorBody}`);
@@ -239,7 +201,7 @@ export const figmaApi = async <T extends Record<string, unknown>>(
   if (data.error) {
     const msg = data.message ?? 'Unknown Figma API error';
     if (data.status === 401 || data.status === 403) {
-      clearPersistedAuth();
+      clearAuthCache('figma');
       throw ToolError.auth(msg);
     }
     if (data.status === 404) throw ToolError.notFound(msg);

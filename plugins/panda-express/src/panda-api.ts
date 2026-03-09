@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getLocalStorage, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 /**
  * Panda Express uses Olo (NomNom) APIs proxied through the same origin.
@@ -8,7 +8,7 @@ import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
 
 const getAuthToken = (): string | null => {
   try {
-    const root = localStorage.getItem('persist:root');
+    const root = getLocalStorage('persist:root');
     if (!root) return null;
     const parsed = JSON.parse(root) as Record<string, string>;
     const appState = JSON.parse(parsed.appState ?? '{}') as Record<string, Record<string, string>>;
@@ -21,21 +21,10 @@ const getAuthToken = (): string | null => {
 export const isAuthenticated = (): boolean => getAuthToken() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 export const getRequiredAuthToken = (): string => {
   const token = getAuthToken();

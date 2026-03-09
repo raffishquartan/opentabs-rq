@@ -1,4 +1,4 @@
-import { parseRetryAfterMs, ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getLocalStorage, getPageGlobal, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 // Auth0 SPA SDK stores the token in localStorage under this key.
 // The token object has { body: { access_token, ... }, expiresAt }.
@@ -23,7 +23,7 @@ interface ClickHouseAuth {
 
 const getAuth = (): ClickHouseAuth | null => {
   try {
-    const raw = localStorage.getItem(AUTH0_STORAGE_KEY);
+    const raw = getLocalStorage(AUTH0_STORAGE_KEY);
     if (!raw) return null;
 
     const entry = JSON.parse(raw) as Auth0TokenEntry;
@@ -47,23 +47,10 @@ const getAuth = (): ClickHouseAuth | null => {
 export const isAuthenticated = (): boolean => getAuth() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 // --- Organization ID extraction ---
 
@@ -77,7 +64,7 @@ export const getFromCache = <T>(cacheKey: string): T | null => {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(prefix)) continue;
-      const raw = localStorage.getItem(key);
+      const raw = getLocalStorage(key);
       if (!raw) continue;
       return JSON.parse(raw) as T;
     }
@@ -90,7 +77,7 @@ export const getFromCache = <T>(cacheKey: string): T | null => {
 export const getOrgId = (): string | null => {
   // Strategy 1: Read from localStorage org ID preference
   try {
-    const orgId = localStorage.getItem('currentOrganizationId');
+    const orgId = getLocalStorage('currentOrganizationId');
     if (orgId) return orgId;
   } catch {
     // Ignore
@@ -101,7 +88,7 @@ export const getOrgId = (): string | null => {
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(`${UC_CACHE_PREFIX}organizations:`)) continue;
-      const raw = localStorage.getItem(key);
+      const raw = getLocalStorage(key);
       if (!raw) continue;
       const orgs = JSON.parse(raw) as Array<{ id?: string }>;
       if (Array.isArray(orgs) && orgs[0]?.id) return orgs[0].id;
@@ -115,16 +102,10 @@ export const getOrgId = (): string | null => {
 
 // --- API base URL ---
 
-interface ConsoleConfig {
-  controlPlane?: {
-    apiHost?: string;
-  };
-}
-
 const getApiBase = (): string => {
   try {
-    const config = (window as unknown as { consoleConfig?: ConsoleConfig }).consoleConfig;
-    if (config?.controlPlane?.apiHost) return config.controlPlane.apiHost;
+    const apiHost = getPageGlobal('consoleConfig.controlPlane.apiHost');
+    if (typeof apiHost === 'string') return apiHost;
   } catch {
     // Ignore
   }

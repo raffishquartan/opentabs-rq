@@ -1,4 +1,4 @@
-import { ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getPageGlobal, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 // CockroachDB Cloud uses gRPC-Web over HTTP/1.1 with protobuf encoding.
 // The page exposes a `window.proto` global containing compiled protobuf
@@ -31,8 +31,8 @@ interface ProtoNamespace {
 }
 
 const getProto = (): ProtoNamespace => {
-  const g = globalThis as unknown as { proto?: ProtoNamespace; initData?: string };
-  if (g.proto) return g.proto;
+  const proto = getPageGlobal('proto') as ProtoNamespace | undefined;
+  if (proto) return proto;
   throw ToolError.internal('Protobuf library not available — page may not be fully loaded.');
 };
 
@@ -42,28 +42,15 @@ const getProto = (): ProtoNamespace => {
 // The actual authentication uses HttpOnly session cookies.
 
 export const isAuthenticated = (): boolean => {
-  const g = globalThis as unknown as { initData?: string };
-  return typeof g.initData === 'string' && g.initData.length > 0;
+  const initData = getPageGlobal('initData');
+  return typeof initData === 'string' && initData.length > 0;
 };
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 // --- gRPC-Web transport ---
 // gRPC-Web frames: [flag:1byte, length:4bytes big-endian, payload:N bytes]
@@ -210,8 +197,7 @@ export const getResponseClass = (className: string): ProtoMessageClass => {
   const cls = proto.console[className] ?? proto.common[className];
   if (cls) return cls;
   // Some classes like Empty are on the top-level proto namespace
-  const g = globalThis as unknown as { proto?: Record<string, ProtoMessageClass | undefined> };
-  const topLevel = g.proto?.[className];
+  const topLevel = getPageGlobal(`proto.${className}`) as ProtoMessageClass | undefined;
   if (topLevel) return topLevel;
   throw ToolError.internal(`Proto response class ${className} not found — page may not be fully loaded.`);
 };

@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getPageGlobal, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 // --- Types ---
 
@@ -7,45 +7,26 @@ interface AirtableAuth {
   csrfToken: string;
 }
 
-interface InitData {
-  sessionUserId?: string;
-  csrfToken?: string;
-}
-
-declare const window: Window & { initData?: InitData };
-
 // --- Auth detection ---
 // Airtable uses HttpOnly session cookies. Auth is detected via window.initData
 // which contains sessionUserId and csrfToken for authenticated users.
 
 const getAuth = (): AirtableAuth | null => {
-  const initData = window.initData;
-  if (!initData?.sessionUserId || !initData?.csrfToken) return null;
+  const sessionUserId = getPageGlobal('initData.sessionUserId');
+  const csrfToken = getPageGlobal('initData.csrfToken');
+  if (typeof sessionUserId !== 'string' || typeof csrfToken !== 'string') return null;
   // Public share context users start with usrPAGESHARE — these are not real users
-  if (initData.sessionUserId.startsWith('usrPAGESHARE')) return null;
-  return { userId: initData.sessionUserId, csrfToken: initData.csrfToken };
+  if (sessionUserId.startsWith('usrPAGESHARE')) return null;
+  return { userId: sessionUserId, csrfToken };
 };
 
 export const isAuthenticated = (): boolean => getAuth() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 export const getUserId = (): string => {
   const auth = getAuth();

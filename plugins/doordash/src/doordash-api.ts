@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, getLocalStorage, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const GRAPHQL_BASE = '/graphql';
 
@@ -8,10 +8,10 @@ const GRAPHQL_BASE = '/graphql';
 // and consumerId in localStorage.
 
 const getAuth = (): { consumerId: string } | null => {
-  const loggedIn = document.cookie.includes('dd_cx_logged_in');
+  const loggedIn = getCookie('dd_cx_logged_in') !== null;
   if (!loggedIn) return null;
 
-  const consumerId = localStorage.getItem('consumerId');
+  const consumerId = getLocalStorage('consumerId');
   if (!consumerId) return null;
 
   return { consumerId };
@@ -20,28 +20,12 @@ const getAuth = (): { consumerId: string } | null => {
 export const isAuthenticated = (): boolean => getAuth() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 5000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
-const getCsrfToken = (): string | null => {
-  const match = document.cookie.match(/csrf_token=([^;]+)/);
-  return match?.[1] ?? null;
-};
+const getCsrfToken = (): string | null => getCookie('csrf_token');
 
 // --- GraphQL caller ---
 

@@ -1,32 +1,6 @@
-import { defineTool, ToolError } from '@opentabs-dev/plugin-sdk';
+import { defineTool, ToolError, waitForSelector } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
 import { requireActiveCart } from '../dominos-api.js';
-
-/**
- * Wait for a DOM element matching the selector to appear, up to timeoutMs.
- */
-const waitForElement = <T extends Element>(selector: string, timeoutMs = 10_000): Promise<T> =>
-  new Promise((resolve, reject) => {
-    const existing = document.querySelector<T>(selector);
-    if (existing) {
-      resolve(existing);
-      return;
-    }
-    let elapsed = 0;
-    const interval = setInterval(() => {
-      elapsed += 200;
-      const el = document.querySelector<T>(selector);
-      if (el) {
-        clearInterval(interval);
-        resolve(el);
-        return;
-      }
-      if (elapsed >= timeoutMs) {
-        clearInterval(interval);
-        reject(new Error(`Timed out waiting for element: ${selector}`));
-      }
-    }, 200);
-  });
 
 export const placeOrderCash = defineTool({
   name: 'place_order_cash',
@@ -50,7 +24,7 @@ export const placeOrderCash = defineTool({
     // Wait for the Cash payment radio button to appear
     let cashRadio: HTMLInputElement;
     try {
-      cashRadio = await waitForElement<HTMLInputElement>('input#payment-type-cash', 15_000);
+      cashRadio = await waitForSelector<HTMLInputElement>('input#payment-type-cash', { timeout: 15_000 });
     } catch {
       throw ToolError.internal('Checkout page did not load — make sure you have items in your cart.');
     }

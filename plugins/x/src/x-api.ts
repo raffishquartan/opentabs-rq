@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, getPageGlobal, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 /** Static bearer token for X web client — same for all users, embedded in the JS bundle. */
 const BEARER_TOKEN =
@@ -106,35 +106,21 @@ const getOpHash = (name: string): string => {
 };
 
 /** Get the CSRF token from the ct0 cookie. */
-const getCsrfToken = (): string | null => {
-  const match = document.cookie.match(/ct0=([^;]+)/);
-  return match?.[1] ?? null;
-};
+const getCsrfToken = (): string | null => getCookie('ct0');
 
 /** Check if the user is authenticated on X. */
 export const isAuthenticated = (): boolean => {
-  const meta = (globalThis as Record<string, unknown>).__META_DATA__ as { isLoggedIn?: boolean } | undefined;
-  if (meta?.isLoggedIn) return true;
+  const isLoggedIn = getPageGlobal('__META_DATA__.isLoggedIn') as boolean | undefined;
+  if (isLoggedIn) return true;
   return getCsrfToken() !== null;
 };
 
 /** Wait up to 5 seconds for authentication to be available. */
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 /** Common request headers for all X API calls. */
 const getHeaders = (): Record<string, string> => {

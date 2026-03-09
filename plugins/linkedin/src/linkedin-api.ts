@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const VOYAGER_BASE = '/voyager/api';
 const MESSAGING_GRAPHQL_BASE = '/voyager/api/voyagerMessagingGraphQL/graphql';
@@ -8,28 +8,18 @@ const MESSAGING_GRAPHQL_BASE = '/voyager/api/voyagerMessagingGraphQL/graphql';
  * The cookie is non-HttpOnly and accessible via document.cookie.
  */
 const getCsrfToken = (): string | null => {
-  const match = document.cookie.match(/JSESSIONID="?([^";]+)"?/);
-  return match?.[1] ?? null;
+  const value = getCookie('JSESSIONID');
+  if (!value) return null;
+  return value.replace(/"/g, '');
 };
 
 export const isAuthenticated = (): boolean => getCsrfToken() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 const getHeaders = (): Record<string, string> => {
   const csrf = getCsrfToken();

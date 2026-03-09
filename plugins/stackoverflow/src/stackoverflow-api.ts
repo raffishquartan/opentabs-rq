@@ -1,24 +1,17 @@
-import { ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getPageGlobal, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const API_BASE = 'https://api.stackexchange.com/2.3';
 const SITE = 'stackoverflow';
 const FILTER = 'withbody';
 
-declare const StackExchange: {
-  options?: {
-    user?: {
-      userId?: number;
-      isRegistered?: boolean;
-    };
-  };
-};
-
 /** Returns the authenticated user's ID, or null if not logged in. */
 const getUserId = (): number | null => {
   try {
-    const user = StackExchange?.options?.user;
-    if (!user?.isRegistered || !user.userId) return null;
-    return user.userId;
+    const isRegistered = getPageGlobal('StackExchange.options.user.isRegistered');
+    if (!isRegistered) return null;
+    const userId = getPageGlobal('StackExchange.options.user.userId');
+    if (typeof userId !== 'number') return null;
+    return userId;
   } catch {
     return null;
   }
@@ -27,21 +20,10 @@ const getUserId = (): number | null => {
 export const isAuthenticated = (): boolean => getUserId() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 export const getCurrentUserId = (): number => {
   const id = getUserId();

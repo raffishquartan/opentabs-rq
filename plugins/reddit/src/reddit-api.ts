@@ -1,4 +1,4 @@
-import { ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 /**
  * Modhash token required for write operations (vote, comment, submit, etc.).
@@ -36,23 +36,10 @@ const isAuthenticated = (): boolean => {
  * on the first check. Polls at 500ms intervals for up to 3 seconds.
  */
 const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 3000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 3000 }).then(
+    () => true,
+    () => false,
+  );
 
 /**
  * Fetch and cache the modhash token from /api/me.json.
@@ -88,7 +75,7 @@ const getModhash = async (): Promise<string> => {
 const getBearerToken = async (): Promise<string> => {
   if (cachedBearerToken && Date.now() < bearerTokenExpiry) return cachedBearerToken;
 
-  const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
+  const csrfToken = getCookie('csrf_token') ?? '';
   const response = await fetch('https://www.reddit.com/svc/shreddit/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

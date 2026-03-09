@@ -1,16 +1,6 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const GQL_ENDPOINT = '/api/web-bff/graphql';
-
-// ---------------------------------------------------------------------------
-// Cookie helpers
-// ---------------------------------------------------------------------------
-
-const getCookie = (name: string): string | null => {
-  const match = document.cookie.split(';').find(c => c.trim().startsWith(`${name}=`));
-  if (!match) return null;
-  return match.split('=').slice(1).join('=');
-};
 
 /**
  * Decode the base64-encoded `userProfile` cookie to check login state.
@@ -29,21 +19,10 @@ const getUserProfile = (): { firstName: string; email: string } | null => {
 export const isAuthenticated = (): boolean => getUserProfile() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 // ---------------------------------------------------------------------------
 // Frontend cart state — read from the site's own cookies

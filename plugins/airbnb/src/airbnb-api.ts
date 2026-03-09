@@ -1,4 +1,4 @@
-import { ToolError, parseRetryAfterMs } from '@opentabs-dev/plugin-sdk';
+import { ToolError, getCookie, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 const API_BASE = 'https://www.airbnb.com';
 const API_KEY = 'd306zoyjsyarp7ifhu67rjxn52tv0t20';
@@ -28,13 +28,10 @@ interface UserAttributes {
 
 /** Parse the _user_attributes cookie to get basic user info */
 const getUserAttributes = (): UserAttributes | null => {
-  const cookie = document.cookie
-    .split(';')
-    .map(c => c.trim())
-    .find(c => c.startsWith('_user_attributes='));
-  if (!cookie) return null;
+  const raw = getCookie('_user_attributes');
+  if (!raw) return null;
   try {
-    return JSON.parse(decodeURIComponent(cookie.split('=').slice(1).join('='))) as UserAttributes;
+    return JSON.parse(raw) as UserAttributes;
   } catch {
     return null;
   }
@@ -45,21 +42,10 @@ export const isAuthenticated = (): boolean => getUserAttributes() !== null;
 
 /** Poll for authentication state with a timeout */
 export const waitForAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const timer = setInterval(() => {
-      elapsed += 500;
-      if (isAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= 5000) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, 500);
-  });
+  waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
+    () => true,
+    () => false,
+  );
 
 /** Get the current user ID from cookies */
 export const getCurrentUserId = (): string | null => {

@@ -1,5 +1,5 @@
 import { redditGet } from '../reddit-api.js';
-import { defineTool } from '@opentabs-dev/plugin-sdk';
+import { ToolError, defineTool } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
 
 interface RedditPostDetail {
@@ -133,7 +133,7 @@ export const getPost = defineTool({
 
     const postData = data[0]?.data.children[0]?.data;
     if (!postData) {
-      throw new Error('Post not found');
+      throw ToolError.notFound('Post not found');
     }
 
     const comments = flattenComments(data[1]?.data.children ?? [], params.comment_depth ?? 3);

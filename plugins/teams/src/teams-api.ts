@@ -1,4 +1,4 @@
-import { parseRetryAfterMs, ToolError } from '@opentabs-dev/plugin-sdk';
+import { ToolError, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 // ---------------------------------------------------------------------------
 // MSAL token discovery
@@ -151,23 +151,10 @@ export const isTeamsAuthenticated = (): boolean => findMsalToken(SKYPE_API_SCOPE
  * Polls at 500ms intervals for up to 8 seconds (Teams is a heavy SPA).
  */
 export const waitForTeamsAuth = (): Promise<boolean> =>
-  new Promise(resolve => {
-    let elapsed = 0;
-    const interval = 500;
-    const maxWait = 8000;
-    const timer = setInterval(() => {
-      elapsed += interval;
-      if (isTeamsAuthenticated()) {
-        clearInterval(timer);
-        resolve(true);
-        return;
-      }
-      if (elapsed >= maxWait) {
-        clearInterval(timer);
-        resolve(false);
-      }
-    }, interval);
-  });
+  waitUntil(() => isTeamsAuthenticated(), { interval: 500, timeout: 8000 }).then(
+    () => true,
+    () => false,
+  );
 
 // ---------------------------------------------------------------------------
 // Chat Service API
