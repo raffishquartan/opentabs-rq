@@ -377,6 +377,17 @@ export const apiCustom = async <T>(
 
 **Important:** `fetchFromPage` already calls `httpStatusToToolError` internally for all non-ok responses — you do NOT need to check `response.ok` or map status codes manually. If you find yourself writing `if (response.status === 429)` or `if (!response.ok)`, you are bypassing the SDK. Use `fetchFromPage` (or `fetchJSON`/`postJSON` etc.) and let it throw the correct `ToolError` automatically.
 
+**Cross-origin APIs:** Some apps call APIs on a different origin from the page (e.g., a user's personal server, a separate API domain). In these cases, session cookies don't apply — you use a bearer token instead. `fetchFromPage` still works: pass `credentials: 'omit'` to skip cookies, and add an `Authorization` header. All other benefits (timeout, error classification, network error handling) still apply. Never use raw `fetch()` just because the API is cross-origin.
+
+```typescript
+// Cross-origin API with bearer token — still use fetchFromPage
+const response = await fetchFromPage(url, {
+  method: 'GET',
+  headers: { Authorization: `Bearer ${token}` },
+  credentials: 'omit', // overrides the default 'include'
+});
+```
+
 ### Tool Pattern (one file per tool)
 
 ```typescript
