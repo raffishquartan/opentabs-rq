@@ -78,18 +78,21 @@ Study existing infrastructure before writing code:
 | Meta tags | `getMetaContent('meta-name')` | Manual `document.querySelector('meta[name="..."]')` |
 | HTTP error mapping | `httpStatusToToolError(response, msg)` | Manual `if (status === 429) ... if (status === 401) ...` chains |
 | JSON fetch | `fetchJSON(url, init)` or `postJSON(url, body, init)` | Manual `fetch()` + `response.json()` + error handling |
+| FormData/custom body | `fetchFromPage(url, init)` — handles credentials, timeout, and throws `httpStatusToToolError` on non-ok responses | Manual `fetch()` + `credentials: 'include'` + `AbortSignal.timeout()` + manual error chain |
 | Text fetch | `fetchText(url, init)` | Manual `fetch()` + `response.text()` |
 | Query strings | `buildQueryString({ page: 1, limit: 20 })` | Manual `URLSearchParams` construction |
 | Search localStorage | `findLocalStorageEntry(key => key.includes('token'))` | Manual `for (let i = 0; i < localStorage.length; i++)` loops |
 
 If the SDK utility doesn't cover your exact use case (e.g., the API needs custom headers beyond what `fetchJSON` supports), use `fetchFromPage` as the base and compose SDK utilities on top — never bypass the SDK entirely.
 
-2. **Study an existing plugin** (e.g., `plugins/github/`) as reference:
+2. **Study an existing plugin** (e.g., `plugins/github/`) as reference for file structure and tool patterns:
    - `src/index.ts` — plugin class, imports all tools
    - `src/*-api.ts` — API wrapper with auth extraction + error classification
    - `src/tools/schemas.ts` — shared Zod schemas + defensive mappers
    - `src/tools/*.ts` — one file per tool
    - `package.json` — the `opentabs` field, dependency versions, scripts
+
+   **This skill is the source of truth, not existing plugin code.** If a reference plugin contradicts the SDK-First Rule or the templates in this skill, follow the skill. Existing plugins may contain legacy patterns that have not been updated yet.
 
 3. **Read `plugins/CLAUDE.md`** — plugin isolation rules and conventions
 
@@ -337,7 +340,42 @@ export const apiRaw = async (endpoint: string): Promise<string> => {
     headers: { Authorization: `Bearer ${auth.token}` },
   });
 };
+
+// For endpoints that accept FormData or non-JSON bodies:
+// Use fetchFromPage (NOT raw fetch) + httpStatusToToolError for error classification.
+// fetchFromPage handles credentials:'include', timeout, and throws ToolError on HTTP errors.
+// Only use this pattern when fetchJSON/postJSON/postFormData don't fit (e.g., mixed body types).
+export const apiCustom = async <T>(
+  endpoint: string,
+  options: { method?: string; body?: FormData | string; contentType?: string },
+): Promise<T> => {
+  const auth = getAuth();
+  if (!auth) throw ToolError.auth('Not authenticated — please log in.');
+
+  const url = `${API_BASE}${endpoint}`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${auth.token}`,
+  };
+
+  // For string bodies, set Content-Type explicitly. For FormData, let the browser set it.
+  if (typeof options.body === 'string') {
+    headers['Content-Type'] = options.contentType ?? 'application/json';
+  }
+
+  // fetchFromPage handles: credentials:'include', 30s timeout, and throws
+  // httpStatusToToolError on non-ok responses. You do NOT need to handle any of this.
+  const response = await fetchFromPage(url, {
+    method: options.method ?? 'POST',
+    headers,
+    body: options.body,
+  });
+
+  if (response.status === 204) return {} as T;
+  return (await response.json()) as T;
+};
 ```
+
+**Important:** `fetchFromPage` already calls `httpStatusToToolError` internally for all non-ok responses — you do NOT need to check `response.ok` or map status codes manually. If you find yourself writing `if (response.status === 429)` or `if (!response.ok)`, you are bypassing the SDK. Use `fetchFromPage` (or `fetchJSON`/`postJSON` etc.) and let it throw the correct `ToolError` automatically.
 
 ### Tool Pattern (one file per tool)
 
