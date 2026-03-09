@@ -41,7 +41,7 @@
     "@opentabs-dev/plugin-sdk": "^0.0.70"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.5",
+    "@biomejs/biome": "2.4.6",
     "@opentabs-dev/plugin-tools": "^0.0.70",
     "jiti": "^2.6.1",
     "typescript": "^5.9.3",
