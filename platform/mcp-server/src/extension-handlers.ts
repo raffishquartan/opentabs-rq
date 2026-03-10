@@ -80,6 +80,27 @@ const sendToExtension = (
 };
 
 /**
+ * Send a JSON-serialized message to a specific extension connection by ID.
+ * Returns true if the message was sent successfully, false if the connection
+ * was not found or the send failed.
+ */
+const sendToConnection = (
+  state: ServerState,
+  connectionId: string,
+  msg: JsonRpcNotification | JsonRpcResult | JsonRpcRequest | JsonRpcError,
+): boolean => {
+  const conn = state.extensionConnections.get(connectionId);
+  if (!conn) return false;
+  try {
+    conn.ws.send(JSON.stringify(msg));
+    return true;
+  } catch (err) {
+    log.warn(`Failed to send to connection ${connectionId}:`, err);
+    return false;
+  }
+};
+
+/**
  * Send a JSON-RPC error response to the extension.
  * Shorthand for the common pattern of sending { jsonrpc: '2.0', error: { code, message }, id }.
  */
@@ -893,6 +914,7 @@ export type { McpCallbacks, WireTabMapping, WirePluginTabInfo };
 export {
   buildConfigStatePayload,
   sendToExtension,
+  sendToConnection,
   sendJsonRpcError,
   sendPluginManagementError,
   serializePluginForExtension,

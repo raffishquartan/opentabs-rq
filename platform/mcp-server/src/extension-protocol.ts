@@ -334,8 +334,7 @@ const handleExtensionMessage = (
 
   // Handle ping keepalive — reply on the SAME ws that sent the ping.
   // This is critical during hot reload: if the old connection sends a ping
-  // before it's closed, the pong must go back on that connection (not the
-  // new one stored in state.extensionWs).
+  // before it's closed, the pong must go back on that specific connection.
   if (method === 'ping') {
     const replyWs = senderWs ?? getAnyConnection(state)?.ws;
     replyWs?.send(JSON.stringify({ jsonrpc: '2.0', method: 'pong' } satisfies JsonRpcNotification));
