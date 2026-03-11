@@ -58,7 +58,7 @@ Now that you're set up, this is the part I'm most excited about.
 
 Most of the plugins in this repo were built by AI in minutes. Point your AI agent at any website and it'll build a plugin — analyze the page, discover the APIs, scaffold the code, register it. The MCP server ships with site analysis tools, the SDK handles the boilerplate, and there's a [build-plugin skill](.claude/skills/build-plugin/) that walks AI agents through the whole process — API discovery, auth extraction, error handling, schema design, testing, and a growing collection of patterns learned from building every plugin in this repo.
 
-Here's what makes it interesting: **every time an AI builds a plugin, it writes what it learned back into the skill.** New auth patterns, new API quirks, new edge cases — they all get folded in. The skill that teaches AI to build plugins gets better with every plugin built. Publish yours and anyone can `opentabs plugin install` it — the knowledge accumulates, and every plugin contributed makes the platform more useful for everyone. I'd love your help. If your agent discovers something new, contribute it back.
+Here's what makes it interesting: **every time an AI builds a plugin, it writes what it learned back into the skill.** New auth patterns, new API quirks, new edge cases — they all get folded in. The skill that teaches AI to build plugins gets better with every plugin built. Publish yours and anyone can `opentabs plugin install` it — the knowledge accumulates, and every plugin contributed makes OpenTabs more useful for everyone. I'd love your help. If your agent discovers something new, contribute it back.
 
 For internal tools, niche workflows, or anything involving sensitive data, you can keep plugins local — they work the same way, they just stay on your machine. The [Plugin Development guide](https://opentabs.dev/docs/guides/plugin-development) covers both paths.
 
@@ -171,7 +171,7 @@ See the [Development Setup guide](https://opentabs.dev/docs/contributing/dev-set
 - [SDK Reference](https://opentabs.dev/docs/sdk/plugin-class) — plugin class, tools, and utilities
 - [Browser Tools](https://opentabs.dev/docs/reference/browser-tools) — built-in tools for any tab
 - [CLI Reference](https://opentabs.dev/docs/reference/cli) — every command
-- [Architecture](https://opentabs.dev/docs/contributing/architecture) — how the platform works
+- [Architecture](https://opentabs.dev/docs/contributing/architecture) — how it all fits together
 
 This project wouldn't exist without [Claude Code](https://github.com/anthropics/claude-code), [OpenCode](https://github.com/anomalyco/opencode), [Ralph](https://github.com/snarktank/ralph), and [RetroUI](https://github.com/Logging-Studio/RetroUI). Genuinely grateful for all of them.
 

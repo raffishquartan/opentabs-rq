@@ -239,7 +239,7 @@ export default function Home() {
             <p className="mb-4 text-muted-foreground text-sm leading-relaxed">
               Point your AI at any website. It analyzes the page, discovers the APIs, scaffolds a plugin, writes the
               tools, and registers it. Publish it and anyone can install it — the knowledge accumulates, and every
-              plugin contributed makes the platform more useful for everyone.
+              plugin contributed makes OpenTabs more useful for everyone.
             </p>
             <p className="mb-4 text-muted-foreground text-sm leading-relaxed">
               Most of the plugins in this repo were built by AI in minutes. The MCP server ships with site analysis
