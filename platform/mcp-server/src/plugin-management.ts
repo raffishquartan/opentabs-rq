@@ -260,7 +260,9 @@ const searchNpmPlugins = async (query?: string): Promise<PluginSearchResult[]> =
       const q = query.toLowerCase();
       filtered = allPackages.filter(
         pkg =>
-          extractShortName(pkg.name).toLowerCase().includes(q) || (pkg.description ?? '').toLowerCase().includes(q),
+          pkg.name.toLowerCase().includes(q) ||
+          extractShortName(pkg.name).toLowerCase().includes(q) ||
+          (pkg.description ?? '').toLowerCase().includes(q),
       );
     } else {
       filtered = allPackages;

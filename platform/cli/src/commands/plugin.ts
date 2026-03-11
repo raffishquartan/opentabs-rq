@@ -339,7 +339,10 @@ const npmSearchPlugins = async (query?: string): Promise<NpmSearchPackage[]> => 
   if (query) {
     const q = query.toLowerCase();
     return results.filter(
-      r => extractShortName(r.name).toLowerCase().includes(q) || (r.description ?? '').toLowerCase().includes(q),
+      r =>
+        r.name.toLowerCase().includes(q) ||
+        extractShortName(r.name).toLowerCase().includes(q) ||
+        (r.description ?? '').toLowerCase().includes(q),
     );
   }
   return results;
