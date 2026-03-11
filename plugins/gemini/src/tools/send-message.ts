@@ -45,11 +45,9 @@ export const sendMessage = defineTool({
     const mapped = mapMessage(result);
     if (mapped.conversation_id) {
       const urlId = mapped.conversation_id.replace(/^c_/, '');
-      if (window.location.pathname !== `/app/${urlId}`) {
-        setTimeout(() => {
-          window.location.href = `https://gemini.google.com/app/${urlId}`;
-        }, 200);
-      }
+      setTimeout(() => {
+        window.location.href = `https://gemini.google.com/app/${urlId}`;
+      }, 200);
     }
     return { message: mapped };
   },
