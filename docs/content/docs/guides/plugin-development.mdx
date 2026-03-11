@@ -144,6 +144,20 @@ async isReady(): Promise<boolean> {
 }
 ```
 
+For SPA login flows where the URL doesn't change, call `notifyReadinessChanged()` to tell the extension to re-check immediately:
+
+```typescript
+import { notifyReadinessChanged, getLocalStorage } from '@opentabs-dev/plugin-sdk';
+
+// In a tool handler or onNavigate hook, after detecting auth state change:
+const token = getLocalStorage('auth_token');
+if (token) {
+  notifyReadinessChanged(); // Extension re-probes isReady() immediately
+}
+```
+
+Without this call, the extension polls every 30 seconds — so a user logging in via a modal or XHR form might wait up to 30 seconds before the plugin becomes available.
+
 ## Define Tools
 
 Now the fun part. Each tool lives in its own file under `src/tools/`. Use `defineTool()` to create one:

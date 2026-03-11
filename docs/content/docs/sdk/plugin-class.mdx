@@ -170,6 +170,8 @@ async isReady(): Promise<boolean> {
 }
 ```
 
+By default, the extension re-probes `isReady()` every 30 seconds and on tab navigation events. If your plugin detects auth changes that happen without a URL change (e.g., SPA login flows), call [`notifyReadinessChanged()`](/docs/sdk/utilities#notifyreadinesschanged) to trigger an immediate re-probe.
+
 ### `teardown()`
 
 Optional cleanup method called before re-injection on plugin updates. Remove any event listeners, timers, or global state set up by the previous adapter version.
