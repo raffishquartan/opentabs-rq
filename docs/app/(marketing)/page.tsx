@@ -10,13 +10,14 @@ import {
   LayoutDashboardIcon,
   LockIcon,
   MessageSquareIcon,
-  MonitorIcon,
   MusicIcon,
   PackageIcon,
   PlaneIcon,
+  PlayIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
   SparklesIcon,
+  TerminalIcon,
   TrendingUpIcon,
   TrelloIcon,
   type LucideIcon,
@@ -42,7 +43,7 @@ const plugins: PluginShowcase[] = [
   { name: 'AWS', icon: CloudIcon },
   { name: 'Stripe', icon: CreditCardIcon },
   { name: 'Robinhood', icon: TrendingUpIcon },
-  { name: 'Datadog', icon: MonitorIcon },
+  { name: 'Netflix', icon: PlayIcon },
   { name: 'Airbnb', icon: PlaneIcon },
   { name: 'Spotify', icon: MusicIcon },
   { name: 'DoorDash', icon: ShoppingCartIcon },
@@ -131,6 +132,32 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Works With ─────────────────────────────────────── */}
+      <section className="container mx-auto max-w-2xl px-4 pb-16 lg:px-0">
+        <p className="mb-4 text-center text-muted-foreground text-xs uppercase tracking-widest">Works with</p>
+        <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {[
+            { name: 'Claude Code', href: 'https://github.com/anthropics/claude-code' },
+            { name: 'Cursor', href: 'https://cursor.com' },
+            { name: 'Windsurf', href: 'https://windsurf.com' },
+            { name: 'OpenCode', href: 'https://github.com/anomalyco/opencode' },
+          ].map(client => (
+            <a
+              key={client.name}
+              href={client.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-muted-foreground text-sm transition-colors hover:text-foreground">
+              <TerminalIcon size={14} />
+              <span>{client.name}</span>
+            </a>
+          ))}
+        </div>
+        <p className="mt-3 text-center text-muted-foreground text-xs">
+          And any MCP client that supports Streamable HTTP.
+        </p>
+      </section>
+
       {/* ── Plugin Grid ───────────────────────────────────── */}
       <section className="container mx-auto max-w-6xl border-foreground border-t-2 px-4 py-20 lg:px-0">
         <div className="mb-12 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -158,7 +185,7 @@ export default function Home() {
         </div>
         <p className="mt-6 text-center text-muted-foreground text-sm">
           And 90+ more — messaging, DevOps, finance, shopping, streaming, and beyond.{' '}
-          <Link href={GITHUB_URL + '/tree/main/plugins'} target="_blank" className="underline underline-offset-4">
+          <Link href={`${GITHUB_URL}/tree/main/plugins`} target="_blank" className="underline underline-offset-4">
             Browse all plugins
           </Link>
         </p>
