@@ -9,7 +9,10 @@ Plugin developer CLI (`opentabs-plugin`), installed via `npm install -g @opentab
 ```
 platform/plugin-tools/src/
 ├── cli.ts             # Entry point — `opentabs-plugin` binary
-└── commands/build.ts  # `opentabs-plugin build` command
+└── commands/
+    ├── build.ts       # `opentabs-plugin build` command
+    ├── inspect.ts     # `opentabs-plugin inspect` command
+    └── readme.ts      # `opentabs-plugin readme` command
 ```
 
 ## SDK Version Compatibility
@@ -24,3 +27,13 @@ The build command produces two files in `dist/`:
 - `tools.json` — tool schemas and `sdkVersion`
 
 The build also auto-registers the plugin in `~/.opentabs/config.json` under `localPlugins` (first build only) and calls `POST /reload` to trigger MCP server rediscovery.
+
+## README Generation
+
+The `opentabs-plugin readme` command generates a user-facing README.md from `dist/tools.json` and `package.json`. It reads tool metadata (name, group, summary) and plugin metadata (displayName, description, urlPatterns, homepage) to produce a standardized README with install instructions, setup steps, a grouped tool table (Read/Write classified), and a How It Works section.
+
+- `opentabs-plugin readme` — writes README.md
+- `opentabs-plugin readme --dry-run` — prints to stdout
+- `opentabs-plugin readme --check` — exits 1 if README.md is out of date
+
+AI agents should run this command after adding, removing, or modifying tools to keep the README in sync with the built manifest.
