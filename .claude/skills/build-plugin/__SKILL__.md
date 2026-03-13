@@ -10,6 +10,17 @@ Build a production-ready OpenTabs plugin. Each phase builds on the previous — 
 
 **Self-review is mandatory and automatic** — do not wait for the user to ask. See Phase 7 "Mandatory Self-Review Before Completion" for the full checklist. The standard: could this code be published as the canonical example of how to build a plugin? If not, fix it.
 
+**Plugins must be generic — no personal information, no organization-specific content.** Plugins are published as npm packages and shared publicly. Every piece of source code, comment, description, schema, tool name, example value, and commit message must be completely free of:
+
+- **Organization names** — never reference the test account's company, team, or workspace name (e.g., "Acme Corp", "my-company.slack.com") in source code or comments
+- **Account identifiers** — no real user IDs, team IDs, enterprise IDs, channel IDs, workspace URLs, or API tokens observed during testing
+- **Personal information** — no real names, email addresses, or usernames from the test environment
+- **Test data artifacts** — no sample responses, example IDs, or debug output copied from live API calls into comments or descriptions
+
+Use generic placeholders in descriptions and examples: `C1234567890` for channel IDs, `U1234567890` for user IDs, `example.com` for domains. If you observe real data during browser exploration (Phase 2), that data must never appear in the plugin source — it is ephemeral context for understanding the API, not content to copy.
+
+**Pre-commit PII scan**: Before committing, grep the entire plugin directory for organization names, real IDs, and email patterns observed during the session. If anything leaks through, fix it before staging.
+
 ---
 
 ### Prerequisites
@@ -642,8 +653,9 @@ Only after multiple genuine attempts across these techniques should you remove t
 2. Delete dead code: unused exports, unused imports, unused types
 3. Eliminate duplication: shared fields use `.extend()`, shared mapper logic uses spread composition
 4. Verify every export is consumed, every function parameter is used, every return field is read
-5. Run `npm run format` then `npm run check` — all must exit 0
-6. Verify the code is clean enough to serve as a reference implementation for other agents to learn from
+5. **PII scan** — grep the entire plugin directory for organization names, real user/team/channel IDs, email addresses, workspace URLs, and any other data observed during the test session. Remove anything that is not a generic placeholder. The plugin must read as if it was written without knowledge of any specific organization.
+6. Run `npm run format` then `npm run check` — all must exit 0
+7. Verify the code is clean enough to serve as a reference implementation for other agents to learn from
 
 **When you say "done", the plugin is production-ready. No cleanup pass needed. No review requested. Done means done.**
 
