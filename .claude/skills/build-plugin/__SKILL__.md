@@ -605,26 +605,69 @@ curl -s -X POST http://127.0.0.1:$PORT/mcp \
   -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"<plugin>_<tool>","arguments":{...}}}'
 ```
 
+### The Hard Gate: Every Tool Must Work or Be Removed
+
+**A broken tool is worse than a missing tool.** A tool that returns an error, returns empty data, or doesn't match its schema gives false confidence and wastes the user's time. The plugin ships with ONLY tools that have been proven to work end-to-end.
+
+**Before declaring the plugin done, every single tool must pass ALL of these gates:**
+
+1. **Succeeds without errors** — the tool returns data, not an error. If it returns a GraphQL validation error, HTTP 400, schema mismatch, or any other failure, it is broken.
+2. **Returns real data** — the returned fields contain actual values from the API, not mapper defaults (`""`, `0`, `[]`, `null` for every field).
+3. **Schema validates** — the actual response matches the declared Zod output schema. Test this explicitly: call `tool.output.safeParse(result)` and confirm `success: true`.
+4. **Independently verified** — the data is confirmed correct via a browser tool (`browser_screenshot_tab`, `browser_execute_script`, `browser_get_tab_content`), not just by reading the tool's own response.
+5. **Round-trip verified** — if you write data, read it back with the corresponding read tool and confirm it matches. If you create an item, list items and confirm the new one appears. If you delete, confirm it's gone.
+
+**A tool that fails any gate must be fixed or removed. No exceptions. No "it works sometimes." No "the API might not return data for this test run." If you cannot make it work reliably, remove it.**
+
+### Test Through the MCP Dispatch Path
+
+**Do NOT only test via `browser_execute_script` calling `adapter.tools.find().handle()`.** That bypasses MCP input/output schema validation, parameter defaulting, and the full dispatch pipeline. A tool that works when called directly through the adapter may fail when called through MCP because:
+
+- The MCP client validates inputs against `input_schema` from `tools.json` — `z.unknown()` produces empty JSON Schema `{}` that rejects all values
+- Default values from `z.optional().default(X)` may not apply when the MCP client sends raw parameters
+- `additionalProperties: false` rejects parameters that the agent sends but the schema doesn't declare
+- Output validation against `output_schema` may reject data that Zod accepts (e.g., `z.unknown()` → empty JSON Schema)
+
+**Test every tool through the actual MCP tool dispatch** — either by calling `<plugin>_<tool_name>` directly (if the tools appear in your tool list after `tools/list_changed`), or via curl to the MCP endpoint. If you cannot call tools through MCP (e.g., tool list not refreshed), at minimum validate the schemas explicitly:
+
+```javascript
+// In browser_execute_script: simulate MCP schema validation
+const tool = adapter.tools.find(t => t.name === '<name>');
+const inputResult = tool.input.safeParse({ /* test params */ });
+if (!inputResult.success) return { inputError: inputResult.error.issues };
+const result = await tool.handle(inputResult.data);
+const outputResult = tool.output.safeParse(result);
+if (!outputResult.success) return { outputError: outputResult.error.issues };
+return { success: true, data: result };
+```
+
 ### The Zero-Trust Verification Rule
 
 **NEVER trust a tool's own response as proof that it works.** A tool returning `{ success: true }` or `{ items: [...] }` proves nothing — the data could be stale, the write silently dropped, or the mapper returning default values for every field. **You must independently verify every tool using browser tools** (`browser_screenshot_tab`, `browser_execute_script`, `browser_get_tab_content`).
-
-**An unverified tool MUST be removed.** We would rather ship 10 proven tools than 30 where 5 silently return garbage. An unverified tool is worse than a missing one — it gives false confidence.
 
 ### How to Verify Each Tool
 
 | Tool type | Call the tool, then... | Red flags |
 |---|---|---|
-| **Read** (list, get, search) | Cross-check returned data against `browser_screenshot_tab` or `browser_execute_script` reading the same data from the page. Compare field by field: names, counts, IDs, timestamps. | All fields are `""`, `0`, or `[]` (mapper defaults). Tool returns 5 items but UI shows 20. |
-| **Write** (create, update, send) | After the tool returns, independently confirm the mutation persisted: screenshot the UI, call the corresponding read tool, or query the API via `browser_execute_script`. | Tool returns `{ success: true }` but data is not visible in UI or readable via API. |
-| **Delete/state-change** (delete, archive, close) | Try to read the resource back — it should 404 or disappear from the list. Screenshot to confirm. | Resource still exists after "successful" delete. |
-| **Error paths** | Call with invalid ID → should return `ToolError.notFound`, not a 500 or empty result. | Generic error or silent empty response instead of classified ToolError. |
+| **Read** (list, get, search) | Cross-check returned data against `browser_screenshot_tab` or `browser_execute_script` reading the same data from the page. Compare field by field: names, counts, IDs, timestamps. | All fields are `""`, `0`, or `[]` (mapper defaults). Tool returns 5 items but UI shows 20. Returns error or empty when the page clearly has data. |
+| **Write** (create, update, send) | After the tool returns, **call the corresponding read tool** to confirm the mutation persisted. Then screenshot the UI to double-check. The read-back is mandatory — screenshots alone can miss subtle data issues. | Tool returns `{ success: true }` but the read tool doesn't show the change. |
+| **Delete/state-change** (delete, archive, close) | Call the corresponding read/list tool — the resource should be gone or show the new state. Screenshot to confirm. | Resource still exists or state unchanged after "successful" operation. |
+| **Error paths** | Call with invalid ID → should return `ToolError.notFound`, not a 500 or empty result. Call without auth → should return `ToolError.auth`. | Generic error or silent empty response instead of classified ToolError. |
+| **Tools that depend on other tools** | If tool B needs an ID from tool A's output (e.g., `get_issue` needs an issue ID from `list_issues`), test the full chain: call A → extract the ID → call B with it. If the chain breaks, both tools are suspect. | Tool B returns "not found" when called with IDs from tool A. |
 
 **For every tool, all of these must be true:**
-- Called with realistic inputs
+- Called with realistic inputs (not just empty objects or test IDs)
 - Result independently verified via a browser tool — NOT just by reading the tool's response
 - Returned field values are real data, not mapper defaults
-- For write tools: mutation confirmed via separate read or screenshot
+- For write tools: mutation confirmed via separate **read tool call** (not just screenshot)
+- For tools with pagination: tested with explicit offset/limit params to confirm pagination works
+- For tools with optional filters: tested both with and without filters
+
+**Round-trip verification examples:**
+- `create_<resource>` → call `list_<resources>` or `get_<resource>` and confirm the new item appears
+- `send_message` → call `read_messages` and confirm the message appears in the list
+- `update_<resource>` → call `get_<resource>` and confirm the field changed
+- `list_<resources>` → pick an item → call `get_<resource>` with its ID → confirm fields match
 
 **Additional testing:**
 - **Workflow tests**: Complete every critical user path end-to-end using only plugin tools (no `browser_*` calls), then `browser_screenshot_tab` to confirm the final state
@@ -656,6 +699,18 @@ Only after multiple genuine attempts across these techniques should you remove t
 5. **PII scan** — grep the entire plugin directory for organization names, real user/team/channel IDs, email addresses, workspace URLs, and any other data observed during the test session. Remove anything that is not a generic placeholder. The plugin must read as if it was written without knowledge of any specific organization.
 6. Run `npm run format` then `npm run check` — all must exit 0
 7. Verify the code is clean enough to serve as a reference implementation for other agents to learn from
+
+### Final Verification Gate
+
+**After self-review, run this final checklist. Every line must be true or the plugin is not done.**
+
+1. **Tool count matches** — the number of tools in `dist/tools.json` matches the number of tools in `index.ts`. No phantom tools, no missing tools.
+2. **Every tool was tested** — produce a list of all tools with their test status. Format: `tool_name: PASS (tested with X, verified via Y)` or `tool_name: REMOVED (reason)`. Every tool must be accounted for.
+3. **No tools return errors** — every tool call succeeded. If a tool returned a GraphQL error, HTTP error, or schema validation error during testing, it was either fixed or removed.
+4. **Schema validation confirmed** — for at least the 5 most complex tools, output was validated through `tool.output.safeParse(result)` confirming no schema mismatches (e.g., `z.unknown()` producing empty JSON Schema, nullable fields receiving non-null, arrays receiving objects).
+5. **Round-trip chains tested** — at least one write→read chain was verified (e.g., list→get, or create→list to confirm).
+6. **No Zod `z.unknown()` in output schemas** — this produces empty JSON Schema `{}` that MCP clients reject. Use concrete types (`z.string()`, `z.array(z.string())`, `z.record(z.string(), z.string())`, etc.).
+7. **All optional input parameters have working defaults** — tools work when called with only required parameters (no "variable X of required type Y was not provided" errors).
 
 **When you say "done", the plugin is production-ready. No cleanup pass needed. No review requested. Done means done.**
 
