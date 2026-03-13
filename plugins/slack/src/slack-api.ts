@@ -310,7 +310,39 @@ const extractAuthFromObject = (obj: unknown, depth = 0): SlackAuth | null => {
 };
 
 /**
+ * Detect if the current Slack session is an Enterprise Grid workspace.
+ * Enterprise workspaces use E-prefix organization IDs in the URL path
+ * and localStorage. The community plugin should not activate on enterprise
+ * workspaces — the dedicated enterprise plugin handles those.
+ */
+const isEnterpriseWorkspace = (): boolean => {
+  // Signal 1: URL path contains an E-prefix org ID
+  if (/\/client\/E[A-Z0-9]+/.test(window.location.pathname)) return true;
+
+  // Signal 2: Active team in localStorage is an E-prefix org
+  try {
+    for (const key of ['localConfig_v2', 'localConfig_v3']) {
+      const raw = getLocalStorage(key);
+      if (!raw) continue;
+      const config = JSON.parse(raw) as LocalConfigV2;
+      if (typeof config.lastActiveTeamId === 'string' && config.lastActiveTeamId.startsWith('E')) {
+        return true;
+      }
+    }
+  } catch {
+    // localStorage parse failure — fall through to next signal
+  }
+
+  // Signal 3: boot_data enterprise flag
+  const bootData = getPageGlobal('boot_data') as SlackBootData | undefined;
+  if (bootData?.is_enterprise_install === true) return true;
+
+  return false;
+};
+
+/**
  * Read Slack auth credentials from the web client's runtime state.
+ * Returns null on Enterprise Grid workspaces (handled by the enterprise plugin).
  * Tries multiple sources in order of reliability to support both old
  * (WORKSPACE.slack.com) and new (app.slack.com) Slack clients:
  *   1. localStorage `localConfig_v2` / `localConfig_v3` (legacy client)
@@ -318,8 +350,12 @@ const extractAuthFromObject = (obj: unknown, depth = 0): SlackAuth | null => {
  *   3. Inline `<script>` tags with embedded config JSON
  *   4. Full localStorage scan for any key containing an xoxc- token
  */
-const getAuth = (): SlackAuth | null =>
-  getAuthFromLocalStorage() ?? getAuthFromBootData() ?? getAuthFromPageScripts() ?? getAuthFromLocalStorageScan();
+const getAuth = (): SlackAuth | null => {
+  if (isEnterpriseWorkspace()) return null;
+  return (
+    getAuthFromLocalStorage() ?? getAuthFromBootData() ?? getAuthFromPageScripts() ?? getAuthFromLocalStorageScan()
+  );
+};
 
 /**
  * Check if the current Slack session is authenticated.
