@@ -1,159 +1,108 @@
-# opentabs-plugin-circleci
+# CircleCI
 
-OpenTabs plugin for CircleCI
+OpenTabs plugin for CircleCI — gives AI agents access to CircleCI through your authenticated browser session.
 
-## Project Structure
-
-```
-circleci/
-├── package.json          # Plugin metadata (name, opentabs field, dependencies)
-├── icon.svg              # Optional custom icon (square SVG, max 8KB)
-├── icon-inactive.svg     # Optional manual inactive icon override
-├── src/
-│   ├── index.ts          # Plugin class (extends OpenTabsPlugin)
-│   └── tools/            # One file per tool (using defineTool)
-│       └── example.ts
-└── dist/                 # Build output (generated)
-    ├── adapter.iife.js   # Bundled adapter injected into matching tabs
-    └── tools.json        # Tool schemas for MCP registration
-```
-
-## Configuration
-
-Plugin metadata is defined in `package.json` under the `opentabs` field:
-
-```json
-{
-  "name": "opentabs-plugin-circleci",
-  "main": "dist/adapter.iife.js",
-  "opentabs": {
-    "displayName": "CircleCI",
-    "description": "OpenTabs plugin for CircleCI",
-    "urlPatterns": ["*://*.app.circleci.com/*"]
-  }
-}
-```
-
-- **`main`** — entry point for the bundled adapter IIFE
-- **`opentabs.displayName`** — human-readable name shown in the side panel
-- **`opentabs.description`** — short description of what the plugin does
-- **`opentabs.urlPatterns`** — Chrome match patterns for tabs where the adapter is injected
-
-## Custom Icons
-
-By default, the side panel shows a colored letter avatar for your plugin. To use a custom icon, place an `icon.svg` file in the plugin root (next to `package.json`):
-
-```
-circleci/
-├── package.json
-├── icon.svg              ← custom icon (optional)
-├── icon-inactive.svg     ← manual inactive override (optional, requires icon.svg)
-├── src/
-│   └── ...
-```
-
-**How it works:**
-
-- `opentabs-plugin build` reads `icon.svg`, validates it, auto-generates a grayscale inactive variant, and embeds both in `dist/tools.json`
-- To override the auto-generated inactive icon, provide `icon-inactive.svg` (must use only grayscale colors)
-- If no `icon.svg` is provided, the letter avatar is used automatically
-
-**Icon requirements:**
-
-- Square SVG with a `viewBox` attribute (e.g., `viewBox="0 0 32 32"`)
-- Maximum 8 KB file size
-- No embedded `<image>`, `<script>`, or event handler attributes (`onclick`, etc.)
-- Manual `icon-inactive.svg` must use only achromatic (grayscale) colors
-
-## Development
+## Install
 
 ```bash
-npm install
-npm run build       # tsc && opentabs-plugin build
-npm run dev         # watch mode (tsc --watch + opentabs-plugin build --watch)
-npm run type-check  # tsc --noEmit
-npm run lint        # biome
+opentabs plugin install circleci
 ```
 
-## Adding Tools
+Or install globally via npm:
 
-Create a new file in `src/tools/` using `defineTool`:
-
-```ts
-import { z } from 'zod';
-import { defineTool } from '@opentabs-dev/plugin-sdk';
-
-export const myTool = defineTool({
-  name: 'my_tool',
-  displayName: 'My Tool',
-  description: 'What this tool does',
-  icon: 'wrench',
-  input: z.object({ /* ... */ }),
-  output: z.object({ /* ... */ }),
-  handle: async (params) => {
-    // Tool implementation runs in the browser tab context
-    return { /* ... */ };
-  },
-});
+```bash
+npm install -g @opentabs-dev/opentabs-plugin-circleci
 ```
 
-Then register it in `src/index.ts` by adding it to the `tools` array.
+## Setup
 
-## Authentication
+1. Open [app.circleci.com](https://app.circleci.com) in Chrome and log in
+2. Open the OpenTabs side panel — the CircleCI plugin should appear as **ready**
 
-Plugin tools run in the browser tab context, so they can read auth tokens directly from the page. The SDK provides utilities for the most common patterns:
+## Tools (33)
 
-```ts
-import { getLocalStorage, getCookie, getPageGlobal } from '@opentabs-dev/plugin-sdk';
+### Users (2)
 
-// localStorage — most common
-const token = getLocalStorage('token');
+| Tool | Description | Type |
+|---|---|---|
+| `get_current_user` | Get your CircleCI user profile | Read |
+| `list_collaborations` | List your organizations | Read |
 
-// Cookies — session tokens, JWTs
-const session = getCookie('session_id');
+### Projects (1)
 
-// Page globals — SPA boot data (e.g., window.__APP_STATE__)
-const appState = getPageGlobal('__APP_STATE__');
-```
+| Tool | Description | Type |
+|---|---|---|
+| `get_project` | Get project details by slug | Read |
 
-**Iframe fallback:** Some apps (e.g., Discord) delete `window.localStorage` after boot. `getLocalStorage` automatically tries a hidden same-origin iframe fallback before returning `null`, so you don't need to handle this case manually.
+### Pipelines (4)
 
-**SPA hydration:** Auth tokens may not be available immediately on page load. Implement polling in `isReady()` to wait until the app has hydrated before your tools run. See the comments in `src/index.ts` for an example polling pattern.
+| Tool | Description | Type |
+|---|---|---|
+| `list_pipelines` | List pipelines for a project | Read |
+| `get_pipeline` | Get a pipeline by ID | Read |
+| `get_pipeline_config` | Get pipeline configuration | Read |
+| `trigger_pipeline` | Trigger a new pipeline | Write |
 
-## Shared Schemas
+### Workflows (5)
 
-When 3 or more tools share the same input or output shape, extract common Zod schemas into a shared file to avoid duplication:
+| Tool | Description | Type |
+|---|---|---|
+| `get_pipeline_workflows` | List workflows for a pipeline | Read |
+| `get_workflow` | Get a workflow by ID | Read |
+| `get_workflow_jobs` | List jobs in a workflow | Read |
+| `cancel_workflow` | Cancel a running workflow | Write |
+| `rerun_workflow` | Rerun a workflow | Write |
 
-```ts
-// src/schemas/channel.ts
-import { z } from 'zod';
+### Jobs (5)
 
-export const channelSchema = z.object({
-  id: z.string().describe('Channel ID'),
-  name: z.string().describe('Channel name'),
-});
+| Tool | Description | Type |
+|---|---|---|
+| `get_job` | Get job details | Read |
+| `get_job_artifacts` | List job artifacts | Read |
+| `get_job_tests` | Get job test results | Read |
+| `cancel_job` | Cancel a running job | Write |
+| `approve_job` | Approve a pending job | Write |
 
-export type Channel = z.infer<typeof channelSchema>;
-```
+### Contexts (5)
 
-Then import and reuse in your tools:
+| Tool | Description | Type |
+|---|---|---|
+| `list_contexts` | List organization contexts | Read |
+| `get_context` | Get context details | Read |
+| `create_context` | Create a context | Write |
+| `delete_context` | Delete a context | Write |
+| `list_context_env_vars` | List context env vars | Read |
 
-```ts
-// src/tools/list-channels.ts
-import { channelSchema } from '../schemas/channel.js';
+### Environment (3)
 
-export const listChannels = defineTool({
-  name: 'list_channels',
-  displayName: 'List Channels',
-  description: 'List all available channels',
-  icon: 'list',
-  input: z.object({}),
-  output: z.object({ channels: z.array(channelSchema) }),
-  handle: async () => {
-    // ...
-    return { channels: [] };
-  },
-});
-```
+| Tool | Description | Type |
+|---|---|---|
+| `list_env_vars` | List project env vars | Read |
+| `create_env_var` | Create a project env var | Write |
+| `delete_env_var` | Delete a project env var | Write |
 
-This keeps your tool schemas DRY and makes it easy to evolve shared types in one place.
+### Insights (4)
+
+| Tool | Description | Type |
+|---|---|---|
+| `get_project_workflow_metrics` | Get workflow metrics for a project | Read |
+| `get_workflow_runs` | Get recent runs of a workflow | Read |
+| `get_workflow_job_metrics` | Get job metrics for a workflow | Read |
+| `get_flaky_tests` | Get flaky tests in a project | Read |
+
+### Schedules (4)
+
+| Tool | Description | Type |
+|---|---|---|
+| `list_schedules` | List scheduled triggers | Read |
+| `create_schedule` | Create a scheduled trigger | Write |
+| `update_schedule` | Update a scheduled trigger | Write |
+| `delete_schedule` | Delete a scheduled trigger | Write |
+
+## How It Works
+
+This plugin runs inside your CircleCI tab through the [OpenTabs](https://opentabs.dev) Chrome extension. It uses your existing browser session — no API tokens or OAuth apps required. All operations happen as you, with your permissions.
+
+## License
+
+MIT
