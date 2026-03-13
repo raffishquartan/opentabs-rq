@@ -18,7 +18,13 @@ import { isDev } from './dev-mode.js';
 import { discoverPlugins } from './discovery.js';
 import { buildConfigStatePayload, sendToExtension } from './extension-handlers.js';
 import { ensureExtensionInstalled } from './extension-install.js';
-import { cleanupStaleExecFiles, sendExtensionReload, sendPluginUpdate, sendSyncFull } from './extension-protocol.js';
+import {
+  cleanupStaleExecFiles,
+  sendExtensionReload,
+  sendPluginUpdate,
+  sendSyncFull,
+  writeAllAdapterFiles,
+} from './extension-protocol.js';
 import { startConfigWatching, startFileWatching, stopFileWatching } from './file-watcher.js';
 import { sweepStaleSessions } from './http-routes.js';
 import { pruneStaleBuffers } from './log-buffer.js';
@@ -297,6 +303,13 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     // Reset permissions for plugins whose reviewed version no longer matches the installed version.
     // When a plugin is updated, its permission reverts to 'off' until re-reviewed.
     resetStaleReviewedVersions(state);
+
+    // Write adapter files eagerly so they exist on disk before the extension connects.
+    try {
+      await writeAllAdapterFiles(state);
+    } catch (err) {
+      log.warn('Failed to write adapter files:', err);
+    }
   } catch (err) {
     log.error('Reload failed, keeping previous state:', err);
   }

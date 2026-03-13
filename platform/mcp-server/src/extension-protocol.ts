@@ -55,18 +55,19 @@ import {
 const MAX_MESSAGE_SIZE = 10 * 1024 * 1024;
 
 /**
- * Send sync.full notification to extension on connect.
- * Writes all plugin adapter IIFEs to the extension's adapters/ directory,
- * then sends plugin metadata (without IIFE content) to the extension.
+ * Write adapter IIFE files for all plugins in the registry.
+ * Ensures the adapters/ directory exists, cleans up stale files for removed
+ * plugins, and writes each plugin's IIFE to a content-hashed file.
+ * Returns a Map of plugin name → adapter file path for successful writes.
+ *
+ * Called eagerly during server startup (via reloadCore) so adapter files
+ * exist on disk before the extension connects, and again from sendSyncFull
+ * when the extension is connected.
  */
-const sendSyncFull = async (state: ServerState): Promise<void> => {
-  // Write all adapter IIFEs to disk so the extension can inject them as files.
-  // Uses allSettled so a single plugin's write failure doesn't block the sync notification.
-  // Races against a timeout so stalled writes don't hang hot reload indefinitely.
+const writeAllAdapterFiles = async (state: ServerState): Promise<Map<string, string>> => {
   const pluginList = Array.from(state.registry.plugins.values());
   await ensureAdaptersDir(state);
 
-  // Remove stale adapter files from plugins that are no longer in the current set
   const currentPluginNames = new Set(pluginList.map(p => p.name));
   await cleanupStaleAdapterFiles(currentPluginNames);
 
@@ -75,11 +76,10 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
   const writeResults = await Promise.race([writePromise, timeout.promise]);
   timeout.cancel();
 
-  // Collect adapterFile paths from successful writes
   const adapterFileMap = new Map<string, string>();
   if (writeResults === null) {
     log.warn(
-      `Adapter file writes did not complete within ${ADAPTER_WRITE_TIMEOUT_MS}ms — sending sync.full with available adapters. Pending plugins: ${pluginList.map(p => p.name).join(', ')}`,
+      `Adapter file writes did not complete within ${ADAPTER_WRITE_TIMEOUT_MS}ms. Pending plugins: ${pluginList.map(p => p.name).join(', ')}`,
     );
   } else {
     for (const [i, result] of writeResults.entries()) {
@@ -91,6 +91,18 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
       }
     }
   }
+
+  return adapterFileMap;
+};
+
+/**
+ * Send sync.full notification to extension on connect.
+ * Writes all plugin adapter IIFEs to the extension's adapters/ directory,
+ * then sends plugin metadata (without IIFE content) to the extension.
+ */
+const sendSyncFull = async (state: ServerState): Promise<void> => {
+  const adapterFileMap = await writeAllAdapterFiles(state);
+  const pluginList = Array.from(state.registry.plugins.values());
 
   // Build the full config state payload to include server-owned fields
   // (failedPlugins, browserTools, serverVersion, per-plugin source/sdkVersion/update)
@@ -648,6 +660,7 @@ const sendExtensionReload = (state: ServerState): boolean =>
 
 export type { McpCallbacks };
 export {
+  writeAllAdapterFiles,
   sendSyncFull,
   dispatchToAllConnections,
   dispatchToExtension,
