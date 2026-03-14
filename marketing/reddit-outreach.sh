@@ -14,9 +14,9 @@
 #   - Reddit tab open in Chrome, logged in
 #
 # Usage:
-#   ./marketing/reddit-outreach.sh              # run forever (2h interval)
-#   INTERVAL=300 ./marketing/reddit-outreach.sh  # 5 min (for testing)
-#   DRY_RUN=1 ./marketing/reddit-outreach.sh     # evaluate but don't post
+#   ./marketing/reddit-outreach.sh                            # run forever (1.5–2.5h randomized)
+#   INTERVAL_MIN=60 INTERVAL_MAX=120 ./marketing/reddit-outreach.sh  # 1–2 min (for testing)
+#   DRY_RUN=1 ./marketing/reddit-outreach.sh                 # evaluate but don't post
 #
 
 set -euo pipefail
@@ -25,7 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
 STATE_FILE="$SCRIPT_DIR/state.json"
-INTERVAL="${INTERVAL:-7200}"
+INTERVAL_MIN="${INTERVAL_MIN:-5400}"   # default: 1.5 hours
+INTERVAL_MAX="${INTERVAL_MAX:-9000}"   # default: 2.5 hours
 DRY_RUN="${DRY_RUN:-0}"
 
 mkdir -p "$LOG_DIR"
@@ -236,7 +237,7 @@ run_count=0
 
 echo "============================================"
 echo "  OpenTabs Reddit Outreach"
-echo "  Interval: ${INTERVAL}s"
+echo "  Interval: ${INTERVAL_MIN}s–${INTERVAL_MAX}s (randomized)"
 echo "  Dry run:  ${DRY_RUN}"
 echo "  State:    ${STATE_FILE}"
 echo "  Logs:     ${LOG_DIR}/"
@@ -261,8 +262,12 @@ while true; do
     | stream_filter
 
   echo ""
+  # Randomize sleep between INTERVAL_MIN and INTERVAL_MAX
+  sleep_secs=$(( INTERVAL_MIN + RANDOM % (INTERVAL_MAX - INTERVAL_MIN + 1) ))
+  sleep_min=$(( sleep_secs / 60 ))
+
   echo "[$(date '+%H:%M:%S')] Run #${run_count} complete. Log: $log_file"
-  echo "[$(date '+%H:%M:%S')] Sleeping ${INTERVAL}s..."
+  echo "[$(date '+%H:%M:%S')] Sleeping ${sleep_min}m (${sleep_secs}s)..."
   echo ""
-  sleep "$INTERVAL"
+  sleep "$sleep_secs"
 done
