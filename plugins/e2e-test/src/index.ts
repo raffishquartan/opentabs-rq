@@ -14,6 +14,7 @@ import { listItems } from './tools/list-items.js';
 import { logBulk } from './tools/log-bulk.js';
 import { logLevels } from './tools/log-levels.js';
 import { sdkFetchJson } from './tools/sdk-fetch-json.js';
+import { sdkGetConfig } from './tools/sdk-get-config.js';
 import { sdkGetLocalStorage } from './tools/sdk-get-local-storage.js';
 import { sdkGetPageGlobal } from './tools/sdk-get-page-global.js';
 import { sdkRetry } from './tools/sdk-retry.js';
@@ -36,6 +37,21 @@ class E2eTestPlugin extends OpenTabsPlugin {
   override readonly displayName = 'E2E Test';
   readonly urlPatterns = ['http://localhost/*'];
   override readonly homepage = 'http://localhost:9876';
+  override readonly configSchema = {
+    instanceUrl: {
+      type: 'url' as const,
+      label: 'Instance URL',
+      description: 'URL of the test server instance',
+      required: false,
+      placeholder: 'http://localhost:9876',
+    },
+    testString: {
+      type: 'string' as const,
+      label: 'Test String',
+      description: 'A test string for config verification',
+      required: false,
+    },
+  };
   readonly tools: ToolDefinition[] = [
     echo,
     greet,
@@ -53,6 +69,7 @@ class E2eTestPlugin extends OpenTabsPlugin {
     logLevels,
     sdkWaitForSelector,
     sdkFetchJson,
+    sdkGetConfig,
     sdkGetLocalStorage,
     sdkGetPageGlobal,
     sdkRetry,

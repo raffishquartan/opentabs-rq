@@ -15,7 +15,22 @@
     "urlPatterns": [
       "http://localhost/*"
     ],
-    "homepage": "http://localhost:9876"
+    "homepage": "http://localhost:9876",
+    "configSchema": {
+      "instanceUrl": {
+        "type": "url",
+        "label": "Instance URL",
+        "description": "URL of the test server instance",
+        "required": false,
+        "placeholder": "http://localhost:9876"
+      },
+      "testString": {
+        "type": "string",
+        "label": "Test String",
+        "description": "A test string for config verification",
+        "required": false
+      }
+    }
   },
   "exports": {
     ".": {
