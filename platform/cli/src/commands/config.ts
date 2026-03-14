@@ -51,7 +51,7 @@ const colorPermission = (perm: string): string => {
   return pc.red('off');
 };
 
-const CANONICAL_CONFIG_SECTIONS = ['localPlugins', 'permissions'] as const;
+const CANONICAL_CONFIG_SECTIONS = ['localPlugins', 'permissions', 'settings'] as const;
 
 /**
  * Normalize a raw config object for display: ensures expected sections always appear
@@ -69,6 +69,7 @@ const normalizeConfigForDisplay = (config: Record<string, unknown>): Record<stri
   // Canonical sections always appear in defined order with defaults for absent keys
   normalized.localPlugins = config.localPlugins ?? [];
   normalized.permissions = config.permissions ?? {};
+  normalized.settings = config.settings ?? {};
   return normalized;
 };
 
@@ -138,6 +139,20 @@ const handleConfigShow = async (options: ConfigShowOptions & { port?: number }):
             }
           }
         }
+      } else if (key === 'settings' && typeof value === 'object' && value !== null) {
+        const entries = Object.entries(value as Record<string, unknown>);
+        console.log(`  ${pc.cyan('settings')}`);
+        if (entries.length === 0) {
+          console.log(`    ${pc.dim('(none)')}`);
+        } else {
+          for (const [pluginName, pluginSettings] of entries) {
+            if (typeof pluginSettings !== 'object' || pluginSettings === null) continue;
+            console.log(`    ${pluginName}`);
+            for (const [k, v] of Object.entries(pluginSettings as Record<string, unknown>)) {
+              console.log(`      ${k}: ${String(v)}`);
+            }
+          }
+        }
       } else {
         const display =
           typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean'
@@ -165,6 +180,7 @@ const handleConfigShow = async (options: ConfigShowOptions & { port?: number }):
 
 const TOOL_PERMISSION_PREFIX = 'tool-permission.';
 const PLUGIN_PERMISSION_PREFIX = 'plugin-permission.';
+const SETTING_PREFIX = 'setting.';
 const LOCAL_PLUGINS_ADD = 'localPlugins.add';
 const LOCAL_PLUGINS_REMOVE = 'localPlugins.remove';
 const PORT_KEY = 'port';
@@ -172,6 +188,7 @@ const PORT_KEY = 'port';
 const SUPPORTED_KEYS = `Supported keys:
   tool-permission.<plugin>.<tool>   Set a per-tool permission (value: off | ask | auto)
   plugin-permission.<plugin>        Set a plugin-level default permission (value: off | ask | auto)
+  setting.<plugin>.<key>            Set a plugin setting (e.g., setting.sqlpad.instanceUrl)
   port                              Set the server port (value: 1-65535)
   localPlugins.add                  Add a local plugin path (value: absolute or relative path)
   localPlugins.remove               Remove a local plugin path (value: path to remove)`;
@@ -300,6 +317,53 @@ const handleSetPluginPermission = async (key: string, value: string, options: { 
   await notifyServer({ port: options.port, warnIfNotRunning: true });
 };
 
+const handleSetSetting = async (key: string, value: string, options: { port?: number }): Promise<void> => {
+  const rest = key.slice(SETTING_PREFIX.length);
+  const dotIdx = rest.indexOf('.');
+  if (dotIdx === -1 || dotIdx === 0 || dotIdx === rest.length - 1) {
+    console.error(pc.red(`Invalid key format: ${key}`));
+    console.error('Expected: setting.<plugin>.<key>');
+    console.error('Example: setting.sqlpad.instanceUrl');
+    process.exit(1);
+  }
+  const pluginName = rest.slice(0, dotIdx);
+  const settingKey = rest.slice(dotIdx + 1);
+
+  const { config, configPath } = await loadConfig();
+
+  if (!config.settings || typeof config.settings !== 'object' || Array.isArray(config.settings)) {
+    config.settings = {};
+  }
+  const settingsMap = config.settings as Record<string, Record<string, unknown>>;
+
+  if (value === '') {
+    // Empty string removes the key
+    if (settingsMap[pluginName]) {
+      delete settingsMap[pluginName][settingKey];
+      if (Object.keys(settingsMap[pluginName]).length === 0) {
+        delete settingsMap[pluginName];
+      }
+    }
+    if (Object.keys(settingsMap).length === 0) {
+      delete config.settings;
+    }
+  } else {
+    if (!settingsMap[pluginName]) {
+      settingsMap[pluginName] = {};
+    }
+    settingsMap[pluginName][settingKey] = value;
+  }
+
+  await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
+
+  if (value === '') {
+    console.log(`${pluginName}.${settingKey}: ${pc.dim('(removed)')}`);
+  } else {
+    console.log(`${pluginName}.${settingKey}: ${pc.cyan(value)}`);
+  }
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
+};
+
 const handleSetPort = async (value: string, options: { port?: number }): Promise<void> => {
   const newPort = Number(value);
   if (!Number.isInteger(newPort) || newPort < 1 || newPort > 65535) {
@@ -421,7 +485,14 @@ const levenshtein = (a: string, b: string): number => {
   return prev[n] ?? 0;
 };
 
-const KNOWN_KEYS = ['tool-permission.', 'plugin-permission.', PORT_KEY, LOCAL_PLUGINS_ADD, LOCAL_PLUGINS_REMOVE];
+const KNOWN_KEYS = [
+  'tool-permission.',
+  'plugin-permission.',
+  'setting.',
+  PORT_KEY,
+  LOCAL_PLUGINS_ADD,
+  LOCAL_PLUGINS_REMOVE,
+];
 
 const suggestKey = (input: string): string | null => {
   let best: string | null = null;
@@ -451,7 +522,8 @@ const handleConfigSet = async (
   value: string | undefined,
   options: { port?: number; force?: boolean },
 ): Promise<void> => {
-  if (value === undefined || value === '') {
+  // Allow empty string for setting.* keys (means "remove the key")
+  if (value === undefined || (value === '' && !key.startsWith(SETTING_PREFIX))) {
     console.error(pc.red('Missing value.'));
     console.error(SUPPORTED_KEYS);
     process.exit(1);
@@ -462,6 +534,9 @@ const handleConfigSet = async (
   }
   if (key.startsWith(PLUGIN_PERMISSION_PREFIX)) {
     return handleSetPluginPermission(key, value, options);
+  }
+  if (key.startsWith(SETTING_PREFIX)) {
+    return handleSetSetting(key, value ?? '', options);
   }
   if (key === PORT_KEY) {
     return handleSetPort(value, options);
@@ -621,6 +696,8 @@ Examples:
   $ opentabs config set tool-permission.browser.browser_screenshot ask
   $ opentabs config set plugin-permission.slack auto
   $ opentabs config set plugin-permission.browser ask
+  $ opentabs config set setting.sqlpad.instanceUrl https://sqlpad.example.com
+  $ opentabs config set setting.sqlpad.instanceUrl ''   # remove a setting
   $ opentabs config set port 9515
   $ opentabs config set localPlugins.add /path/to/plugin
   $ opentabs config set localPlugins.add /future/path --force
@@ -695,5 +772,6 @@ export {
   suggestKey,
   KNOWN_KEYS,
   handleSetLocalPluginsAdd,
+  handleSetSetting,
   normalizeConfigForDisplay,
 };

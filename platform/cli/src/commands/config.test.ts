@@ -6,6 +6,7 @@ import type { MockInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   handleSetLocalPluginsAdd,
+  handleSetSetting,
   levenshtein,
   maskSecret,
   normalizeConfigForDisplay,
@@ -105,6 +106,11 @@ describe('suggestKey', () => {
   test('returns prefix key without suffix when input has no dot', () => {
     // 'port' matches 'port' exactly (distance 0)
     expect(suggestKey('port')).toBe('port');
+  });
+
+  test('suggests setting prefix and appends user suffix for typo', () => {
+    // 'settig.' vs 'setting.' = distance 1
+    expect(suggestKey('settig.sqlpad.instanceUrl')).toBe('setting.sqlpad.instanceUrl');
   });
 });
 
@@ -230,6 +236,24 @@ describe('normalizeConfigForDisplay', () => {
     expect(keys.indexOf('port')).toBeLessThan(keys.indexOf('localPlugins'));
     expect(keys.indexOf('port')).toBeLessThan(keys.indexOf('permissions'));
   });
+
+  test('adds settings: {} when key is absent from config', () => {
+    const result = normalizeConfigForDisplay({});
+    expect(result.settings).toEqual({});
+  });
+
+  test('preserves existing settings entries when present', () => {
+    const settings = { sqlpad: { instanceUrl: 'https://sqlpad.example.com' } };
+    const result = normalizeConfigForDisplay({ settings });
+    expect(result.settings).toEqual(settings);
+  });
+
+  test('canonical sections appear in order: localPlugins, permissions, settings', () => {
+    const result = normalizeConfigForDisplay({});
+    const keys = Object.keys(result);
+    expect(keys.indexOf('localPlugins')).toBeLessThan(keys.indexOf('permissions'));
+    expect(keys.indexOf('permissions')).toBeLessThan(keys.indexOf('settings'));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -313,5 +337,92 @@ describe('handleSetLocalPluginsAdd', () => {
     expect(config.localPlugins).toContain(pluginDir);
     const warnCalls = warnSpy.mock.calls.filter(args => String(args[0]).includes('Warning'));
     expect(warnCalls).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleSetSetting
+// ---------------------------------------------------------------------------
+
+describe('handleSetSetting', () => {
+  let testDir: string;
+  let exitSpy: MockInstance;
+  const savedConfigDir = process.env.OPENTABS_CONFIG_DIR;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'opentabs-setsetting-test-'));
+    process.env.OPENTABS_CONFIG_DIR = testDir;
+    writeFileSync(join(testDir, 'config.json'), `${JSON.stringify({ localPlugins: [] })}\n`, 'utf-8');
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number | string | null) => {
+      throw new Error(`process.exit(${_code ?? ''})`);
+    });
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+    if (savedConfigDir !== undefined) {
+      process.env.OPENTABS_CONFIG_DIR = savedConfigDir;
+    } else {
+      delete process.env.OPENTABS_CONFIG_DIR;
+    }
+    vi.restoreAllMocks();
+  });
+
+  test('writes setting value to config.json under settings map', async () => {
+    await handleSetSetting('setting.sqlpad.instanceUrl', 'https://sqlpad.example.com', {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as Record<string, unknown>;
+    expect(config.settings).toEqual({ sqlpad: { instanceUrl: 'https://sqlpad.example.com' } });
+  });
+
+  test('removes key when value is empty string', async () => {
+    writeFileSync(
+      join(testDir, 'config.json'),
+      `${JSON.stringify({ localPlugins: [], settings: { sqlpad: { instanceUrl: 'https://x.com' } } })}\n`,
+      'utf-8',
+    );
+
+    await handleSetSetting('setting.sqlpad.instanceUrl', '', {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as Record<string, unknown>;
+    expect(config.settings).toBeUndefined();
+  });
+
+  test('removes plugin entry when last key is removed', async () => {
+    writeFileSync(
+      join(testDir, 'config.json'),
+      `${JSON.stringify({ localPlugins: [], settings: { sqlpad: { instanceUrl: 'https://x.com', apiKey: 'abc' } } })}\n`,
+      'utf-8',
+    );
+
+    await handleSetSetting('setting.sqlpad.instanceUrl', '', {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as Record<string, unknown>;
+    expect(config.settings).toEqual({ sqlpad: { apiKey: 'abc' } });
+  });
+
+  test('exits with code 1 for invalid key format (missing setting key)', async () => {
+    await expect(handleSetSetting('setting.sqlpad', 'value', {})).rejects.toThrow('process.exit(1)');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('exits with code 1 for invalid key format (missing plugin name)', async () => {
+    await expect(handleSetSetting('setting..key', 'value', {})).rejects.toThrow('process.exit(1)');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  test('preserves existing settings for other plugins', async () => {
+    writeFileSync(
+      join(testDir, 'config.json'),
+      `${JSON.stringify({ localPlugins: [], settings: { other: { key: 'val' } } })}\n`,
+      'utf-8',
+    );
+
+    await handleSetSetting('setting.sqlpad.instanceUrl', 'https://sqlpad.example.com', {});
+
+    const config = JSON.parse(await readFile(join(testDir, 'config.json'), 'utf-8')) as Record<string, unknown>;
+    const settings = config.settings as Record<string, Record<string, unknown>>;
+    expect(settings.other).toEqual({ key: 'val' });
+    expect(settings.sqlpad).toEqual({ instanceUrl: 'https://sqlpad.example.com' });
   });
 });

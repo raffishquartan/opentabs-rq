@@ -431,6 +431,7 @@ interface HealthPluginDetail {
   source?: string;
   sdkVersion?: string | null;
   tools?: string[];
+  needsSetup?: boolean;
 }
 
 interface HealthFailedPlugin {
@@ -569,7 +570,10 @@ const handlePluginList = async (options: PluginListOptions): Promise<void> => {
         const tools = pc.dim(`${p.toolCount} tool${p.toolCount === 1 ? '' : 's'}`);
         const sourceLabel = p.source === 'local' ? pc.dim('(local)') : pc.dim('(npm)');
         const sdkWarning = p.sdkVersion === null ? ` ${pc.yellow('⚠ no SDK version')}` : '';
-        console.log(`  ${p.displayName} ${sourceLabel} ${pc.dim('—')} ${state} ${pc.dim('·')} ${tools}${sdkWarning}`);
+        const setupIndicator = p.needsSetup ? ` ${pc.yellow('⚙ needs setup')}` : '';
+        console.log(
+          `  ${p.displayName} ${sourceLabel} ${pc.dim('—')} ${state} ${pc.dim('·')} ${tools}${sdkWarning}${setupIndicator}`,
+        );
         if (options.verbose && p.tools && p.tools.length > 0) {
           console.log(`      ${pc.dim(p.tools.join(', '))}`);
         }

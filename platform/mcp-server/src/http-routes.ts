@@ -307,6 +307,12 @@ const handleHealth = async (
   const pluginDetails = [...state.registry.plugins.values()].map(p => {
     const liveInfo = liveTabStates?.[p.name];
     const tabInfo = liveInfo ?? mergedTabs.get(p.name);
+    const userSettings = state.pluginSettings[p.name] ?? {};
+    const needsSetup =
+      p.configSchema !== undefined &&
+      Object.entries(p.configSchema).some(
+        ([key, def]) => def.required === true && (userSettings[key] === undefined || userSettings[key] === null),
+      );
     return {
       name: p.name,
       displayName: p.displayName,
@@ -317,6 +323,7 @@ const handleHealth = async (
       source: p.source,
       sdkVersion: p.sdkVersion ?? null,
       logBufferSize: getLogCount(p.name),
+      needsSetup,
       ...(p.iconSvg ? { iconSvg: p.iconSvg } : {}),
     };
   });
