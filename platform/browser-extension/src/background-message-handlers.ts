@@ -627,6 +627,19 @@ const handleBgUpdatePlugin: MessageHandler = (message, sendResponse) => {
     });
 };
 
+/** Handle bg:setPluginSettings — save plugin settings via the MCP server */
+const handleBgSetPluginSettings: MessageHandler = (message, sendResponse) => {
+  const plugin = message.plugin as string;
+  const settings = message.settings as Record<string, unknown>;
+  sendServerRequest('config.setPluginSettings', { plugin, settings })
+    .then((result: unknown) => {
+      sendResponse(result);
+    })
+    .catch((err: unknown) => {
+      sendResponse({ error: err instanceof Error ? err.message : String(err) });
+    });
+};
+
 /** Handle bg:openFolder — relay folder open request to MCP server */
 const handleBgOpenFolder: MessageHandler = (message, sendResponse) => {
   const path = message.path as string;
@@ -735,6 +748,7 @@ const backgroundHandlers = new Map<InternalMessage['type'], MessageHandler>([
   ['bg:removeFailedPlugin', handleBgRemoveFailedPlugin],
   ['bg:updatePlugin', handleBgUpdatePlugin],
   ['bg:openPluginTab', handleBgOpenPluginTab],
+  ['bg:setPluginSettings', handleBgSetPluginSettings],
   ['bg:openFolder', handleBgOpenFolder],
   ['plugin:logs', handlePluginLogs],
   ['plugin:readinessChanged', handlePluginReadinessChanged],
@@ -760,6 +774,7 @@ const EXTENSION_ONLY_TYPES: ReadonlySet<InternalMessage['type']> = new Set([
   'bg:removeFailedPlugin',
   'bg:updatePlugin',
   'bg:openPluginTab',
+  'bg:setPluginSettings',
   'bg:openFolder',
   'offscreen:getLogs',
   'sp:confirmationResponse',
@@ -806,6 +821,7 @@ export {
   handleBgSearchPlugins,
   handleBgSetAllToolsPermission,
   handleBgSetPluginPermission,
+  handleBgSetPluginSettings,
   handleBgSetSkipPermissions,
   handleBgSetToolPermission,
   handleBgUpdatePlugin,

@@ -188,6 +188,13 @@ export interface BgOpenPluginTabMessage {
   pluginName: string;
 }
 
+/** Side panel → Background: save plugin settings (relayed to MCP server) */
+export interface BgSetPluginSettingsMessage {
+  type: 'bg:setPluginSettings';
+  plugin: string;
+  settings: Record<string, unknown>;
+}
+
 /** Side panel → Background: open a folder in the system file manager (relayed to MCP server) */
 export interface BgOpenFolderMessage {
   type: 'bg:openFolder';
@@ -219,6 +226,7 @@ export type InternalMessage =
   | BgRemoveFailedPluginMessage
   | BgUpdatePluginMessage
   | BgOpenPluginTabMessage
+  | BgSetPluginSettingsMessage
   | BgOpenFolderMessage
   | OffscreenGetLogsMessage
   | BgForceReconnectMessage
