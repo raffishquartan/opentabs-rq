@@ -20,3 +20,5 @@ playwright-report/
 .tmp/
 opencode.json
 .opencode/
+marketing/logs/
+marketing/state.json

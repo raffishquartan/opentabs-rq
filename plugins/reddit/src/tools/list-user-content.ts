@@ -37,6 +37,8 @@ const contentItemSchema = z.object({
   selftext: z.string().nullable().describe('Post body (null for comments)'),
   body: z.string().nullable().describe('Comment body (null for posts)'),
   link_title: z.string().nullable().describe('Parent post title (for comments)'),
+  link_id: z.string().nullable().describe('Parent post fullname, e.g. t3_abc123 (for comments)'),
+  parent_id: z.string().nullable().describe('Parent comment/post fullname (for comments)'),
   num_comments: z.number().nullable().describe('Comment count (for posts)'),
 });
 
@@ -92,6 +94,8 @@ export const listUserContent = defineTool({
         selftext: child.data.selftext ?? null,
         body: child.data.body ?? null,
         link_title: child.data.link_title ?? null,
+        link_id: child.data.link_id ?? null,
+        parent_id: child.data.parent_id ?? null,
         num_comments: child.data.num_comments ?? null,
       })),
       after: data.data.after ?? null,
