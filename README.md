@@ -7,10 +7,10 @@ Every web app has internal APIs — the same endpoints its own frontend calls. C
 Here's Claude checking a Robinhood portfolio, ordering from Panda Express, and sending a Discord message — all through the browser, in one shot:
 
 <p align="center">
-  <a href="https://www.youtube.com/watch?v=PBvUXDAGVM8">
-    <img src="https://img.youtube.com/vi/PBvUXDAGVM8/maxresdefault.jpg" alt="Demo: AI checks stocks, orders food, and sends a Discord message — all through the browser" />
-  </a>
+  <img src="assets/demo-hero.gif" alt="Demo: AI checks stocks, orders food, and sends a Discord message — all through the browser" />
 </p>
+
+[Watch the full video on YouTube](https://www.youtube.com/watch?v=PBvUXDAGVM8)
 
 `discord_send_message` hits Discord's real backend — fast, deterministic, cheap on tokens, and the knowledge gets packaged into a reusable plugin anyone can install.
 
