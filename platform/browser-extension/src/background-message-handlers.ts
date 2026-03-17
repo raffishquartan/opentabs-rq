@@ -162,7 +162,14 @@ const handleBgGetFullState: MessageHandler = (_message, sendResponse) => {
     // "connected but sync.full has not arrived yet" (false). Tab state is only
     // restored when cachesInitialized is true, preventing stale session data
     // from being used during the connect-to-sync.full gap.
-    if (wsConnected && tabStates.size === 0 && serverCache.plugins.length === 0) {
+    //
+    // The in-memory cachesInitialized flag is the primary guard: if sync.full
+    // has already populated the caches in this service worker lifecycle, the
+    // in-memory cache is authoritative and must NOT be overwritten from session
+    // storage. Without this check, installations with 0 plugins always hit
+    // this block (plugins.length === 0) and load stale session data on every
+    // getFullState call, reverting in-flight permission changes.
+    if (wsConnected && !getCachesInitialized() && tabStates.size === 0 && serverCache.plugins.length === 0) {
       await loadServerStateCacheFromSession();
       if (getCachesInitialized()) {
         await loadLastKnownStateFromSession();

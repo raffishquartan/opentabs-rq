@@ -72,12 +72,14 @@ const {
       plugins: unknown[];
       failedPlugins: unknown[];
       browserTools: unknown[];
+      browserPermission?: string;
       serverVersion: string | undefined;
     }
   >(() => ({
     plugins: [],
     failedPlugins: [],
     browserTools: [],
+    browserPermission: undefined,
     serverVersion: undefined,
   })),
   mockClearServerStateCache: vi.fn(),
@@ -1126,6 +1128,40 @@ describe('handleBgGetFullState', () => {
 
     const result = sendResponse.mock.calls.at(0)?.at(0) as FullStateResponse;
     expect(result.connected).toBe(true);
+  });
+
+  test('does not overwrite in-memory cache from session storage when caches are initialized with 0 plugins', async () => {
+    // Regression: with 0 plugins, the wake detection condition
+    // (wsConnected && tabStates.size === 0 && plugins.length === 0) was always
+    // true, causing every getFullState call to load stale session data over the
+    // fresh in-memory cache. This reverted permission changes because the 500ms
+    // debounced session persist hadn't fired yet.
+    handleWsState({ connected: true }, () => {});
+    vi.clearAllMocks();
+
+    // In-memory cache has browserPermission: 'ask' (just set by plugins.changed)
+    mockGetServerStateCache.mockReturnValue({
+      plugins: [],
+      failedPlugins: [],
+      browserTools: [],
+      browserPermission: 'ask',
+      serverVersion: '1.0.0',
+    });
+
+    // getCachesInitialized returns true (sync.full was processed)
+    mockGetCachesInitialized.mockReturnValue(true);
+
+    mockGetAllPluginMeta.mockResolvedValueOnce({});
+
+    const sendResponse = vi.fn();
+    handleBgGetFullState({}, sendResponse);
+    await vi.waitFor(() => expect(sendResponse).toHaveBeenCalled());
+
+    // loadServerStateCacheFromSession must NOT have been called
+    expect(mockLoadServerStateCacheFromSession).not.toHaveBeenCalled();
+
+    const result = sendResponse.mock.calls.at(0)?.at(0) as FullStateResponse;
+    expect(result.browserPermission).toBe('ask');
   });
 });
 
