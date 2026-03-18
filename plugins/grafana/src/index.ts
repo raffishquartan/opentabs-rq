@@ -1,5 +1,5 @@
 import { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
-import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
+import type { ConfigSchema, ToolDefinition } from '@opentabs-dev/plugin-sdk';
 import { isAuthenticated, waitForAuth } from './grafana-api.js';
 
 // Account
@@ -56,8 +56,16 @@ class GrafanaPlugin extends OpenTabsPlugin {
   readonly description =
     'OpenTabs plugin for Grafana — manage dashboards, folders, data sources, alerts, annotations, teams, and more.';
   override readonly displayName = 'Grafana';
-  readonly urlPatterns = ['*://*.grafana.net/*'];
-  override readonly homepage = 'https://grafana.com';
+  readonly urlPatterns: string[] = [];
+  override readonly configSchema: ConfigSchema = {
+    instanceUrl: {
+      type: 'url' as const,
+      label: 'Grafana URL',
+      description: 'The URL of your Grafana instance (e.g., https://myorg.grafana.net or https://grafana.internal)',
+      required: true,
+      placeholder: 'https://myorg.grafana.net',
+    },
+  };
 
   readonly tools: ToolDefinition[] = [
     // Account

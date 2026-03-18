@@ -19,10 +19,16 @@
   "opentabs": {
     "displayName": "Grafana",
     "description": "OpenTabs plugin for Grafana",
-    "urlPatterns": [
-      "*://*.grafana.net/*"
-    ],
-    "homepage": "https://grafana.com"
+    "urlPatterns": [],
+    "configSchema": {
+      "instanceUrl": {
+        "type": "url",
+        "label": "Grafana URL",
+        "description": "The URL of your Grafana instance (e.g., https://myorg.grafana.net or https://grafana.internal)",
+        "required": true,
+        "placeholder": "https://myorg.grafana.net"
+      }
+    }
   },
   "exports": {
     ".": {
