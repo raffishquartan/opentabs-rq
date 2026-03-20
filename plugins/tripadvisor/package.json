@@ -1,7 +1,7 @@
 {
   "name": "@opentabs-dev/opentabs-plugin-tripadvisor",
   "description": "OpenTabs plugin for Tripadvisor",
-  "version": "0.0.81",
+  "version": "0.0.82",
   "type": "module",
   "main": "dist/adapter.iife.js",
   "keywords": [
