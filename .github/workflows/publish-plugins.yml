@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
@@ -133,5 +133,14 @@ jobs:
             git commit -m "chore: auto-publish plugin version bumps [skip ci]
 
           Published: $PUBLISHED"
-            git push
+
+            # Retry push with rebase to handle concurrent merges to main
+            for attempt in 1 2 3; do
+              if git push; then
+                echo "Push succeeded on attempt $attempt"
+                break
+              fi
+              echo "Push failed (attempt $attempt), rebasing and retrying..."
+              git pull --rebase origin main
+            done
           fi
