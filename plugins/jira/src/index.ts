@@ -1,5 +1,5 @@
 import { OpenTabsPlugin } from '@opentabs-dev/plugin-sdk';
-import type { ToolDefinition } from '@opentabs-dev/plugin-sdk';
+import type { ConfigSchema, ToolDefinition } from '@opentabs-dev/plugin-sdk';
 import { isAuthenticated, waitForAuth } from './jira-api.js';
 import { searchIssues } from './tools/search-issues.js';
 import { getIssue } from './tools/get-issue.js';
@@ -28,6 +28,16 @@ class JiraPlugin extends OpenTabsPlugin {
   override readonly displayName = 'Jira';
   readonly urlPatterns = ['*://*.atlassian.net/*'];
   override readonly excludePatterns = ['*://*.atlassian.net/wiki/*'];
+  override readonly configSchema: ConfigSchema = {
+    instanceUrl: {
+      type: 'url' as const,
+      label: 'Jira URL',
+      description:
+        'The URL of your self-hosted Jira instance (e.g., https://jira.example.com). Leave empty to use Jira Cloud on atlassian.net.',
+      required: false,
+      placeholder: 'https://jira.example.com',
+    },
+  };
   readonly tools: ToolDefinition[] = [
     // Issues
     searchIssues,

@@ -24,7 +24,16 @@
     ],
     "excludePatterns": [
       "*://*.atlassian.net/wiki/*"
-    ]
+    ],
+    "configSchema": {
+      "instanceUrl": {
+        "type": "url",
+        "label": "Jira URL",
+        "description": "The URL of your self-hosted Jira instance (e.g., https://jira.example.com). Leave empty to use Jira Cloud on atlassian.net.",
+        "required": false,
+        "placeholder": "https://jira.example.com"
+      }
+    }
   },
   "exports": {
     ".": {
