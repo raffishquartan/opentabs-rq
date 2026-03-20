@@ -1,5 +1,12 @@
 # OpenTabs
 
+[![GitHub stars](https://img.shields.io/github/stars/opentabs-dev/opentabs)](https://github.com/opentabs-dev/opentabs/stargazers)
+[![npm version](https://img.shields.io/npm/v/@opentabs-dev/cli)](https://www.npmjs.com/package/@opentabs-dev/cli)
+[![License: MIT](https://img.shields.io/github/license/opentabs-dev/opentabs)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-22%2B-brightgreen)](https://nodejs.org/)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)](https://github.com/opentabs-dev/opentabs/pulls)
+
 **This is not another Playwright wrapper.**
 
 Every web app has internal APIs — the same endpoints its own frontend calls. OpenTabs reverse-engineered them and exposed them as [MCP tools](https://modelcontextprotocol.io/) today. Your AI calls the same backend the web app calls — through your browser, using your existing session. No screenshots. No DOM scraping. No pixel-guessing.
