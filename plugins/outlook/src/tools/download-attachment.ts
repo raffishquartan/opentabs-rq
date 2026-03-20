@@ -1,15 +1,7 @@
 import { defineTool } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
 import { api } from '../outlook-api.js';
-
-interface RawAttachmentContent {
-  id?: string;
-  name?: string;
-  contentType?: string;
-  size?: number;
-  isInline?: boolean;
-  contentBytes?: string;
-}
+import type { RawAttachmentContent } from './schemas.js';
 
 /**
  * Convert a base64 string to a Uint8Array.
@@ -28,7 +20,9 @@ function base64ToBytes(base64: string): Uint8Array {
  * Uses the standard <a download> pattern which saves to the user's Downloads folder.
  */
 function triggerBrowserDownload(bytes: Uint8Array, filename: string, mimeType: string): void {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: mimeType });
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  const blob = new Blob([buffer], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

@@ -206,6 +206,8 @@ const sendRequest = async <T>(
 ): Promise<T | null> => {
   const isOutlookApi = auth.apiBase === OUTLOOK_API_BASE;
 
+  // Outlook REST API uses different $select field names, so drop $select
+  // and let it return all fields. The normalizeKeys step handles casing.
   const query = options.query ? { ...options.query } : undefined;
   if (isOutlookApi && query) {
     delete (query as Record<string, unknown>).$select;

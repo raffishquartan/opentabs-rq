@@ -153,6 +153,11 @@ export interface RawAttachment {
   isInline?: boolean;
 }
 
+/** RawAttachment extended with the base64-encoded file body (from $select=contentBytes). */
+export interface RawAttachmentContent extends RawAttachment {
+  contentBytes?: string;
+}
+
 export const mapAttachment = (a: RawAttachment) => ({
   id: a.id ?? '',
   name: a.name ?? '',

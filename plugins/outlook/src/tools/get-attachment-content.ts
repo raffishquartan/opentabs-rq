@@ -1,15 +1,7 @@
 import { defineTool } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
 import { api } from '../outlook-api.js';
-
-interface RawAttachmentContent {
-  id?: string;
-  name?: string;
-  contentType?: string;
-  size?: number;
-  isInline?: boolean;
-  contentBytes?: string;
-}
+import type { RawAttachmentContent } from './schemas.js';
 
 export const getAttachmentContent = defineTool({
   name: 'get_attachment_content',
