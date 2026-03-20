@@ -15,6 +15,7 @@
 import { execFileSync } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const repoRoot = join(import.meta.dirname, '..');
 const barrelPath = join(repoRoot, 'platform', 'mcp-server', 'dist', 'browser-tools', 'index.js');
@@ -29,8 +30,11 @@ try {
   process.exit(1);
 }
 
-// Dynamic import of the compiled barrel to get actual tool definitions
-const { browserTools } = (await import(barrelPath)) as {
+// Dynamic import of the compiled barrel to get actual tool definitions.
+// pathToFileURL converts the absolute path to a file:// URL, which is
+// required on Windows where bare paths like C:\... are not valid ESM
+// specifiers (ERR_UNSUPPORTED_ESM_URL_SCHEME).
+const { browserTools } = (await import(pathToFileURL(barrelPath).href)) as {
   browserTools: readonly { name: string; description: string; summary?: string; icon?: string; group?: string }[];
 };
 
@@ -85,15 +89,25 @@ lines.push('');
 const raw = lines.join('\n');
 
 // Run biome to format the output (handles line wrapping, trailing commas, etc.)
-const content = execFileSync(
-  join(repoRoot, 'node_modules', '.bin', 'biome'),
-  ['format', '--stdin-file-path=generated.ts'],
-  {
-    input: raw,
-    encoding: 'utf-8',
-    maxBuffer: 10 * 1024 * 1024,
-  },
-);
+// On Windows, .bin shims are .cmd files that require cmd.exe to execute — use
+// shell: true so Node.js invokes the shim via cmd.exe. Falls back to raw content
+// if biome is unavailable (e.g., native binary not installed for this platform).
+let content: string;
+try {
+  content = execFileSync(
+    join(repoRoot, 'node_modules', '.bin', 'biome'),
+    ['format', '--stdin-file-path=generated.ts'],
+    {
+      input: raw,
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024,
+      shell: process.platform === 'win32',
+    },
+  );
+} catch {
+  console.warn('  Warning: biome format failed, using unformatted output');
+  content = raw;
+}
 
 // Only write if content has changed (avoids unnecessary git diffs)
 let existing = '';

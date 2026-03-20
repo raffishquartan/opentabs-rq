@@ -11,7 +11,7 @@ import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_HOST, DEFAULT_PORT, platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { DEFAULT_HOST, DEFAULT_PORT, toErrorMessage } from '@opentabs-dev/shared';
 import type { Command } from 'commander';
 import pc from 'picocolors';
 import { getPidFilePath, parsePidFile } from '../config.js';
@@ -32,8 +32,9 @@ const getInstalledVersion = async (): Promise<string> => {
 
 /** Query the latest published version via `npm view`. */
 const getLatestVersion = (): string => {
-  const result = spawnSync(platformExec('npm'), ['view', CLI_PACKAGE_NAME, 'version'], {
+  const result = spawnSync('npm', ['view', CLI_PACKAGE_NAME, 'version'], {
     stdio: ['ignore', 'pipe', 'pipe'],
+    shell: true,
   });
   if (result.error) {
     throw new Error(`Failed to run npm: ${result.error.message}`);
@@ -141,7 +142,7 @@ const restartBackgroundServer = async (port: number): Promise<void> => {
     return;
   }
 
-  const result = spawnSync(platformExec('node'), [cliEntry, ...startArgs], {
+  const result = spawnSync(process.execPath, [cliEntry, ...startArgs], {
     stdio: 'inherit',
   });
 
@@ -172,7 +173,7 @@ const getServerStatus = async (port: number): Promise<ServerStatus> => {
 /** Run `npm install -g` to update the CLI package. */
 const performUpdate = (version: string): boolean => {
   const target = `${CLI_PACKAGE_NAME}@${version}`;
-  const result = spawnSync(platformExec('npm'), ['install', '-g', target], { stdio: 'inherit' });
+  const result = spawnSync('npm', ['install', '-g', target], { stdio: 'inherit', shell: true });
   if (result.error) return false;
   return (result.status ?? 1) === 0;
 };

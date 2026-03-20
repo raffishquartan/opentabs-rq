@@ -7,7 +7,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { isWindows, toErrorMessage } from '@opentabs-dev/shared';
 import { log } from './logger.js';
 import type { OutdatedPlugin, ServerState } from './state.js';
 
@@ -28,8 +28,9 @@ const NPM_VIEW_TIMEOUT_MS = 10_000;
  */
 export const fetchLatestVersion = async (packageName: string): Promise<string | null> => {
   try {
-    const child = spawn(platformExec('npm'), ['view', packageName, 'version'], {
+    const child = spawn('npm', ['view', packageName, 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: isWindows(),
     });
 
     const stdoutChunks: Buffer[] = [];

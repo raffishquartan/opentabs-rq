@@ -22,11 +22,10 @@ export const isWindows = (): boolean => process.platform === 'win32';
 /**
  * Resolves a bare command name for the current platform.
  *
- * On Windows, npm is distributed as `npm.cmd` (a cmd wrapper). Process
- * spawning requires the full name on Windows because it does not search
- * PATHEXT the way cmd.exe does.
- *
- * On Unix, the command name is returned unchanged.
+ * @deprecated Use `npmSpawnOpts()` for npm/npx, or `process.execPath` for
+ * node. This function appends `.cmd` on Windows but `spawn()` cannot execute
+ * `.cmd` files without `shell: true`, so callers must also pass `shell: true`
+ * to avoid `EINVAL`. Prefer the dedicated helpers instead.
  */
 export const platformExec = (cmd: string): string => {
   if (!isWindows()) return cmd;
@@ -39,6 +38,24 @@ export const platformExec = (cmd: string): string => {
       return cmd;
   }
 };
+
+/**
+ * Returns spawn options for running npm/npx on all platforms.
+ *
+ * On Windows, npm and npx are `.cmd` batch wrappers that require `cmd.exe`
+ * to execute. `spawn('npm.cmd', ...)` without `shell: true` fails with
+ * `EINVAL`. This helper returns `{ shell: true }` on Windows so callers
+ * can spread it into their spawn options.
+ *
+ * Usage:
+ * ```ts
+ * spawn('npm', ['install'], { ...npmSpawnOpts(), stdio: 'inherit' });
+ * spawnSync('npm', ['view', pkg, 'version'], { ...npmSpawnOpts(), stdio: 'pipe' });
+ * ```
+ */
+export const npmSpawnOpts = (): { shell: boolean } => ({
+  shell: isWindows(),
+});
 
 // ---------------------------------------------------------------------------
 // Environment sanitization

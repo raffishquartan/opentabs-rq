@@ -183,6 +183,7 @@ describe('fetchLatestVersion', () => {
     await fetchLatestVersion('my-package');
     expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', 'my-package', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
     });
   });
 
@@ -192,6 +193,7 @@ describe('fetchLatestVersion', () => {
     await fetchLatestVersion('@opentabs-dev/plugin-sdk');
     expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', '@opentabs-dev/plugin-sdk', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
     });
   });
 

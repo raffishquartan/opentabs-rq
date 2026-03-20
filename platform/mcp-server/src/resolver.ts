@@ -15,7 +15,7 @@ import { createRequire } from 'node:module';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve, sep } from 'node:path';
 import type { Result } from '@opentabs-dev/shared';
-import { err, ok, PLUGIN_PREFIX, platformExec, toErrorMessage } from '@opentabs-dev/shared';
+import { err, isWindows, ok, PLUGIN_PREFIX, toErrorMessage } from '@opentabs-dev/shared';
 import { log } from './logger.js';
 
 /**
@@ -161,7 +161,7 @@ const getGlobalNodeModulesPaths = async (): Promise<string[]> => {
   // npm global node_modules
   try {
     const npmPath = await new Promise<string>((resolve, reject) => {
-      execFile(platformExec('npm'), ['root', '-g'], (err, stdout) => {
+      execFile('npm', ['root', '-g'], { shell: isWindows() }, (err, stdout) => {
         // ExecFileException is an intersection type that doesn't satisfy the Error
         // assignability check statically, but it IS an Error instance at runtime.
         if (err) reject(err as Error);

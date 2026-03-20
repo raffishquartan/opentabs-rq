@@ -383,7 +383,7 @@ process.env.OPENTABS_DEV = '1';
 {
   const { execFileSync } = await import('node:child_process');
   try {
-    execFileSync('npx', ['lefthook', 'install'], { cwd: ROOT, stdio: 'ignore' });
+    execFileSync('npx', ['lefthook', 'install'], { cwd: ROOT, stdio: 'ignore', shell: true });
   } catch {
     // Non-fatal — lefthook may not be installed yet (first clone before npm install)
   }
@@ -392,7 +392,12 @@ process.env.OPENTABS_DEV = '1';
 // 1. Start tsc --build --watch
 const devPrefix = `${MAGENTA}${BOLD}[dev]${RESET}`;
 console.log(`${devPrefix} Starting tsc --build --watch...`);
-const tscSpawn = spawnProcess(['node_modules/.bin/tsc', '--build', '--watch'], {
+// On Windows, .bin shims are .cmd files — use 'npx tsc' via shell to resolve correctly.
+const tscCmd =
+  process.platform === 'win32'
+    ? ['cmd', '/c', 'npx', 'tsc', '--build', '--watch']
+    : ['node_modules/.bin/tsc', '--build', '--watch'];
+const tscSpawn = spawnProcess(tscCmd, {
   cwd: ROOT,
   stdio: ['ignore', 'pipe', 'pipe'],
 });

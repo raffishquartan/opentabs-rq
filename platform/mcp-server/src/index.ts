@@ -184,7 +184,11 @@ const handleListenError = (error: unknown): never => {
   const isAddrInUse = error instanceof Error && 'code' in error && error.code === 'EADDRINUSE';
   if (isAddrInUse) {
     log.error(`Port ${PORT} is already in use. Kill the existing process or use a different port:`);
-    log.error(`  lsof -ti :${PORT} | xargs kill`);
+    if (process.platform === 'win32') {
+      log.error(`  netstat -ano | findstr :${PORT}  then  taskkill /PID <pid> /F`);
+    } else {
+      log.error(`  lsof -ti :${PORT} | xargs kill`);
+    }
     log.error(`  PORT=<number> opentabs start`);
   }
   throw error;

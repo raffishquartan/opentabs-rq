@@ -9,6 +9,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { platformExec } from '@opentabs-dev/shared';
 
 const repoRoot = join(import.meta.dirname, '..');
 const pluginsDir = join(repoRoot, 'plugins');
@@ -48,7 +49,7 @@ const failed: string[] = [];
 
 const runInPlugin = (pluginName: string, cmd: string[]): Promise<boolean> => {
   const [bin = '', ...args] = cmd;
-  const proc = spawn(bin, args, {
+  const proc = spawn(platformExec(bin), args, {
     cwd: join(pluginsDir, pluginName),
     stdio: ['ignore', 'inherit', 'inherit'],
   });

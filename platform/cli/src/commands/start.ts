@@ -18,7 +18,7 @@ import net from 'node:net';
 import { dirname, resolve } from 'node:path';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_PORT, isWindows, platformExec, sanitizeEnv, toErrorMessage } from '@opentabs-dev/shared';
+import { DEFAULT_PORT, isWindows, sanitizeEnv, toErrorMessage } from '@opentabs-dev/shared';
 import type { Command } from 'commander';
 import pc from 'picocolors';
 import { ensureAuthSecret, getConfigDir, getLogFilePath, getPidFilePath } from '../config.js';
@@ -367,7 +367,11 @@ const handleStart = async (options: StartOptions): Promise<void> => {
       console.error(pc.red(`Error: Failed to open log file ${logFilePath}: ${toErrorMessage(err)}`));
       process.exit(1);
     });
-    const child = spawn(platformExec('node'), [serverEntry, ...serverArgs], {
+    // Use process.execPath (absolute path to node.exe) instead of
+    // platformExec('node') which returns 'node.cmd' on Windows.
+    // spawn() cannot execute .cmd files without shell: true, and
+    // adding shell: true breaks detached process semantics.
+    const child = spawn(process.execPath, [serverEntry, ...serverArgs], {
       env: env,
       stdio: ['ignore', logStream, logStream],
       detached: true,
@@ -436,7 +440,7 @@ const handleStart = async (options: StartOptions): Promise<void> => {
     console.warn(pc.yellow(`Warning: Failed to write to log file: ${toErrorMessage(err)}`));
   });
 
-  const proc = spawnStreaming(platformExec('node'), [serverEntry, ...serverArgs], {
+  const proc = spawnStreaming(process.execPath, [serverEntry, ...serverArgs], {
     env: env,
     stdin: 'inherit',
   });

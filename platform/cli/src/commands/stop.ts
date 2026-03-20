@@ -111,7 +111,13 @@ const handleStop = async (options: StopOptions): Promise<void> => {
       console.log('Server stopped.');
     } else {
       console.log(pc.yellow(`Server process (PID: ${String(pid)}) did not exit within 5 seconds.`));
-      console.log(pc.dim(`You may need to kill it manually: kill -9 ${String(pid)}`));
+      console.log(
+        pc.dim(
+          process.platform === 'win32'
+            ? `You may need to kill it manually: taskkill /PID ${String(pid)} /F`
+            : `You may need to kill it manually: kill -9 ${String(pid)}`,
+        ),
+      );
     }
     return;
   }
@@ -129,8 +135,12 @@ const handleStop = async (options: StopOptions): Promise<void> => {
     if (res.ok) {
       const data = (await res.json()) as Record<string, unknown>;
       if (typeof data.status === 'string' && typeof data.version === 'string') {
+        const killHint =
+          process.platform === 'win32'
+            ? `  - Otherwise: netstat -ano | findstr :${port} then taskkill /PID <pid> /F`
+            : `  - Otherwise (macOS): kill $(lsof -ti :${port})\n  - Otherwise (Linux):  fuser -k ${port}/tcp`;
         console.log(
-          `Server is running but was not started with --background.\n  - If running in a terminal: press Ctrl+C\n  - Otherwise (macOS): kill $(lsof -ti :${port})\n  - Otherwise (Linux):  fuser -k ${port}/tcp\n  - Tip: use opentabs start --background next time to enable opentabs stop`,
+          `Server is running but was not started with --background.\n  - If running in a terminal: press Ctrl+C\n${killHint}\n  - Tip: use opentabs start --background next time to enable opentabs stop`,
         );
         return;
       }

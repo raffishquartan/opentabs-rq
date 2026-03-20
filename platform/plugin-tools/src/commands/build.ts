@@ -12,6 +12,7 @@ import { mkdirSync, readFileSync, rmSync, statSync, watch, writeFileSync } from 
 import { access, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { ConfigSchema, ManifestTool, OpenTabsPlugin, ToolDefinition } from '@opentabs-dev/plugin-sdk';
 import { LUCIDE_ICON_NAMES, validatePluginName, validateUrlPattern } from '@opentabs-dev/plugin-sdk';
 import type { PluginPackageJson } from '@opentabs-dev/shared';
@@ -1057,9 +1058,12 @@ const runBuild = async (projectDir: string): Promise<void> => {
   // Step 2: Dynamically import the plugin module (cache-bust for watch mode rebuilds)
   // Increment the counter before each import to guarantee a unique query string (?t=N)
   // that Node.js has never seen before, ensuring it reads the rebuilt file from disk.
+  // pathToFileURL converts the absolute path to a file:// URL, which is required on
+  // Windows where bare paths like C:\... are not valid ESM specifiers.
   pluginCacheKey++;
   console.log(pc.dim('Loading plugin module...'));
-  const mod = (await import(`${entryPoint}?t=${String(pluginCacheKey)}`)) as {
+  const entryUrl = `${pathToFileURL(entryPoint).href}?t=${String(pluginCacheKey)}`;
+  const mod = (await import(entryUrl)) as {
     default?: OpenTabsPlugin;
   };
   const defaultExport = mod.default;

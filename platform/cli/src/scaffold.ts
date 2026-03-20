@@ -12,7 +12,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { validatePluginName, validateUrlPattern } from '@opentabs-dev/plugin-sdk';
-import { platformExec } from '@opentabs-dev/shared';
+import { isWindows } from '@opentabs-dev/shared';
 import pc from 'picocolors';
 
 // --- Errors ---
@@ -68,9 +68,9 @@ interface ResolvedVersions {
 const queryNpmRegistryVersion = (): Promise<string | null> =>
   new Promise(resolve => {
     execFile(
-      platformExec('npm'),
+      'npm',
       ['view', '@opentabs-dev/plugin-sdk', 'version'],
-      { timeout: 5000 },
+      { timeout: 5000, shell: isWindows() },
       (error, stdout) => {
         if (error) {
           resolve(null);

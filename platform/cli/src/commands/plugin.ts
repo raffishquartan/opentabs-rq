@@ -10,9 +10,9 @@ import {
   type ConfigSchema,
   type ConfigSettingDefinition,
   DEFAULT_HOST,
+  isWindows,
   normalizePluginName,
   PLUGIN_PREFIX,
-  platformExec,
   resolvePluginPackageCandidates,
   TOOLS_FILENAME,
   toErrorMessage,
@@ -41,7 +41,9 @@ interface SpawnResult {
 }
 
 const spawnProcessSync = (cmd: string, args: string[]): SpawnResult => {
-  const result = spawnSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  // On Windows, npm/npx are .cmd shims that require cmd.exe to execute.
+  // shell: true on Windows lets the shell resolve .cmd/.exe via PATHEXT.
+  const result = spawnSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: isWindows() });
   if (result.error) {
     return { exitCode: 1, stdout: '', stderr: result.error.message };
   }
@@ -54,7 +56,7 @@ const spawnProcessSync = (cmd: string, args: string[]): SpawnResult => {
 
 const spawnProcessAsync = (cmd: string, args: string[]): Promise<SpawnResult> =>
   new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: isWindows() });
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
@@ -83,7 +85,7 @@ const spawnProcessAsync = (cmd: string, args: string[]): Promise<SpawnResult> =>
 
 const spawnInherit = (cmd: string, args: string[]): Promise<number> =>
   new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit' });
+    const child = spawn(cmd, args, { stdio: 'inherit', shell: isWindows() });
     child.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EINVAL') {
         reject(
@@ -116,7 +118,7 @@ interface NpmSearchPackage {
  * Delegates auth to npm itself (reads ~/.npmrc), supporting private packages.
  */
 const packageExistsOnNpmAsync = async (pkg: string): Promise<boolean> => {
-  const result = await spawnProcessAsync(platformExec('npm'), ['view', pkg, 'version']);
+  const result = await spawnProcessAsync('npm', ['view', pkg, 'version']);
   return result.exitCode === 0 && result.stdout.trim().length > 0;
 };
 
@@ -144,7 +146,7 @@ const resolvePackageName = async (name: string): Promise<string | null> => {
  */
 const warnIfNotPlugin = async (pkg: string): Promise<void> => {
   try {
-    const rootResult = await spawnProcessAsync(platformExec('npm'), ['root', '-g']);
+    const rootResult = await spawnProcessAsync('npm', ['root', '-g']);
     const globalRoot = rootResult.stdout.trim();
 
     const pkgJsonPath = join(globalRoot, pkg, 'package.json');
@@ -186,7 +188,7 @@ const handlePluginInstall = async (name: string, options: { port?: number }): Pr
 
   console.log(`Installing ${pc.bold(pkg)}...`);
 
-  const exitCode = await spawnInherit(platformExec('npm'), ['install', '-g', pkg]);
+  const exitCode = await spawnInherit('npm', ['install', '-g', pkg]);
 
   if (exitCode !== 0) {
     console.error(pc.red(`npm install failed (exit code ${exitCode}).`));
@@ -260,7 +262,7 @@ const handlePluginRemove = async (name: string, options: PluginRemoveOptions): P
     process.exit(1);
   }
 
-  const checkResult = spawnProcessSync(platformExec('npm'), ['list', '-g', pkg, '--depth=0']);
+  const checkResult = spawnProcessSync('npm', ['list', '-g', pkg, '--depth=0']);
   if (checkResult.exitCode !== 0) {
     console.error(pc.red(`Plugin ${pkg} is not installed globally.`));
     process.exit(1);
@@ -268,7 +270,7 @@ const handlePluginRemove = async (name: string, options: PluginRemoveOptions): P
 
   console.log(`Removing ${pc.bold(pkg)}...`);
 
-  const exitCode = await spawnInherit(platformExec('npm'), ['uninstall', '-g', pkg]);
+  const exitCode = await spawnInherit('npm', ['uninstall', '-g', pkg]);
 
   if (exitCode !== 0) {
     console.error(pc.red(`npm uninstall failed (exit code ${exitCode}).`));
@@ -524,8 +526,8 @@ const scanNpmPlugins = async (): Promise<ListPluginEntry[]> => {
   const entries: ListPluginEntry[] = [];
   try {
     const [listResult, rootResult] = await Promise.all([
-      spawnProcessAsync(platformExec('npm'), ['list', '-g', '--json', '--depth=0']),
-      spawnProcessAsync(platformExec('npm'), ['root', '-g']),
+      spawnProcessAsync('npm', ['list', '-g', '--json', '--depth=0']),
+      spawnProcessAsync('npm', ['root', '-g']),
     ]);
 
     const globalRoot = rootResult.exitCode === 0 ? rootResult.stdout.trim() : '';
@@ -733,7 +735,7 @@ const findPluginDir = async (name: string): Promise<{ dir: string; packageName: 
 
   // Check global npm
   try {
-    const rootResult = await spawnProcessAsync(platformExec('npm'), ['root', '-g']);
+    const rootResult = await spawnProcessAsync('npm', ['root', '-g']);
     if (rootResult.exitCode !== 0) return null;
     const globalRoot = rootResult.stdout.trim();
 

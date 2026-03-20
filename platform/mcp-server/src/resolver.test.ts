@@ -410,18 +410,22 @@ describe('discoverGlobalNpmPlugins', () => {
   };
 
   /** Install a mock for node:child_process execFile that delegates to the given handler.
-   *  The handler receives `[command, ...args]` to match the test's existing cmd-array pattern. */
+   *  The handler receives `[command, ...args]` to match the test's existing cmd-array pattern.
+   *  Handles both 3-arg (command, args, callback) and 4-arg (command, args, options, callback)
+   *  overloads — the production code passes { shell: isWindows() } as options. */
   const mockExecFile = (handler: (cmd: string[]) => { status: number; stdout: string }): void => {
-    mockedExecFile.mockImplementation(
-      (command: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
-        const result = handler([command, ...args]);
-        if (result.status === 0) {
-          callback(null, result.stdout, '');
-        } else {
-          callback(Object.assign(new Error('Command failed'), { code: result.status }), '', '');
-        }
-      },
-    );
+    mockedExecFile.mockImplementation((...callArgs: unknown[]) => {
+      const command = callArgs[0] as string;
+      const args = callArgs[1] as string[];
+      // callback is the last argument (3rd or 4th depending on whether options is present)
+      const callback = callArgs[callArgs.length - 1] as (err: Error | null, stdout: string, stderr: string) => void;
+      const result = handler([command, ...args]);
+      if (result.status === 0) {
+        callback(null, result.stdout, '');
+      } else {
+        callback(Object.assign(new Error('Command failed'), { code: result.status }), '', '');
+      }
+    });
   };
 
   beforeEach(() => {
@@ -540,20 +544,21 @@ describe('discoverGlobalNpmPlugins', () => {
     // First call: npm fails (empty result, no path recorded)
     // Second call: npm succeeds
     let callCount = 0;
-    mockedExecFile.mockImplementation(
-      (command: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
-        if (command === 'npm' && args[0] === 'root') {
-          callCount++;
-          if (callCount === 1) {
-            callback(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
-          } else {
-            callback(null, globalDir, '');
-          }
-        } else {
+    mockedExecFile.mockImplementation((...callArgs: unknown[]) => {
+      const command = callArgs[0] as string;
+      const args = callArgs[1] as string[];
+      const callback = callArgs[callArgs.length - 1] as (err: Error | null, stdout: string, stderr: string) => void;
+      if (command === 'npm' && args[0] === 'root') {
+        callCount++;
+        if (callCount === 1) {
           callback(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
+        } else {
+          callback(null, globalDir, '');
         }
-      },
-    );
+      } else {
+        callback(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
+      }
+    });
 
     const first = await discoverGlobalNpmPlugins();
     expect(first.dirs).toHaveLength(0);
@@ -571,15 +576,16 @@ describe('discoverGlobalNpmPlugins', () => {
     const globalDir = join(tempDir, 'node_modules');
     mkdirSync(globalDir, { recursive: true });
 
-    mockedExecFile.mockImplementation(
-      (command: string, args: string[], callback: (err: Error | null, stdout: string, stderr: string) => void) => {
-        if (command === 'npm' && args[0] === 'root') {
-          callback(null, globalDir, '');
-        } else {
-          callback(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
-        }
-      },
-    );
+    mockedExecFile.mockImplementation((...callArgs: unknown[]) => {
+      const command = callArgs[0] as string;
+      const args = callArgs[1] as string[];
+      const callback = callArgs[callArgs.length - 1] as (err: Error | null, stdout: string, stderr: string) => void;
+      if (command === 'npm' && args[0] === 'root') {
+        callback(null, globalDir, '');
+      } else {
+        callback(Object.assign(new Error('Command failed'), { code: 1 }), '', '');
+      }
+    });
 
     await discoverGlobalNpmPlugins();
     const firstCallCount = mockedExecFile.mock.calls.length;

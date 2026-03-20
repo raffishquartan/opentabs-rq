@@ -15,8 +15,8 @@ import {
   getConfigDir,
   getConfigPath,
   isValidPluginPackageName,
+  isWindows,
   normalizePluginName,
-  platformExec,
   resolvePluginPackageCandidates,
 } from '@opentabs-dev/shared';
 import { pluginNameFromPackage } from './loader.js';
@@ -67,7 +67,8 @@ const spawnAsync = (
   cmd: string,
   args: string[],
 ): { promise: Promise<{ exitCode: number; stdout: string; stderr: string }>; kill: () => void } => {
-  const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+  // On Windows, npm/npx are .cmd batch wrappers that require shell to execute.
+  const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], shell: isWindows() });
   const stdoutChunks: Buffer[] = [];
   const stderrChunks: Buffer[] = [];
   let totalBytes = 0;
@@ -114,7 +115,7 @@ const spawnAsync = (
  * @throws Error with code -32603 and data { stderr, stdout } on non-zero exit or timeout
  */
 const runNpmGlobal = async (command: string, packageName: string): Promise<{ stdout: string; stderr: string }> => {
-  const { promise: resultPromise, kill } = spawnAsync(platformExec('npm'), [command, '-g', packageName]);
+  const { promise: resultPromise, kill } = spawnAsync('npm', [command, '-g', packageName]);
 
   let rejectTimeout: (reason: Error) => void;
   const timeoutPromise = new Promise<never>((_, reject) => {

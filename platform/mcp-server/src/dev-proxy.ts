@@ -832,7 +832,10 @@ process.on('SIGINT', () => {
 
 // SIGUSR1: triggered by test fixtures via triggerHotReload() to simulate
 // a code change without modifying files on disk. Restarts the worker.
-process.on('SIGUSR1', () => {
-  console.log('[proxy] Hot reload triggered, restarting worker...');
-  startWorker();
-});
+// Windows does not support SIGUSR1 — skip registration to avoid silent failures.
+if (process.platform !== 'win32') {
+  process.on('SIGUSR1', () => {
+    console.log('[proxy] Hot reload triggered, restarting worker...');
+    startWorker();
+  });
+}
