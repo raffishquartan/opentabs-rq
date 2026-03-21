@@ -444,6 +444,14 @@ const updatePlugin = async (
     throw error;
   }
 
+  if (existing.source === 'local') {
+    const error = new Error(
+      `Plugin "${name}" is a local plugin — use "cd ${existing.sourcePath ?? name} && npm run build" to update it`,
+    ) as Error & { code: number };
+    error.code = -32602;
+    throw error;
+  }
+
   const pkg = existing.npmPackageName ?? normalizePluginName(name);
 
   log.info(`Updating plugin: ${pkg}`);
