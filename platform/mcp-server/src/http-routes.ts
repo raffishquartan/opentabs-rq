@@ -464,6 +464,44 @@ const handlePluginSettings = async (
     return Response.json({ ok: false, error: 'Missing or invalid "settings" field' }, { status: 400 });
   }
 
+  // Validate url-type fields against the plugin's configSchema
+  const registeredPlugin = state.registry.plugins.get(body.plugin);
+  if (registeredPlugin?.configSchema) {
+    const errors: string[] = [];
+    for (const [key, definition] of Object.entries(registeredPlugin.configSchema)) {
+      if (definition.type !== 'url') continue;
+      const value = body.settings[key];
+      if (value === undefined || value === null) continue;
+      if (typeof value !== 'object' || Array.isArray(value)) {
+        errors.push(`Setting "${key}" must be a Record<string, string> (instance name → URL map)`);
+        continue;
+      }
+      const urlMap = value as Record<string, unknown>;
+      if (Object.keys(urlMap).length === 0) {
+        errors.push(`Setting "${key}" must be a non-empty Record<string, string>`);
+        continue;
+      }
+      for (const [instanceName, url] of Object.entries(urlMap)) {
+        if (instanceName.length === 0) {
+          errors.push(`Setting "${key}": instance name must be a non-empty string`);
+          continue;
+        }
+        if (typeof url !== 'string' || url.length === 0) {
+          errors.push(`Setting "${key}" instance "${instanceName}": URL must be a non-empty string`);
+          continue;
+        }
+        try {
+          new URL(url);
+        } catch {
+          errors.push(`Setting "${key}" instance "${instanceName}": invalid URL "${url}"`);
+        }
+      }
+    }
+    if (errors.length > 0) {
+      return Response.json({ ok: false, error: errors.join('; ') }, { status: 400 });
+    }
+  }
+
   state.pluginSettings[body.plugin] = body.settings;
   savePluginSettings(state, { ...state.pluginSettings }).catch(() => {});
 
