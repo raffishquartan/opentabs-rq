@@ -347,6 +347,8 @@ export interface ConfigStatePlugin {
   configSchema?: import('./manifest.js').ConfigSchema;
   /** Resolved setting values for this plugin. url fields store the full Record<string, string> map. */
   resolvedSettings?: Record<string, unknown>;
+  /** Instance name → Chrome match pattern mapping for multi-instance url settings */
+  instanceMap?: Record<string, string>;
 }
 
 /** A plugin that failed discovery, sent to the side panel for display */

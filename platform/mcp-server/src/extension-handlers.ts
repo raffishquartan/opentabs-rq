@@ -160,6 +160,7 @@ const serializePluginForExtension = (
   iconInactiveSvg?: string;
   iconDarkSvg?: string;
   iconDarkInactiveSvg?: string;
+  instanceMap?: Record<string, string>;
   tools: {
     name: string;
     displayName: string;
@@ -189,6 +190,7 @@ const serializePluginForExtension = (
     ...(plugin.iconInactiveSvg ? { iconInactiveSvg: plugin.iconInactiveSvg } : {}),
     ...(plugin.iconDarkSvg ? { iconDarkSvg: plugin.iconDarkSvg } : {}),
     ...(plugin.iconDarkInactiveSvg ? { iconDarkInactiveSvg: plugin.iconDarkInactiveSvg } : {}),
+    ...(plugin.instanceMap ? { instanceMap: plugin.instanceMap } : {}),
     tools: plugin.tools.map(t => ({
       name: t.name,
       displayName: t.displayName,

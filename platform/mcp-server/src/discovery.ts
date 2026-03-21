@@ -120,7 +120,7 @@ const discoverPlugins = async (
     const settings = pluginSettings?.[plugin.name];
     if (!plugin.configSchema && !settings) return plugin;
 
-    const { effectiveUrlPatterns, effectiveHomepage } = resolvePluginSettings(
+    const { effectiveUrlPatterns, effectiveHomepage, instanceMap } = resolvePluginSettings(
       plugin.name,
       plugin.urlPatterns,
       plugin.homepage,
@@ -131,6 +131,7 @@ const discoverPlugins = async (
       ...plugin,
       urlPatterns: effectiveUrlPatterns,
       homepage: effectiveHomepage,
+      ...(Object.keys(instanceMap).length > 0 ? { instanceMap } : {}),
     };
   });
 

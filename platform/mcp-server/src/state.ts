@@ -122,6 +122,8 @@ export interface RegisteredPlugin {
   iconDarkInactiveSvg?: string;
   /** Config schema defining user-configurable settings for this plugin */
   configSchema?: ConfigSchema;
+  /** Instance name → Chrome match pattern mapping for multi-instance url settings */
+  instanceMap?: Record<string, string>;
 }
 
 /** Tab mapping entry for a plugin — tracks aggregate state and all matching tabs */
