@@ -231,8 +231,17 @@ const createTestHandlers = (
   const state = createState();
   const transports = new Map<string, never>();
   const sessionServers: McpServerInstance[] = [];
+  const gatewayTransports = new Map<string, never>();
+  const gatewaySessionServers: McpServerInstance[] = [];
   const getHotState = overrides.getHotState ?? (() => undefined);
-  const handlers = createHandlers({ state, transports, sessionServers, getHotState });
+  const handlers = createHandlers({
+    state,
+    transports,
+    sessionServers,
+    gatewayTransports,
+    gatewaySessionServers,
+    getHotState,
+  });
   return { handlers, state, transports };
 };
 
