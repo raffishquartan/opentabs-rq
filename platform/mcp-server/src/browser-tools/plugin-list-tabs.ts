@@ -11,12 +11,41 @@ import { z } from 'zod';
 import { pickBestTabState } from '../state.js';
 import { defineBrowserTool } from './definition.js';
 
-type AnnotatedTab = PluginTabInfo & { connectionId: string };
+type AnnotatedTab = PluginTabInfo & { connectionId: string; instance?: string };
 
 interface AnnotatedMapping {
   state: TabState;
   tabs: AnnotatedTab[];
 }
+
+/** Extract the hostname from a Chrome match pattern (`*://hostname/*` → `hostname`). */
+const hostnameFromPattern = (pattern: string): string | undefined => {
+  const match = pattern.match(/^\*:\/\/([^/]+)\/\*$/);
+  return match?.[1];
+};
+
+/** Annotate tabs with the instance name derived from the plugin's instanceMap. */
+const annotateTabsWithInstance = (
+  tabs: AnnotatedTab[],
+  instanceMap: Record<string, string> | undefined,
+): AnnotatedTab[] => {
+  if (!instanceMap) return tabs;
+  return tabs.map(tab => {
+    let instance: string | undefined;
+    try {
+      const tabHost = new URL(tab.url).hostname;
+      for (const [name, pattern] of Object.entries(instanceMap)) {
+        if (hostnameFromPattern(pattern) === tabHost) {
+          instance = name;
+          break;
+        }
+      }
+    } catch {
+      /* skip invalid URLs */
+    }
+    return instance !== undefined ? { ...tab, instance } : tab;
+  });
+};
 
 /**
  * Build a merged tab mapping annotated with connectionId from all connections.
@@ -78,7 +107,7 @@ const pluginListTabs = defineBrowserTool({
           plugin,
           displayName: registered.displayName,
           state: mapping?.state ?? 'closed',
-          tabs: mapping?.tabs ?? [],
+          tabs: annotateTabsWithInstance(mapping?.tabs ?? [], registered.instanceMap),
         },
       ]);
     }
@@ -96,7 +125,7 @@ const pluginListTabs = defineBrowserTool({
         plugin: registered.name,
         displayName: registered.displayName,
         state: mapping?.state ?? 'closed',
-        tabs: mapping?.tabs ?? [],
+        tabs: annotateTabsWithInstance(mapping?.tabs ?? [], registered.instanceMap),
       });
     }
 
