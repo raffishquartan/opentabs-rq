@@ -31,7 +31,20 @@ import {
 import { getLogCount } from './log-buffer.js';
 import { log } from './logger.js';
 import type { McpServerInstance } from './mcp-setup.js';
-import { createMcpServer, getAllToolsList, notifyToolListChanged, PLATFORM_TOOL_NAMES } from './mcp-setup.js';
+import {
+  checkToolCallable,
+  createMcpServer,
+  getAllToolsList,
+  notifyToolListChanged,
+  PLATFORM_TOOL_NAMES,
+} from './mcp-setup.js';
+import type { DispatchCallbacks, RequestHandlerExtra } from './mcp-tool-dispatch.js';
+import {
+  handleBrowserToolCall,
+  handlePluginInspect,
+  handlePluginMarkReviewed,
+  handlePluginToolCall,
+} from './mcp-tool-dispatch.js';
 import { performConfigReload } from './reload.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import { sdkVersion } from './sdk-version.js';
@@ -427,6 +440,83 @@ const handleListTools = (req: Request, url: URL, state: ServerState): Response =
   return Response.json(filtered);
 };
 
+/** Tool invocation endpoint (POST /tools/:name/call) */
+const handleToolCall = async (
+  req: Request,
+  url: URL,
+  state: ServerState,
+  sessionServers: McpServerInstance[],
+): Promise<Response> => {
+  const authError = checkBearerAuth(req, state.wsSecret);
+  if (authError) return authError;
+  if (!checkEndpointRateLimit(state, '/tools/call', 30)) {
+    return new Response('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
+  }
+
+  // Extract tool name from URL: /tools/<name>/call
+  const match = url.pathname.match(/^\/tools\/([^/]+)\/call$/);
+  if (!match) return Response.json({ error: 'Invalid tool call URL' }, { status: 400 });
+  const toolName = match[1] as string;
+
+  const body = (await req.json().catch(() => null)) as { arguments?: Record<string, unknown> } | null;
+  const args = body?.arguments ?? {};
+
+  // Minimal RequestHandlerExtra for HTTP context (no MCP progress support)
+  const extra: RequestHandlerExtra = {
+    signal: AbortSignal.timeout(300_000),
+    sendNotification: () => Promise.resolve(),
+  };
+
+  const callbacks: DispatchCallbacks = {
+    onToolConfigChanged: () => {
+      for (const srv of sessionServers) notifyToolListChanged(srv);
+    },
+  };
+
+  // Platform tools: always available, bypass permissions
+  if (toolName === 'plugin_inspect') {
+    const result = await handlePluginInspect(state, args);
+    return Response.json(result);
+  }
+  if (toolName === 'plugin_mark_reviewed') {
+    const result = await handlePluginMarkReviewed(state, args, callbacks);
+    return Response.json(result);
+  }
+
+  // Browser tools
+  const cachedBt = state.cachedBrowserTools.find(c => c.name === toolName);
+  if (cachedBt) {
+    const result = await handleBrowserToolCall(state, toolName, args, cachedBt, extra, callbacks);
+    return Response.json(result, { status: result.isError ? 422 : 200 });
+  }
+
+  // Plugin tools
+  const callableCheck = checkToolCallable(state, toolName);
+  if (!callableCheck.ok) {
+    return Response.json({ content: [{ type: 'text', text: callableCheck.error }], isError: true }, { status: 404 });
+  }
+
+  const lookup = state.registry.toolLookup.get(toolName);
+  if (!lookup) {
+    return Response.json(
+      { content: [{ type: 'text', text: `Tool ${toolName} not found` }], isError: true },
+      { status: 404 },
+    );
+  }
+
+  const result = await handlePluginToolCall(
+    state,
+    toolName,
+    args,
+    callableCheck.pluginName,
+    callableCheck.toolName,
+    lookup,
+    extra,
+    callbacks,
+  );
+  return Response.json(result, { status: result.isError ? 422 : 200 });
+};
+
 /** Config/plugin rediscovery endpoint (POST /reload) */
 const handleReload = async (
   req: Request,
@@ -751,6 +841,8 @@ const createHandleFetch =
     if (url.pathname === '/health' && req.method === 'GET') return handleHealth(req, state, transports, getHotState);
     if (url.pathname === '/audit' && req.method === 'GET') return handleAudit(url, state, req);
     if (url.pathname === '/tools' && req.method === 'GET') return handleListTools(req, url, state);
+    if (url.pathname.startsWith('/tools/') && url.pathname.endsWith('/call') && req.method === 'POST')
+      return handleToolCall(req, url, state, sessionServers);
     if (url.pathname === '/reload' && req.method === 'POST')
       return handleReload(req, state, sessionServers, transports);
     if (url.pathname === '/extension/reload' && req.method === 'POST') return handleExtensionReload(req, state);

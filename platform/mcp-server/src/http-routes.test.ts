@@ -1488,6 +1488,199 @@ describe('GET /tools endpoint', () => {
   });
 });
 
+/** Shape returned by the POST /tools/:name/call endpoint */
+interface ToolCallResponse {
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+}
+
+/** POST a JSON body to a route and parse the response */
+const postJson = async <T>(
+  handlers: HotHandlers,
+  url: string,
+  body: unknown,
+  headers?: Record<string, string>,
+): Promise<{ status: number; body: T }> => {
+  const req = new Request(url, {
+    method: 'POST',
+    headers: { Host: new URL(url).host, 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+  const res = (await handlers.fetch(req, mockServer)) as Response;
+  return { status: res.status, body: (await res.json()) as T };
+};
+
+describe('POST /tools/:name/call endpoint', () => {
+  test('returns 401 without bearer auth when secret is set', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = 'test-secret';
+
+    const req = new Request('http://localhost:9876/tools/some_tool/call', {
+      method: 'POST',
+      headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arguments: {} }),
+    });
+    const res = (await handlers.fetch(req, mockServer)) as Response;
+
+    expect(res.status).toBe(401);
+  });
+
+  test('returns 404 for unknown tool', async () => {
+    const { handlers } = createTestHandlers();
+
+    const { status, body } = await postJson<ToolCallResponse>(
+      handlers,
+      'http://localhost:9876/tools/nonexistent_tool/call',
+      { arguments: {} },
+    );
+
+    expect(status).toBe(404);
+    expect(body.isError).toBe(true);
+    expect(body.content[0]?.text).toContain('nonexistent_tool');
+  });
+
+  test('returns 400 for malformed tool call URL (empty tool name)', async () => {
+    const { handlers } = createTestHandlers();
+
+    const req = new Request('http://localhost:9876/tools//call', {
+      method: 'POST',
+      headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const res = (await handlers.fetch(req, mockServer)) as Response;
+
+    expect(res.status).toBe(400);
+  });
+
+  test('uses empty args when body has no arguments field', async () => {
+    const { handlers } = createTestHandlers();
+
+    // plugin_inspect is a platform tool — calling it with empty args returns an error
+    // about missing "plugin" field, confirming the handler was reached with empty args
+    const { status, body } = await postJson<ToolCallResponse>(
+      handlers,
+      'http://localhost:9876/tools/plugin_inspect/call',
+      {},
+    );
+
+    expect(status).toBe(200);
+    expect(body.isError).toBe(true);
+    expect(body.content[0]?.text).toContain('plugin');
+  });
+
+  test('dispatches platform tool plugin_inspect', async () => {
+    const { handlers, state } = createTestHandlers();
+
+    state.registry = buildRegistry(
+      [
+        {
+          name: 'slack',
+          version: '1.0.0',
+          displayName: 'Slack',
+          urlPatterns: ['*://app.slack.com/*'],
+          excludePatterns: [],
+          source: 'npm' as const,
+          iife: '(function(){})()',
+          tools: [],
+        },
+      ],
+      [],
+    );
+
+    const { status, body } = await postJson<ToolCallResponse>(
+      handlers,
+      'http://localhost:9876/tools/plugin_inspect/call',
+      { arguments: { plugin: 'slack' } },
+    );
+
+    expect(status).toBe(200);
+    expect(body.isError).toBeUndefined();
+    const parsed = JSON.parse(body.content[0]?.text ?? '{}');
+    expect(parsed.plugin).toBe('slack');
+  });
+
+  test('dispatches plugin tool and returns error when extension is not connected', async () => {
+    const { handlers, state } = createTestHandlers();
+
+    state.registry = buildRegistry(
+      [
+        {
+          name: 'slack',
+          version: '1.0.0',
+          displayName: 'Slack',
+          urlPatterns: ['*://app.slack.com/*'],
+          excludePatterns: [],
+          source: 'npm' as const,
+          iife: '(function(){})()',
+          tools: [
+            {
+              name: 'send_message',
+              displayName: 'Send Message',
+              description: 'Send a message',
+              icon: 'chat',
+              input_schema: { type: 'object', properties: { text: { type: 'string' } } },
+              output_schema: {},
+            },
+          ],
+        },
+      ],
+      [],
+    );
+    // Set permission to 'auto' so the tool is callable
+    state.pluginPermissions.slack = { permission: 'auto', reviewedVersion: '1.0.0' };
+
+    const { status, body } = await postJson<ToolCallResponse>(
+      handlers,
+      'http://localhost:9876/tools/slack_send_message/call',
+      { arguments: { text: 'hello' } },
+    );
+
+    // Should return error because extension is not connected
+    expect(status).toBe(422);
+    expect(body.isError).toBe(true);
+    expect(body.content[0]?.text).toContain('Extension not connected');
+  });
+
+  test('returns 429 when rate limit is exceeded', async () => {
+    const { handlers, state } = createTestHandlers();
+
+    // Exhaust the rate limit (30 calls per minute)
+    for (let i = 0; i < 30; i++) {
+      state.endpointCallTimestamps.set('/tools/call', [
+        ...(state.endpointCallTimestamps.get('/tools/call') ?? []),
+        Date.now(),
+      ]);
+    }
+
+    const req = new Request('http://localhost:9876/tools/some_tool/call', {
+      method: 'POST',
+      headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ arguments: {} }),
+    });
+    const res = (await handlers.fetch(req, mockServer)) as Response;
+
+    expect(res.status).toBe(429);
+  });
+
+  test('works with auth when secret is configured', async () => {
+    const secret = 'test-secret';
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = secret;
+
+    const { status, body } = await postJson<ToolCallResponse>(
+      handlers,
+      'http://localhost:9876/tools/plugin_inspect/call',
+      { arguments: { plugin: 'nonexistent' } },
+      { Authorization: `Bearer ${secret}` },
+    );
+
+    // plugin_inspect returns error for nonexistent plugin, confirming auth passed
+    expect(status).toBe(200);
+    expect(body.isError).toBe(true);
+    expect(body.content[0]?.text).toContain('not found');
+  });
+});
+
 describe('multi-connection — wsOpen with explicit connectionId', () => {
   test('two connections with different IDs coexist', () => {
     const { handlers, state } = createTestHandlers();
