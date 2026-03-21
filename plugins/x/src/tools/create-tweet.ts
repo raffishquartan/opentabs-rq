@@ -36,8 +36,7 @@ export const createTweet = defineTool({
 
     const data = await graphqlMutation<Record<string, unknown>>('CreateTweet', variables);
 
-    const tweetResult = (data as any)?.data?.create_tweet?.tweet_results
-      ?.result as RawTweetResult | undefined;
+    const tweetResult = (data as any)?.data?.create_tweet?.tweet_results?.result as RawTweetResult | undefined;
     if (!tweetResult) {
       const errors = (data as any)?.errors;
       const msg = Array.isArray(errors) ? errors.map((e: any) => e.message).join('; ') : undefined;
