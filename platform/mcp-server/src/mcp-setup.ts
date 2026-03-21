@@ -359,6 +359,19 @@ export const getAllToolsList = (
           'Optional. Target a specific browser tab by its ID. When omitted, the platform automatically selects the best matching tab. Use browser_list_tabs or plugin_list_tabs to discover tab IDs.',
       };
       clonedSchema.properties = properties;
+
+      const instanceNames = plugin.instanceMap ? Object.keys(plugin.instanceMap) : [];
+      if (instanceNames.length >= 2) {
+        properties.instance = {
+          type: 'string',
+          enum: instanceNames,
+          description: `Target a named instance. Required when multiple instances are configured. Valid values: ${instanceNames.join(', ')}.`,
+        };
+        const required = (clonedSchema.required ?? []) as string[];
+        required.push('instance');
+        clonedSchema.required = required;
+      }
+
       tools.push({
         name: prefixed,
         description: `${prefix}${toolDef.description}`,
