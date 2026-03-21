@@ -645,7 +645,31 @@ const handleConfigSetPluginSettings = async (
 
       // Type-check against schema
       switch (definition.type) {
-        case 'url':
+        case 'url': {
+          if (typeof value !== 'object' || Array.isArray(value)) {
+            errors.push(`Setting "${key}" must be a Record<string, string> (instance name → URL map)`);
+            break;
+          }
+          const urlMap = value as Record<string, unknown>;
+          if (Object.keys(urlMap).length === 0) {
+            errors.push(`Setting "${key}" must be a non-empty Record<string, string>`);
+            break;
+          }
+          for (const [instanceName, url] of Object.entries(urlMap)) {
+            if (instanceName.length === 0) {
+              errors.push(`Setting "${key}": instance name must be a non-empty string`);
+            } else if (typeof url !== 'string' || url.length === 0) {
+              errors.push(`Setting "${key}" instance "${instanceName}": URL must be a non-empty string`);
+            } else {
+              try {
+                new URL(url);
+              } catch {
+                errors.push(`Setting "${key}" instance "${instanceName}": invalid URL "${url}"`);
+              }
+            }
+          }
+          break;
+        }
         case 'string':
           if (typeof value !== 'string') {
             errors.push(`Setting "${key}" must be a string`);
