@@ -59,11 +59,12 @@
     "@storybook/react-vite": "^10.3.1",
     "@tailwindcss/vite": "^4.2.2",
     "@types/chrome": "^0.1.38",
-    "@vitejs/plugin-react": "^6.0.1",
+    "@vitejs/plugin-react": "^5.2.0",
     "esbuild": "^0.27.3",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "rollup": "^4.59.1",
     "storybook": "^10.2.13",
     "vite": "npm:rolldown-vite@^7.3.1"
   }
