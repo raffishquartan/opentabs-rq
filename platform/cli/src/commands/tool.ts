@@ -109,6 +109,86 @@ const handleToolList = async (options: ToolListOptions): Promise<void> => {
   }
 };
 
+interface ToolCallResult {
+  content: Array<{ type: string; text: string }>;
+  isError?: boolean;
+}
+
+const handleToolCall = async (
+  name: string,
+  jsonArg: string | undefined,
+  options: { port?: number; params?: string; instance?: string; tabId?: number },
+): Promise<void> => {
+  const port = resolvePort(options);
+
+  // Parse arguments from positional JSON or --params flag (flag takes precedence)
+  const rawJson = options.params ?? jsonArg;
+  let args: Record<string, unknown> = {};
+  if (rawJson) {
+    try {
+      args = JSON.parse(rawJson) as Record<string, unknown>;
+    } catch {
+      console.error(pc.red(`Invalid JSON: ${rawJson}`));
+      process.exit(2);
+    }
+  }
+
+  // Merge --instance and --tab-id into args
+  if (options.instance) args.instance = options.instance;
+  if (options.tabId !== undefined) args.tabId = options.tabId;
+
+  const secret = await readAuthSecret();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (secret) headers.Authorization = `Bearer ${secret}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`http://${DEFAULT_HOST}:${port}/tools/${encodeURIComponent(name)}/call`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ arguments: args }),
+      signal: AbortSignal.timeout(300_000),
+    });
+  } catch (err: unknown) {
+    if (isConnectionRefused(err)) {
+      console.error(pc.red('Server is not running.'));
+      console.error(`Start it with: ${pc.cyan('opentabs start')}`);
+      process.exit(2);
+    }
+    console.error(pc.red(`Failed to call tool: ${toErrorMessage(err)}`));
+    process.exit(2);
+  }
+
+  if (res.status === 401) {
+    console.error(pc.red('Authentication failed. Is the server running with the same config?'));
+    process.exit(2);
+  }
+
+  if (res.status === 429) {
+    console.error(pc.red('Rate limited. Try again later.'));
+    process.exit(2);
+  }
+
+  const result = (await res.json()) as ToolCallResult;
+
+  // Extract text content from the result
+  const texts = result.content.filter(c => c.type === 'text').map(c => c.text);
+  const output = texts.join('\n');
+
+  if (result.isError) {
+    console.error(output);
+    process.exit(1);
+  }
+
+  // Print result to stdout — try to pretty-print if it's valid JSON
+  try {
+    const parsed: unknown = JSON.parse(output);
+    console.log(JSON.stringify(parsed, null, 2));
+  } catch {
+    console.log(output);
+  }
+};
+
 const handleToolSchema = async (name: string, options: { port?: number }): Promise<void> => {
   const port = resolvePort(options);
 
@@ -183,6 +263,28 @@ Examples:
   $ opentabs tool schema browser_list_tabs`,
     )
     .action((name: string, _options: unknown, command: Command) => handleToolSchema(name, command.optsWithGlobals()));
+
+  toolCmd
+    .command('call')
+    .description('Invoke a tool on the running server')
+    .argument('<name>', 'Tool name (e.g., slack_send_message, browser_list_tabs)')
+    .argument('[json]', 'Tool arguments as a JSON string')
+    .option('--params <json>', 'Tool arguments as JSON (alternative to positional arg)')
+    .option('--instance <name>', 'Target a named instance (for multi-instance plugins)')
+    .option('--tab-id <id>', 'Target a specific browser tab by ID', Number.parseInt)
+    .option('--port <number>', 'Server port', parsePort)
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ opentabs tool call slack_send_message '{"channel":"C123","text":"hi"}'
+  $ opentabs tool call browser_list_tabs
+  $ opentabs tool call slack_send_message --params '{"channel":"C123"}'
+  $ opentabs tool call slack_read_messages --instance work --tab-id 42`,
+    )
+    .action((name: string, jsonArg: string | undefined, _options: unknown, command: Command) =>
+      handleToolCall(name, jsonArg, command.optsWithGlobals()),
+    );
 };
 
 export { registerToolCommand };
