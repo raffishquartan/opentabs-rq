@@ -267,6 +267,7 @@ describe('create-opentabs-plugin CLI', () => {
       const install = spawnSync('npm', ['install'], {
         cwd: projectDir,
         env: buildEnv,
+        shell: true,
       });
       if ((install.status ?? 1) !== 0) {
         console.error('install stdout:', install.stdout.toString());
@@ -275,7 +276,7 @@ describe('create-opentabs-plugin CLI', () => {
       expect(install.status ?? 1).toBe(0);
 
       // npm run build (tsc && opentabs-plugin build)
-      const build = spawnSync('npm', ['run', 'build'], { cwd: projectDir, env: buildEnv });
+      const build = spawnSync('npm', ['run', 'build'], { cwd: projectDir, env: buildEnv, shell: true });
       if ((build.status ?? 1) !== 0) {
         console.error('build stdout:', build.stdout.toString());
         console.error('build stderr:', build.stderr.toString());
@@ -283,7 +284,7 @@ describe('create-opentabs-plugin CLI', () => {
       expect(build.status ?? 1).toBe(0);
 
       // npm run lint — scaffolded code must pass lint with zero errors out of the box
-      const lint = spawnSync('npm', ['run', 'lint'], { cwd: projectDir, env: buildEnv });
+      const lint = spawnSync('npm', ['run', 'lint'], { cwd: projectDir, env: buildEnv, shell: true });
       if ((lint.status ?? 1) !== 0) {
         console.error('lint stdout:', lint.stdout.toString());
         console.error('lint stderr:', lint.stderr.toString());

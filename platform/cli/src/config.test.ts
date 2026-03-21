@@ -149,28 +149,33 @@ describe('getLocalPluginsFromConfig', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolvePluginPath', () => {
+  const isWin = process.platform === 'win32';
+  const configDir = isWin ? 'C:\\Users\\user\\.opentabs' : '/home/user/.opentabs';
+  const configPath = join(configDir, 'config.json');
+  const absolutePlugin = isWin ? 'C:\\Users\\user\\my-plugin' : '/home/user/my-plugin';
+
   test('returns absolute path as-is', () => {
-    const result = resolvePluginPath('/home/user/my-plugin', '/home/user/.opentabs/config.json');
-    expect(result).toBe('/home/user/my-plugin');
+    const result = resolvePluginPath(absolutePlugin, configPath);
+    expect(result).toBe(absolutePlugin);
   });
 
   test('resolves relative path against config directory', () => {
-    const result = resolvePluginPath('../my-plugin', '/home/user/.opentabs/config.json');
-    expect(result).toBe('/home/user/my-plugin');
+    const result = resolvePluginPath('../my-plugin', configPath);
+    expect(result).toBe(resolve(configDir, '../my-plugin'));
   });
 
   test('resolves dot-slash relative path against config directory', () => {
-    const result = resolvePluginPath('./plugins/my-plugin', '/home/user/.opentabs/config.json');
-    expect(result).toBe('/home/user/.opentabs/plugins/my-plugin');
+    const result = resolvePluginPath('./plugins/my-plugin', configPath);
+    expect(result).toBe(resolve(configDir, './plugins/my-plugin'));
   });
 
   test('resolves bare name relative path against config directory', () => {
-    const result = resolvePluginPath('my-plugin', '/home/user/.opentabs/config.json');
-    expect(result).toBe('/home/user/.opentabs/my-plugin');
+    const result = resolvePluginPath('my-plugin', configPath);
+    expect(result).toBe(resolve(configDir, 'my-plugin'));
   });
 
   test('expands tilde prefix to home directory', () => {
-    const result = resolvePluginPath('~/projects/my-plugin', '/home/user/.opentabs/config.json');
+    const result = resolvePluginPath('~/projects/my-plugin', configPath);
     expect(result).toBe(resolve(homedir(), 'projects/my-plugin'));
   });
 });

@@ -11,6 +11,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
+import { fileURLToPath } from 'node:url';
 import { validatePluginName, validateUrlPattern } from '@opentabs-dev/plugin-sdk';
 import { isWindows } from '@opentabs-dev/shared';
 import pc from 'picocolors';
@@ -92,7 +93,7 @@ const queryNpmRegistryVersion = (): Promise<string | null> =>
 const readLocalSdkVersions = async (): Promise<{ version: string; zodVersion: string } | null> => {
   try {
     const entryUrl = import.meta.resolve('@opentabs-dev/plugin-sdk');
-    const entryDir = dirname(new URL(entryUrl).pathname);
+    const entryDir = dirname(fileURLToPath(entryUrl));
     const pkg: unknown = JSON.parse(await readFile(join(entryDir, '..', 'package.json'), 'utf-8'));
     if (pkg === null || typeof pkg !== 'object') return null;
     const version = 'version' in pkg && typeof pkg.version === 'string' ? pkg.version : null;

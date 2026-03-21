@@ -311,12 +311,17 @@ describe('saveConfig error propagation', () => {
   // simulation does not work when running as root (e.g., Docker containers).
   const isRoot = process.getuid?.() === 0;
 
+  // Windows NTFS does not support Unix file permissions, so chmod cannot
+  // simulate write failures.
+  const isWindows = process.platform === 'win32';
+  const skipChmod = isRoot || isWindows;
+
   beforeEach(async () => {
     process.env.OPENTABS_CONFIG_DIR = TEST_BASE_DIR;
     await removeConfig();
   });
 
-  test.skipIf(isRoot)('saveConfig propagates write errors to the caller', async () => {
+  test.skipIf(skipChmod)('saveConfig propagates write errors to the caller', async () => {
     await loadConfig();
     // Make the directory non-writable so atomicWrite cannot create temp files
     await chmod(TEST_BASE_DIR, 0o555);
@@ -334,7 +339,7 @@ describe('saveConfig error propagation', () => {
     await chmod(TEST_BASE_DIR, 0o700);
   });
 
-  test.skipIf(isRoot)('saveConfig mutex does not deadlock after a failed write', async () => {
+  test.skipIf(skipChmod)('saveConfig mutex does not deadlock after a failed write', async () => {
     await loadConfig();
     await chmod(TEST_BASE_DIR, 0o555);
 
@@ -358,7 +363,7 @@ describe('saveConfig error propagation', () => {
     expect(loaded.localPlugins).toEqual(['/test/path']);
   });
 
-  test.skipIf(isRoot)('savePluginPermissions propagates write errors to the caller', async () => {
+  test.skipIf(skipChmod)('savePluginPermissions propagates write errors to the caller', async () => {
     await loadConfig();
     await chmod(TEST_BASE_DIR, 0o555);
 
@@ -370,7 +375,7 @@ describe('saveConfig error propagation', () => {
     await chmod(TEST_BASE_DIR, 0o700);
   });
 
-  test.skipIf(isRoot)('savePluginPermissions mutex does not deadlock after a failed write', async () => {
+  test.skipIf(skipChmod)('savePluginPermissions mutex does not deadlock after a failed write', async () => {
     await loadConfig();
     await chmod(TEST_BASE_DIR, 0o555);
 
@@ -408,7 +413,8 @@ describe('writeAuthFile', () => {
     expect(content).not.toHaveProperty('port');
   });
 
-  test('writes auth.json with restrictive permissions (0600)', async () => {
+  // Windows NTFS does not support Unix file permissions; mode always reads as 0o666.
+  test.skipIf(process.platform === 'win32')('writes auth.json with restrictive permissions (0600)', async () => {
     await writeAuthFile('perm-test-secret');
 
     const stats = statSync(authPath);

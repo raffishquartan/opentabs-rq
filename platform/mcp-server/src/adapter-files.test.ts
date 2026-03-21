@@ -242,12 +242,19 @@ describe('writeAdapterFile', () => {
     const iife2 = '(function(){console.log("atom-v2")})();';
 
     // Write initial version so there is an old file to clean up
-    await writeAdapterFile('atom-test', iife1);
+    const path1 = await writeAdapterFile('atom-test', iife1);
+    const oldFile = path1.replace('adapters/', '');
 
-    // Capture directory contents the first time unlink is called (old file deletion)
-    let entriesAtFirstUnlink: string[] = [];
-    mockUnlink.mockImplementationOnce(async path => {
-      entriesAtFirstUnlink = await nodeFsPromises.readdir(adaptersDir);
+    // Capture directory contents when the old adapter file is unlinked.
+    // On Windows, atomicWrite also calls unlink internally (to replace the
+    // target before rename), so we filter to only capture state when the
+    // old adapter file is the one being deleted — not internal atomicWrite calls.
+    let entriesAtOldFileUnlink: string[] = [];
+    mockUnlink.mockImplementation(async path => {
+      const pathStr = typeof path === 'string' ? path : path.toString();
+      if (pathStr.endsWith(oldFile) && entriesAtOldFileUnlink.length === 0) {
+        entriesAtOldFileUnlink = await nodeFsPromises.readdir(adaptersDir);
+      }
       const fn = unlinkCapture.realFn;
       if (!fn) throw new Error('unlinkCapture.realFn not initialized');
       return fn(path);
@@ -258,7 +265,7 @@ describe('writeAdapterFile', () => {
 
     // The new file must already exist on disk when unlink is called for old files,
     // ensuring there is no window where zero adapter files exist for this plugin.
-    expect(entriesAtFirstUnlink).toContain(newFile);
+    expect(entriesAtOldFileUnlink).toContain(newFile);
   });
 });
 

@@ -1,5 +1,6 @@
 import type * as ChildProcess from 'node:child_process';
 import { EventEmitter, PassThrough } from 'node:stream';
+import { isWindows } from '@opentabs-dev/shared';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import type { RegisteredPlugin } from './state.js';
 
@@ -183,7 +184,7 @@ describe('fetchLatestVersion', () => {
     await fetchLatestVersion('my-package');
     expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', 'my-package', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
+      shell: isWindows(),
     });
   });
 
@@ -193,7 +194,7 @@ describe('fetchLatestVersion', () => {
     await fetchLatestVersion('@opentabs-dev/plugin-sdk');
     expect(mockSpawn).toHaveBeenCalledWith('npm', ['view', '@opentabs-dev/plugin-sdk', 'version'], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
+      shell: isWindows(),
     });
   });
 
