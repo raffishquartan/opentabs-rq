@@ -25,6 +25,7 @@ import {
   appendAuditEntry,
   consumeReviewToken,
   generateReviewToken,
+  getMergedTabMapping,
   getToolPermission,
   validateReviewToken,
 } from './state.js';
@@ -228,6 +229,7 @@ vi.mock('./state.js', () => ({
   generateReviewToken: vi.fn().mockReturnValue('mock-review-token-uuid'),
   validateReviewToken: vi.fn().mockReturnValue(true),
   consumeReviewToken: vi.fn(),
+  getMergedTabMapping: vi.fn().mockReturnValue(new Map()),
 }));
 
 vi.mock('./config.js', () => ({
@@ -1997,5 +1999,366 @@ describe('handlePluginMarkReviewed', () => {
     expect(state.pluginPermissions['test-plugin']?.tools?.some_tool).toBe('auto');
     expect(state.pluginPermissions['test-plugin']?.permission).toBe('auto');
     expect(state.pluginPermissions['test-plugin']?.reviewedVersion).toBe('1.2.3');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Instance parameter extraction and resolution tests
+// ---------------------------------------------------------------------------
+
+describe('handlePluginToolCall — instance parameter', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  test('instance is stripped from args before Ajv validation', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+    const state = createMockState();
+    const validate = vi.fn().mockReturnValue(true);
+    const lookup = createMockLookup({ validate });
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { channel: '#general', instance: 'production' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    expect(validate).toHaveBeenCalledTimes(1);
+    const validatedArgs = validate.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(validatedArgs).toHaveProperty('channel', '#general');
+    expect(validatedArgs).not.toHaveProperty('instance');
+  });
+
+  test('instance resolves to the correct tab via instanceMap pattern matching', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+            staging: '*://staging.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    // Mock getMergedTabMapping to return tabs matching the staging instance
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [
+              { tabId: 101, url: 'https://prod.example.com/app', title: 'Prod', ready: true },
+              { tabId: 202, url: 'https://staging.example.com/app', title: 'Staging', ready: true },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'staging' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    // Dispatch should target the staging tab (tabId: 202)
+    expect(dispatchToExtension).toHaveBeenCalledWith(
+      state,
+      'tool.dispatch',
+      expect.objectContaining({
+        plugin: 'testplugin',
+        tool: 'test_action',
+        tabId: 202,
+      }) as Record<string, unknown>,
+      expect.any(Object) as Record<string, unknown>,
+    );
+  });
+
+  test('instance not open returns error describing which tab is needed', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+            staging: '*://staging.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    // Only production tab is open, staging is not
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [{ tabId: 101, url: 'https://prod.example.com/app', title: 'Prod', ready: true }],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    const result = await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'staging' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain('No open tab found for instance "staging"');
+    expect(result.content[0]?.text).toContain('staging');
+  });
+
+  test('unknown instance returns error listing valid instances', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+            staging: '*://staging.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    const result = await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'nonexistent' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain('Unknown instance "nonexistent"');
+    expect(result.content[0]?.text).toContain('production');
+    expect(result.content[0]?.text).toContain('staging');
+  });
+
+  test('instance takes precedence over tabId', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+            staging: '*://staging.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [
+              { tabId: 101, url: 'https://prod.example.com/app', title: 'Prod', ready: true },
+              { tabId: 202, url: 'https://staging.example.com/app', title: 'Staging', ready: true },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    // Provide both tabId=999 and instance='staging' — instance should win
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { tabId: 999, instance: 'staging' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    // Dispatch should use the staging tab (202), not the provided tabId (999)
+    expect(dispatchToExtension).toHaveBeenCalledWith(
+      state,
+      'tool.dispatch',
+      expect.objectContaining({
+        tabId: 202,
+      }) as Record<string, unknown>,
+      expect.any(Object) as Record<string, unknown>,
+    );
+  });
+
+  test('no instance on multi-instance plugin uses auto-select (no tabId override)', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+            staging: '*://staging.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    // No instance parameter provided — auto-select should work as before
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      {},
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    // Dispatch should NOT have a tabId (auto-select)
+    const dispatchCall = vi.mocked(dispatchToExtension).mock.calls[0];
+    const dispatchParams = dispatchCall?.[2] as Record<string, unknown>;
+    expect(dispatchParams).not.toHaveProperty('tabId');
+  });
+
+  test('instance prefers ready tabs over non-ready tabs', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            production: '*://prod.example.com/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    // Two tabs for the same instance — one not ready, one ready
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [
+              { tabId: 100, url: 'https://prod.example.com/page1', title: 'Prod (loading)', ready: false },
+              { tabId: 200, url: 'https://prod.example.com/page2', title: 'Prod (ready)', ready: true },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'production' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    // Should select the ready tab (200), not the non-ready one (100)
+    expect(dispatchToExtension).toHaveBeenCalledWith(
+      state,
+      'tool.dispatch',
+      expect.objectContaining({ tabId: 200 }) as Record<string, unknown>,
+      expect.any(Object) as Record<string, unknown>,
+    );
   });
 });

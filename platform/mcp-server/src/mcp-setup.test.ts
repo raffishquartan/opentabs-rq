@@ -995,3 +995,182 @@ describe('registerMcpHandlers — generic dispatch error sanitization', () => {
     expect(text).not.toContain('/home/user/.opentabs');
   });
 });
+
+describe('getAllToolsList — instance schema injection', () => {
+  test('plugin with instanceMap having 2+ entries gets instance enum parameter', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query']),
+      instanceMap: {
+        production: '*://prod.example.com/*',
+        staging: '*://staging.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { sqlpad: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const sqlpadTool = tools.find(t => t.name === 'sqlpad_run_query');
+
+    expect(sqlpadTool).toBeDefined();
+    const schema = sqlpadTool?.inputSchema as Record<string, unknown>;
+    const properties = schema.properties as Record<string, unknown>;
+    const instanceDef = properties.instance as { type: string; enum: string[]; description: string };
+    expect(instanceDef).toBeDefined();
+    expect(instanceDef.type).toBe('string');
+    expect(instanceDef.enum).toEqual(['production', 'staging']);
+    expect(instanceDef.description).toContain('production');
+    expect(instanceDef.description).toContain('staging');
+  });
+
+  test('instance is added to required array', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query']),
+      instanceMap: {
+        production: '*://prod.example.com/*',
+        staging: '*://staging.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { sqlpad: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const sqlpadTool = tools.find(t => t.name === 'sqlpad_run_query');
+
+    const schema = sqlpadTool?.inputSchema as Record<string, unknown>;
+    const required = schema.required as string[];
+    expect(required).toContain('instance');
+  });
+
+  test('instance enum values match instanceMap keys exactly', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('app', ['action']),
+      instanceMap: {
+        alpha: '*://alpha.example.com/*',
+        beta: '*://beta.example.com/*',
+        gamma: '*://gamma.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { app: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const appTool = tools.find(t => t.name === 'app_action');
+
+    const properties = (appTool?.inputSchema as Record<string, unknown>).properties as Record<string, unknown>;
+    const instanceDef = properties.instance as { enum: string[] };
+    expect(instanceDef.enum).toEqual(['alpha', 'beta', 'gamma']);
+  });
+
+  test('plugin with instanceMap having 1 entry does NOT get instance parameter', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query']),
+      instanceMap: { default: '*://app.example.com/*' },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { sqlpad: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const sqlpadTool = tools.find(t => t.name === 'sqlpad_run_query');
+
+    const properties = (sqlpadTool?.inputSchema as Record<string, unknown>).properties as Record<string, unknown>;
+    expect(properties.instance).toBeUndefined();
+  });
+
+  test('plugin with no instanceMap does NOT get instance parameter', () => {
+    const state = createState();
+    state.registry = buildRegistry([createPlugin('slack', ['send_message'])], []);
+    state.pluginPermissions = { slack: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const slackTool = tools.find(t => t.name === 'slack_send_message');
+
+    const properties = (slackTool?.inputSchema as Record<string, unknown>).properties as Record<string, unknown>;
+    expect(properties.instance).toBeUndefined();
+  });
+
+  test('instance injection does not mutate the original ManifestTool input_schema', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query']),
+      instanceMap: {
+        production: '*://prod.example.com/*',
+        staging: '*://staging.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+
+    const originalTool = plugin.tools[0];
+    if (!originalTool) throw new Error('Expected at least one tool');
+    const originalSchema = originalTool.input_schema;
+
+    getAllToolsList(state);
+
+    expect(originalSchema).toEqual({ type: 'object' });
+  });
+
+  test('tabId is still injected alongside instance', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query']),
+      instanceMap: {
+        production: '*://prod.example.com/*',
+        staging: '*://staging.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { sqlpad: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const sqlpadTool = tools.find(t => t.name === 'sqlpad_run_query');
+
+    const properties = (sqlpadTool?.inputSchema as Record<string, unknown>).properties as Record<string, unknown>;
+    expect(properties.tabId).toBeDefined();
+    expect(properties.instance).toBeDefined();
+  });
+
+  test('browser tools do NOT get instance parameter', () => {
+    const state = createState();
+    state.browserTools = [createBrowserTool('browser_list_tabs', 'List tabs')];
+    rebuildCachedBrowserTools(state);
+    state.pluginPermissions = { browser: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const browserTool = tools.find(t => t.name === 'browser_list_tabs');
+
+    const properties = (browserTool?.inputSchema as Record<string, unknown>).properties as
+      | Record<string, unknown>
+      | undefined;
+    if (properties) {
+      expect(properties.instance).toBeUndefined();
+    }
+  });
+
+  test('multiple tools on same multi-instance plugin each get instance', () => {
+    const state = createState();
+    const plugin: RegisteredPlugin = {
+      ...createPlugin('sqlpad', ['run_query', 'list_tables']),
+      instanceMap: {
+        production: '*://prod.example.com/*',
+        staging: '*://staging.example.com/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+    state.pluginPermissions = { sqlpad: { permission: 'auto' } };
+
+    const tools = getAllToolsList(state);
+    const sqlpadTools = tools.filter(t => t.name.startsWith('sqlpad_'));
+
+    expect(sqlpadTools).toHaveLength(2);
+    for (const tool of sqlpadTools) {
+      const properties = (tool.inputSchema as Record<string, unknown>).properties as Record<string, unknown>;
+      const instanceDef = properties.instance as { type: string; enum: string[] };
+      expect(instanceDef).toBeDefined();
+      expect(instanceDef.type).toBe('string');
+      expect(instanceDef.enum).toEqual(['production', 'staging']);
+    }
+  });
+});
