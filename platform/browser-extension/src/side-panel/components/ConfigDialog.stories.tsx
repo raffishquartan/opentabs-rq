@@ -203,6 +203,107 @@ const AllFieldTypesThemePair: Story = {
   ),
 };
 
+// -- Multi-instance URL stories --
+
+const SingleInstance: Story = {
+  render: () => (
+    <Wrapper
+      schema={urlSchema}
+      resolved={{ instanceUrl: { production: 'https://sqlpad.mycompany.com' } }}
+      displayName="Single Instance"
+    />
+  ),
+};
+
+const MultipleInstances: Story = {
+  render: () => (
+    <Wrapper
+      schema={urlSchema}
+      resolved={{
+        instanceUrl: {
+          production: 'https://sqlpad.prod.example.com',
+          staging: 'https://sqlpad.staging.example.com',
+          development: 'https://sqlpad.dev.example.com',
+        },
+      }}
+      displayName="Multiple Instances"
+    />
+  ),
+};
+
+const EmptyUrlField: Story = {
+  render: () => <Wrapper schema={urlSchema} displayName="Empty URL Field" />,
+};
+
+/** Pre-filled with an invalid URL — clicking Save triggers validation errors */
+const UrlFieldWithError: Story = {
+  render: () => (
+    <Wrapper
+      schema={urlSchema}
+      resolved={{
+        instanceUrl: {
+          production: 'https://sqlpad.prod.example.com',
+          staging: 'not-a-valid-url',
+        },
+      }}
+      displayName="URL Field Errors"
+    />
+  ),
+};
+
+const optionalUrlSchema: ConfigSchema = {
+  instanceUrl: {
+    type: 'url',
+    label: 'Instance URL',
+    description: 'Optional self-hosted instance URL',
+    required: false,
+    placeholder: 'https://sqlpad.example.com',
+  },
+};
+
+const UrlFieldOptional: Story = {
+  render: () => (
+    <Wrapper
+      schema={optionalUrlSchema}
+      resolved={{ instanceUrl: { production: 'https://sqlpad.mycompany.com' } }}
+      displayName="Optional URL"
+    />
+  ),
+};
+
+/** Multiple instances with add/remove controls visible — required field keeps at least one row */
+const UrlFieldAddRemove: Story = {
+  render: () => (
+    <Wrapper
+      schema={urlSchema}
+      resolved={{
+        instanceUrl: {
+          production: 'https://sqlpad.prod.example.com',
+          staging: 'https://sqlpad.staging.example.com',
+        },
+      }}
+      displayName="Add / Remove Instances"
+    />
+  ),
+};
+
+const MultiInstanceThemePair: Story = {
+  render: () => (
+    <ThemeGrid>
+      <Wrapper
+        schema={urlSchema}
+        resolved={{
+          instanceUrl: {
+            production: 'https://sqlpad.prod.example.com',
+            staging: 'https://sqlpad.staging.example.com',
+          },
+        }}
+        displayName="Theme Demo"
+      />
+    </ThemeGrid>
+  ),
+};
+
 export default meta;
 export {
   UrlField,
@@ -213,4 +314,11 @@ export {
   PreFilledValues,
   AllFieldTypes,
   AllFieldTypesThemePair,
+  SingleInstance,
+  MultipleInstances,
+  EmptyUrlField,
+  UrlFieldWithError,
+  UrlFieldOptional,
+  UrlFieldAddRemove,
+  MultiInstanceThemePair,
 };
