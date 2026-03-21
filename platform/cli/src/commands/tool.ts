@@ -109,6 +109,41 @@ const handleToolList = async (options: ToolListOptions): Promise<void> => {
   }
 };
 
+const handleToolSchema = async (name: string, options: { port?: number }): Promise<void> => {
+  const port = resolvePort(options);
+
+  let tools: ToolEntry[];
+  try {
+    tools = await fetchTools(port);
+  } catch (err: unknown) {
+    if (isConnectionRefused(err)) {
+      console.error(pc.red('Server is not running.'));
+      console.error(`Start it with: ${pc.cyan('opentabs start')}`);
+      process.exit(1);
+    }
+    console.error(pc.red(`Failed to fetch tools: ${toErrorMessage(err)}`));
+    process.exit(1);
+  }
+
+  const tool = tools.find(t => t.name === name);
+  if (!tool) {
+    console.error(pc.red(`Tool "${name}" not found.`));
+    console.error();
+    const names = tools.map(t => t.name).sort();
+    if (names.length > 0) {
+      console.error(`Available tools:`);
+      for (const n of names) {
+        console.error(`  ${pc.cyan(n)}`);
+      }
+    }
+    process.exit(1);
+  }
+
+  console.log(
+    JSON.stringify({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }, null, 2),
+  );
+};
+
 const registerToolCommand = (program: Command): void => {
   const toolCmd = program
     .command('tool')
@@ -134,6 +169,20 @@ Examples:
   $ opentabs tool list --plugin browser`,
     )
     .action((_options: ToolListOptions, command: Command) => handleToolList(command.optsWithGlobals()));
+
+  toolCmd
+    .command('schema')
+    .description('Show the full input schema for a tool')
+    .argument('<name>', 'Tool name (e.g., slack_send_message)')
+    .option('--port <number>', 'Server port', parsePort)
+    .addHelpText(
+      'after',
+      `
+Examples:
+  $ opentabs tool schema slack_send_message
+  $ opentabs tool schema browser_list_tabs`,
+    )
+    .action((name: string, _options: unknown, command: Command) => handleToolSchema(name, command.optsWithGlobals()));
 };
 
 export { registerToolCommand };
