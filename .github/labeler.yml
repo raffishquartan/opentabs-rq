@@ -1,0 +1,19 @@
+platform:
+  - changed-files:
+    - any-glob-to-any-file: 'platform/**'
+
+plugins:
+  - changed-files:
+    - any-glob-to-any-file: 'plugins/**'
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file: 'docs/**'
+
+e2e:
+  - changed-files:
+    - any-glob-to-any-file: 'e2e/**'
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: '.github/**'
