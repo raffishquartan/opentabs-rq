@@ -102,112 +102,9 @@ const discoverPlugins = (): string[] => {
 };
 
 // ---------------------------------------------------------------------------
-// Conventional commit grouping
+// (Changelog generation removed — GitHub Releases auto-generates release notes
+// from conventional commit messages when a version tag is pushed.)
 // ---------------------------------------------------------------------------
-
-interface CommitGroups {
-  [key: string]: string[];
-  feat: string[];
-  fix: string[];
-  perf: string[];
-  refactor: string[];
-  build: string[];
-  ci: string[];
-  test: string[];
-  docs: string[];
-  style: string[];
-  chore: string[];
-  other: string[];
-  ungrouped: string[];
-}
-
-const GROUP_LABELS: Record<string, string> = {
-  feat: 'Features',
-  fix: 'Bug Fixes',
-  perf: 'Performance',
-  refactor: 'Refactoring',
-  build: 'Build',
-  ci: 'CI',
-  test: 'Tests',
-  docs: 'Documentation',
-  style: 'Style',
-  chore: 'Chores',
-  other: 'Other',
-};
-
-const COMMIT_RE = /^([a-z]+)(?:\(.+\))?:\s+(.+)$/;
-
-const groupCommits = (subjects: string[]): CommitGroups => {
-  const groups: CommitGroups = {
-    feat: [],
-    fix: [],
-    perf: [],
-    refactor: [],
-    build: [],
-    ci: [],
-    test: [],
-    docs: [],
-    style: [],
-    chore: [],
-    other: [],
-    ungrouped: [],
-  };
-
-  for (const subject of subjects) {
-    const match = subject.match(COMMIT_RE);
-    if (!match) {
-      groups.ungrouped.push(subject);
-      continue;
-    }
-
-    const type = match[1];
-    const msg = match[2];
-    if (!type || !msg) continue;
-
-    if (type === 'release') continue;
-
-    const bucket = groups[type];
-    if (bucket) {
-      bucket.push(msg);
-    } else {
-      groups.other.push(msg);
-    }
-  }
-
-  return groups;
-};
-
-const buildChangelog = (version: string, groups: CommitGroups): string => {
-  let entry = `## v${version}\n\n`;
-  let hasGroups = false;
-
-  const orderedKeys = ['feat', 'fix', 'perf', 'refactor', 'build', 'ci', 'test', 'docs', 'style', 'chore', 'other'];
-
-  for (const key of orderedKeys) {
-    const items = groups[key];
-    if (items && items.length > 0) {
-      hasGroups = true;
-      const label = GROUP_LABELS[key] ?? key;
-      entry += `### ${label}\n\n`;
-      for (const item of items) {
-        entry += `- ${item}\n`;
-      }
-      entry += '\n';
-    }
-  }
-
-  if (groups.ungrouped.length > 0) {
-    if (hasGroups) {
-      entry += '### Other\n\n';
-    }
-    for (const item of groups.ungrouped) {
-      entry += `- ${item}\n`;
-    }
-    entry += '\n';
-  }
-
-  return entry;
-};
 
 // ---------------------------------------------------------------------------
 // Main
@@ -321,42 +218,7 @@ const main = async (): Promise<void> => {
     }
   }
 
-  // 6. Generate changelog
-  console.log('');
-  console.log('==> Generating changelog...');
-
-  let prevTag = '';
-  try {
-    prevTag = capture(['git', 'describe', '--tags', '--abbrev=0']);
-  } catch {
-    // No previous tag
-  }
-
-  const logArgs = ['git', 'log', '--no-merges', '--pretty=format:%s'];
-  if (prevTag) {
-    logArgs.push(`${prevTag}..HEAD`);
-  }
-
-  const commitsRaw = capture(logArgs);
-  if (commitsRaw.length === 0) {
-    console.log('  No commits found — skipping changelog.');
-  } else {
-    const subjects = commitsRaw.split('\n').filter(line => line.length > 0);
-    const groups = groupCommits(subjects);
-    const entry = buildChangelog(version, groups);
-
-    const changelogPath = resolve(ROOT, 'CHANGELOG.md');
-    if (existsSync(changelogPath)) {
-      const existing = await readFile(changelogPath, 'utf-8');
-      await writeFile(changelogPath, `${entry + existing}\n`);
-    } else {
-      await writeFile(changelogPath, `# Changelog\n\n${entry}`);
-    }
-
-    console.log(`  Generated changelog for v${version}`);
-  }
-
-  // 7. Commit and tag
+  // 6. Commit and tag
   console.log('');
   console.log('==> Creating release commit and tag...');
 
@@ -364,10 +226,6 @@ const main = async (): Promise<void> => {
   for (const plugin of plugins) {
     filesToStage.push(`${plugin}/package.json`);
     filesToStage.push(`${plugin}/package-lock.json`);
-  }
-  const changelogPath = resolve(ROOT, 'CHANGELOG.md');
-  if (existsSync(changelogPath)) {
-    filesToStage.push('CHANGELOG.md');
   }
 
   run(['git', 'add', '-f', ...filesToStage]);
@@ -379,6 +237,7 @@ const main = async (): Promise<void> => {
   console.log('');
   console.log('Next steps:');
   console.log('  1. git push && git push --tags');
+  console.log('  2. GitHub Actions will auto-create a release with generated notes');
 };
 
 await main();
