@@ -81,5 +81,5 @@ const FailedPluginCard = ({ plugin, onRemove, removing }: FailedPluginCardProps)
   );
 };
 
-export { FailedPluginCard };
 export type { FailedPluginCardProps };
+export { FailedPluginCard };

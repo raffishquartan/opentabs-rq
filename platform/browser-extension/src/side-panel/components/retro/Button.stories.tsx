@@ -95,4 +95,4 @@ const ThemePair: Story = {
 };
 
 export default meta;
-export { Primary, Secondary, Outline, Link, Ghost, Small, Large, Disabled, Icon, AllVariants, ThemePair };
+export { AllVariants, Disabled, Ghost, Icon, Large, Link, Outline, Primary, Secondary, Small, ThemePair };

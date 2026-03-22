@@ -18,5 +18,5 @@ const Progress = ({ className, indicatorClassName, value, ...props }: IProgressP
   </ProgressPrimitives.Root>
 );
 
-export { Progress };
 export type { IProgressProps };
+export { Progress };

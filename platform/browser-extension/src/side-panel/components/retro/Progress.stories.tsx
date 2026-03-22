@@ -14,4 +14,4 @@ const Destructive: Story = {
 };
 
 export default meta;
-export { Default, Empty, Full, Destructive };
+export { Default, Destructive, Empty, Full };

@@ -44,4 +44,4 @@ const AllVariants: Story = {
 };
 
 export default meta;
-export { Default, Outline, Small, AllVariants };
+export { AllVariants, Default, Outline, Small };

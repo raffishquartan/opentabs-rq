@@ -70,4 +70,4 @@ const ThemeGrid = ({ children }: { children: ReactNode }) => (
   </div>
 );
 
-export { ThemeGrid, lightVars, darkVars };
+export { darkVars, lightVars, ThemeGrid };

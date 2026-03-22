@@ -40,4 +40,4 @@ const AllVariants: Story = {
 };
 
 export default meta;
-export { Paragraph, Heading1, Anchor, ListItem, AllVariants };
+export { AllVariants, Anchor, Heading1, ListItem, Paragraph };

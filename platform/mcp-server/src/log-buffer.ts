@@ -109,5 +109,5 @@ const clearAllLogs = (): void => {
   getBuffers().clear();
 };
 
-export { appendLog, clearAllLogs, getBufferedPlugins, getLogCount, getLogs, pruneStaleBuffers };
 export type { PluginLogEntry };
+export { appendLog, clearAllLogs, getBufferedPlugins, getLogCount, getLogs, pruneStaleBuffers };

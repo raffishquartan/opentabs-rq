@@ -138,11 +138,11 @@ const initConfirmationBadge = (): void => {
 /** Returns an array of all pending confirmation params */
 const getPendingConfirmations = (): PendingConfirmationParams[] => [...pendingConfirmations.values()];
 
-export {
-  notifyConfirmationRequest,
-  clearConfirmationBadge,
-  clearAllConfirmationBadges,
-  initConfirmationBadge,
-  getPendingConfirmations,
-};
 export type { PendingConfirmationParams };
+export {
+  clearAllConfirmationBadges,
+  clearConfirmationBadge,
+  getPendingConfirmations,
+  initConfirmationBadge,
+  notifyConfirmationRequest,
+};

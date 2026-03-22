@@ -118,5 +118,5 @@ const ConfirmationDialog = ({ confirmations, onRespond }: ConfirmationDialogProp
   );
 };
 
-export { ConfirmationDialog, resolveDisplayIndex };
 export type { ConfirmationData };
+export { ConfirmationDialog, resolveDisplayIndex };

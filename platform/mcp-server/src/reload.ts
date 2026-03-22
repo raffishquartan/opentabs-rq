@@ -588,4 +588,4 @@ const performConfigReload = async (
 };
 
 export type { ReloadResult };
-export { performReload, performConfigReload };
+export { performConfigReload, performReload };

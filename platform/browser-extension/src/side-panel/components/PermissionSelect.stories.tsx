@@ -73,4 +73,4 @@ const AllStates: Story = {
 };
 
 export default meta;
-export { Off, Ask, Auto, Disabled, Muted, Interactive, AllStates };
+export { AllStates, Ask, Auto, Disabled, Interactive, Muted, Off };

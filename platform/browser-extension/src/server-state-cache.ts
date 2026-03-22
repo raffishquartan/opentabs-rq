@@ -285,6 +285,7 @@ const setCachesInitialized = (value: boolean): void => {
   cachesInitialized = value;
 };
 
+export type { ServerStateCache };
 export {
   addPendingAllBrowserToolsUpdate,
   addPendingBrowserToolUpdate,
@@ -304,4 +305,3 @@ export {
   setCachesInitialized,
   updateServerStateCache,
 };
-export type { ServerStateCache };

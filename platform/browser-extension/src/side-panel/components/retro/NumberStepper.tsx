@@ -106,5 +106,5 @@ const NumberStepper = ({
   );
 };
 
-export { NumberStepper };
 export type { NumberStepperProps };
+export { NumberStepper };

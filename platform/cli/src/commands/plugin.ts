@@ -1151,15 +1151,15 @@ Examples:
 };
 
 export {
-  registerPluginCommand,
-  resolvePackageName,
-  warnIfNotPlugin,
-  removeFromLocalPlugins,
   buildDirectLookupCandidates,
-  scanNpmPlugins,
-  readLocalPluginInfo,
   findPluginDir,
-  readPluginConfigSchema,
-  pluginNameFromPackage,
   handlePluginConfigure,
+  pluginNameFromPackage,
+  readLocalPluginInfo,
+  readPluginConfigSchema,
+  registerPluginCommand,
+  removeFromLocalPlugins,
+  resolvePackageName,
+  scanNpmPlugins,
+  warnIfNotPlugin,
 };

@@ -110,4 +110,4 @@ const AllVariants: Story = {
 };
 
 export default meta;
-export { Default, TitleOnly, CustomIcon, NoSeparator, AllVariants };
+export { AllVariants, CustomIcon, Default, NoSeparator, TitleOnly };

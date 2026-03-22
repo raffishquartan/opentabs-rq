@@ -108,5 +108,5 @@ const getTool = (registry: PluginRegistry, prefixedName: string): ToolLookupResu
   return { plugin, tool, lookup };
 };
 
-export { buildRegistry, emptyRegistry, getPlugin, getTool };
 export type { ToolLookupResult };
+export { buildRegistry, emptyRegistry, getPlugin, getTool };

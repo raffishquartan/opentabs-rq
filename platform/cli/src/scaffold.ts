@@ -539,5 +539,5 @@ const scaffoldPlugin = async (args: ScaffoldArgs): Promise<string> => {
   return projectDir;
 };
 
-export { scaffoldPlugin, promptForMissingArgs, resolvePluginSdkVersions, ScaffoldError, toPascalCase, toTitleCase };
-export type { ScaffoldArgs, PartialScaffoldArgs, ResolvedVersions };
+export type { PartialScaffoldArgs, ResolvedVersions, ScaffoldArgs };
+export { promptForMissingArgs, resolvePluginSdkVersions, ScaffoldError, scaffoldPlugin, toPascalCase, toTitleCase };

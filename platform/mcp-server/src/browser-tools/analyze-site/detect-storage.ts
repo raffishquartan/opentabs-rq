@@ -67,5 +67,5 @@ const detectStorage = (input: StorageDetectionInput): StorageAnalysis => ({
   sessionStorage: input.sessionStorageKeys.map(classifyKey),
 });
 
+export type { StorageAnalysis, StorageDetectionInput, StorageKeyInfo };
 export { detectStorage };
-export type { StorageDetectionInput, StorageAnalysis, StorageKeyInfo };

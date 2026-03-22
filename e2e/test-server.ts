@@ -793,6 +793,6 @@ const shutdown = () => {
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
+export type { Invocation, ServerState };
 // Export for programmatic use in tests
 export { server, state };
-export type { ServerState, Invocation };

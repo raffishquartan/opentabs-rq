@@ -555,18 +555,18 @@ Examples:
     .action((_options: DoctorOptions, command: Command) => handleDoctor(command.optsWithGlobals()));
 };
 
+export type { CheckResult, McpClientLocation };
 export {
   checkAuthSecret,
   checkBrowser,
-  checkRuntime,
   checkConfigFile,
   checkExtensionConnected,
   checkMcpClientConfig,
   checkNpmPlugins,
   checkPlugins,
+  checkRuntime,
   checkServerHealth,
   defaultMcpClientLocations,
   isCwdProjectDirectory,
   registerDoctorCommand,
 };
-export type { CheckResult, McpClientLocation };

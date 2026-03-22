@@ -104,12 +104,12 @@ function collapseTransitioningItems(openItems: readonly string[], animating: Rea
   return filtered.length === openItems.length ? (openItems as string[]) : filtered;
 }
 
+export type { GroupablePlugin, GroupResult };
 export {
-  FADE_IN_MS,
   buildStateSnapshot,
   collapseTransitioningItems,
   detectGroupChanges,
+  FADE_IN_MS,
   getTransitionClass,
   groupPlugins,
 };
-export type { GroupResult, GroupablePlugin };

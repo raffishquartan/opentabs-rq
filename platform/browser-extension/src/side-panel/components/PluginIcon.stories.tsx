@@ -120,14 +120,14 @@ const ActiveBorderFlash: Story = {
 
 export default meta;
 export {
-  Ready,
-  Unavailable,
+  Active,
+  ActiveBorderFlash,
+  ActiveFadeOut,
   Closed,
   Palette,
+  Ready,
   Sizes,
+  Unavailable,
   WithIcon,
   WithIconInactive,
-  Active,
-  ActiveFadeOut,
-  ActiveBorderFlash,
 };

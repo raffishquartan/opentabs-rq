@@ -368,15 +368,15 @@ const loadSecret = async (): Promise<string> => {
 
 export type { OpentabsConfig };
 export {
+  generateSecret,
+  getAdaptersDir,
+  getConfigDir,
+  getExtensionDir,
+  getExtensionVersionFile,
   loadConfig,
   loadSecret,
   saveConfig,
   savePluginPermissions,
   savePluginSettings,
   writeAuthFile,
-  generateSecret,
-  getConfigDir,
-  getExtensionDir,
-  getExtensionVersionFile,
-  getAdaptersDir,
 };

@@ -96,4 +96,4 @@ const AllStates: Story = {
 };
 
 export default meta;
-export { Default, Official, Installing, WithError, LongDescription, AllStates };
+export { AllStates, Default, Installing, LongDescription, Official, WithError };

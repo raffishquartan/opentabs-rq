@@ -106,5 +106,5 @@ const installExtension = async (configDir: string): Promise<InstallExtensionResu
   return { installed: true, firstTime, extensionDest, version };
 };
 
-export { installExtension };
 export type { InstallExtensionResult };
+export { installExtension };

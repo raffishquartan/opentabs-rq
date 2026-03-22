@@ -203,4 +203,4 @@ const WithRemovingPlugin: Story = {
 };
 
 export default meta;
-export { Default, WithFailedPlugins, FilteredByTool, NoFilterMatch, Empty, WithPluginErrors, WithRemovingPlugin };
+export { Default, Empty, FilteredByTool, NoFilterMatch, WithFailedPlugins, WithPluginErrors, WithRemovingPlugin };

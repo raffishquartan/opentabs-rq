@@ -116,4 +116,4 @@ const invalidatePluginCache = (): void => {
   metaCache = null;
 };
 
-export { storePluginsBatch, removePlugin, removePluginsBatch, getAllPluginMeta, getPluginMeta, invalidatePluginCache };
+export { getAllPluginMeta, getPluginMeta, invalidatePluginCache, removePlugin, removePluginsBatch, storePluginsBatch };

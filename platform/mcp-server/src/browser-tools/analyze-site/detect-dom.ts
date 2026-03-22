@@ -109,13 +109,13 @@ const detectDom = (input: DomDetectionInput): DomAnalysis => {
   return { forms, interactiveElements, dataAttributes };
 };
 
-export { detectDom };
 export type {
-  DomDetectionInput,
   DomAnalysis,
-  FormInput,
-  FormField,
+  DomDetectionInput,
   FormAnalysis,
-  InteractiveElementInput,
+  FormField,
+  FormInput,
   InteractiveElement,
+  InteractiveElementInput,
 };
+export { detectDom };

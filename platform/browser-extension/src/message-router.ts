@@ -789,5 +789,5 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
 /** Method names registered in the dispatch table, exported for test verification */
 const methodHandlerNames = Array.from(methodHandlers.keys());
 
-export { extractServerOnlyFields, handleServerMessage, methodHandlerNames, validatePluginPayload };
 export type { ServerOnlyPluginFields, ValidatedPluginPayload };
+export { extractServerOnlyFields, handleServerMessage, methodHandlerNames, validatePluginPayload };

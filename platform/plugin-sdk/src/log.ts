@@ -207,5 +207,5 @@ ot.log = log;
 // Exports
 // ---------------------------------------------------------------------------
 
-export { _setLogTransport, log };
 export type { LogEntry, LogLevel, LogTransport };
+export { _setLogTransport, log };

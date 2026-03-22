@@ -35,4 +35,4 @@ const AllVariants: Story = {
 };
 
 export default meta;
-export { Default, Secondary, Outline, Muted, Small, Large, AllVariants };
+export { AllVariants, Default, Large, Muted, Outline, Secondary, Small };

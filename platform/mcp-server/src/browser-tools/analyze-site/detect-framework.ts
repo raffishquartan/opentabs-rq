@@ -95,5 +95,5 @@ const detectFramework = (input: FrameworkDetectionInput): FrameworkAnalysis => {
   return { frameworks, isSPA, isSSR };
 };
 
+export type { FrameworkAnalysis, FrameworkDetectionInput, FrameworkInfo, FrameworkProbe };
 export { deduplicateFrameworkProbes, detectFramework };
-export type { FrameworkDetectionInput, FrameworkProbe, FrameworkAnalysis, FrameworkInfo };

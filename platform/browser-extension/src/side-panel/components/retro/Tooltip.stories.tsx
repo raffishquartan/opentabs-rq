@@ -56,4 +56,4 @@ const Positions: Story = {
 };
 
 export default meta;
-export { Default, Primary, Solid, LongContent, Positions };
+export { Default, LongContent, Positions, Primary, Solid };

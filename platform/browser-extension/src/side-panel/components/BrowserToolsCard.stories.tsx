@@ -332,16 +332,16 @@ const WithToggleError: Story = {
 
 export default meta;
 export {
-  Default,
-  SomeDisabled,
   AllDisabled,
-  WithActiveTool,
-  WithToolFilter,
-  WithGroups,
-  UngroupedTools,
-  MixedGroupAndUngrouped,
+  Default,
   Interactive,
-  WithServerVersion,
+  MixedGroupAndUngrouped,
   SkipPermissions,
+  SomeDisabled,
+  UngroupedTools,
+  WithActiveTool,
+  WithGroups,
+  WithServerVersion,
   WithToggleError,
+  WithToolFilter,
 };

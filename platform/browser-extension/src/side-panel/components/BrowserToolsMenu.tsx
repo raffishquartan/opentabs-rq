@@ -68,5 +68,5 @@ const BrowserToolsMenu = ({ serverVersion, serverSourcePath, className }: Browse
 
 BrowserToolsMenu.displayName = 'BrowserToolsMenu';
 
-export { BrowserToolsMenu };
 export type { BrowserToolsMenuProps };
+export { BrowserToolsMenu };

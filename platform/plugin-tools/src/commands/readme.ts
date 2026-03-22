@@ -272,6 +272,7 @@ Examples:
     .action((options: ReadmeOptions) => handleReadme(options));
 };
 
+export type { PluginMeta, ReadmeOptions, ToolGroup };
 export {
   classifyTool,
   extractDomain,
@@ -281,4 +282,3 @@ export {
   handleReadme,
   registerReadmeCommand,
 };
-export type { PluginMeta, ReadmeOptions, ToolGroup };

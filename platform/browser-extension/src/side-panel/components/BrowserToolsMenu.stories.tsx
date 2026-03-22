@@ -16,4 +16,4 @@ const NoVersion: Story = { args: {} };
 const LongVersion: Story = { args: { serverVersion: '1.2.3-beta.45+build.6789' } };
 
 export default meta;
-export { Default, NoVersion, LongVersion };
+export { Default, LongVersion, NoVersion };

@@ -33,4 +33,4 @@ const Interactive: Story = {
 };
 
 export default meta;
-export { Default, Checked, Disabled, Interactive };
+export { Checked, Default, Disabled, Interactive };

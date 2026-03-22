@@ -282,5 +282,5 @@ const dispatchToTargetedTab = async (config: TargetedDispatchConfig): Promise<vo
   }
 };
 
-export { dispatchToTargetedTab, dispatchWithTabFallback, executeWithTimeout, resolvePlugin, isAdapterNotReady };
 export type { DispatchResult };
+export { dispatchToTargetedTab, dispatchWithTabFallback, executeWithTimeout, isAdapterNotReady, resolvePlugin };

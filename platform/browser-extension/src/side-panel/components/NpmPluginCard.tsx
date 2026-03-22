@@ -56,5 +56,5 @@ const NpmPluginCard = ({ plugin, installing, error, onInstall }: NpmPluginCardPr
 
 NpmPluginCard.displayName = 'NpmPluginCard';
 
-export { NpmPluginCard };
 export type { NpmPluginCardProps };
+export { NpmPluginCard };

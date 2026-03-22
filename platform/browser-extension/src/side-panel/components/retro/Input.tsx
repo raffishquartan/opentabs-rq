@@ -28,5 +28,5 @@ const Input = ({
   />
 );
 
-export { Input };
 export type { InputProps };
+export { Input };

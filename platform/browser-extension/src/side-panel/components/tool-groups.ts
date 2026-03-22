@@ -36,5 +36,5 @@ function groupTools<T extends Groupable>(tools: readonly T[]): ToolGroup<T>[] | 
   return result;
 }
 
-export { groupTools };
 export type { ToolGroup };
+export { groupTools };

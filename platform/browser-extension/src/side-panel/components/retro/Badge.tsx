@@ -27,5 +27,5 @@ const Badge = ({ className, variant, size, ...props }: IBadgeProps) => (
 );
 Badge.displayName = 'Badge';
 
-export { badgeVariants, Badge };
 export type { IBadgeProps };
+export { Badge, badgeVariants };

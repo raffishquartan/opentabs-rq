@@ -110,4 +110,4 @@ const AllVariantsAndStatuses: Story = {
 };
 
 export default meta;
-export { ErrorStory, Success, Warning, Info, AllStatuses, ThemePair, Solid, AllVariantsAndStatuses };
+export { AllStatuses, AllVariantsAndStatuses, ErrorStory, Info, Solid, Success, ThemePair, Warning };

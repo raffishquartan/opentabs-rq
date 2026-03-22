@@ -132,5 +132,5 @@ const installLogCollector = (source: LogSource, maxEntries?: number): LogCollect
   return collector;
 };
 
-export { installLogCollector, LogCollector };
 export type { LogEntry, LogFilterOptions, LogLevel, LogSource, LogStats };
+export { installLogCollector, LogCollector };

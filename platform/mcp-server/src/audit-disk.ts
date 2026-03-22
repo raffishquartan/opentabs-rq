@@ -97,4 +97,4 @@ const _resetInitialized = (): void => {
   g[WRITE_COUNT_KEY] = 0;
 };
 
-export { appendAuditEntryToDisk, getAuditLogPath, _resetInitialized };
+export { _resetInitialized, appendAuditEntryToDisk, getAuditLogPath };

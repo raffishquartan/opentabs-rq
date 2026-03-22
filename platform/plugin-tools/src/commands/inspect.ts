@@ -156,5 +156,5 @@ Examples:
     .action((options: { json?: boolean }) => handleInspect(options));
 };
 
-export { extractFields, handleInspect, registerInspectCommand, truncate };
 export type { ToolsJsonManifest };
+export { extractFields, handleInspect, registerInspectCommand, truncate };

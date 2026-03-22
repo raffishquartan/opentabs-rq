@@ -436,4 +436,4 @@ export const checkToolCallable = (state: ServerState, prefixedToolName: string):
 // (tests, reload.ts) can continue importing from mcp-setup.js.
 export { sanitizeOutput } from './mcp-tool-dispatch.js';
 export type { McpServerInstance, RequestHandlerExtra };
-export { createMcpServer, registerMcpHandlers, rebuildCachedBrowserTools, notifyToolListChanged };
+export { createMcpServer, notifyToolListChanged, rebuildCachedBrowserTools, registerMcpHandlers };

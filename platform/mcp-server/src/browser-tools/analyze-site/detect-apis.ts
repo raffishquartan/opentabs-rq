@@ -488,5 +488,5 @@ const detectApis = (requests: NetworkRequest[], wsFrames?: WsFrame[]): ApiAnalys
   };
 };
 
+export type { ApiAnalysis, ApiEndpoint, ApiProtocol, WsFrame };
 export { detectApis };
-export type { ApiProtocol, ApiEndpoint, ApiAnalysis, WsFrame };

@@ -815,14 +815,14 @@ const handlePluginMarkReviewed = async (
   };
 };
 
-export type { ToolCallResult, RequestHandlerExtra, DispatchCallbacks };
+export type { DispatchCallbacks, RequestHandlerExtra, ToolCallResult };
 export {
-  sanitizeOutput,
   formatStructuredError,
   formatZodError,
   handleBrowserToolCall,
-  handlePluginToolCall,
   handlePluginInspect,
   handlePluginMarkReviewed,
+  handlePluginToolCall,
   REVIEW_GUIDANCE,
+  sanitizeOutput,
 };

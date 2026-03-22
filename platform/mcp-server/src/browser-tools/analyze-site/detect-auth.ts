@@ -510,15 +510,15 @@ const detectAuth = (input: AuthDetectionInput): AuthAnalysis => {
   };
 };
 
-export { detectAuth };
 export type {
-  AuthDetectionInput,
   AuthAnalysis,
+  AuthDetectionInput,
   AuthMethod,
   AuthMethodType,
-  NetworkRequest,
   CookieEntry,
-  StorageEntry,
-  GlobalEntry,
   CsrfDomToken,
+  GlobalEntry,
+  NetworkRequest,
+  StorageEntry,
 };
+export { detectAuth };

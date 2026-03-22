@@ -30,4 +30,4 @@ const Disabled: Story = { args: { icon: 'send', enabled: false } };
 const Active: Story = { args: { icon: 'send', active: true } };
 
 export default meta;
-export { Default, WithIcon, Mail, Search, Gallery, Disabled, Active };
+export { Active, Default, Disabled, Gallery, Mail, Search, WithIcon };

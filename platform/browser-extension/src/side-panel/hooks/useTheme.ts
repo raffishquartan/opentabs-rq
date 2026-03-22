@@ -40,5 +40,5 @@ const useTheme = (): { theme: Theme; toggleTheme: () => void } => {
   return { theme, toggleTheme };
 };
 
-export { useTheme };
 export type { Theme };
+export { useTheme };

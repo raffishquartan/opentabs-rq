@@ -145,5 +145,5 @@ const PluginMenu = ({
 
 PluginMenu.displayName = 'PluginMenu';
 
-export { PluginMenu };
 export type { PluginMenuProps };
+export { PluginMenu };

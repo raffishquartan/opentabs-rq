@@ -174,5 +174,5 @@ const SearchResults = ({
 
 SearchResults.displayName = 'SearchResults';
 
-export { SearchResults };
 export type { SearchResultsProps };
+export { SearchResults };

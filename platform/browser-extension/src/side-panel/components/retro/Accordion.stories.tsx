@@ -61,4 +61,4 @@ const Multiple: Story = {
 };
 
 export default meta;
-export { Single, Multiple };
+export { Multiple, Single };

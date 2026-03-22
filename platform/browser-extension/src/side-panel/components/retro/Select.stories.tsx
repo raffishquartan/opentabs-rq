@@ -112,4 +112,4 @@ const Interactive: Story = {
 };
 
 export default meta;
-export { Default, Disabled, WithGroups, WithSeparator, Interactive };
+export { Default, Disabled, Interactive, WithGroups, WithSeparator };

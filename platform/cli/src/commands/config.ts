@@ -765,13 +765,13 @@ Examples:
 };
 
 export {
-  registerConfigCommand,
-  maskSecret,
-  resolveStoredPluginPath,
-  levenshtein,
-  suggestKey,
-  KNOWN_KEYS,
   handleSetLocalPluginsAdd,
   handleSetSetting,
+  KNOWN_KEYS,
+  levenshtein,
+  maskSecret,
   normalizeConfigForDisplay,
+  registerConfigCommand,
+  resolveStoredPluginPath,
+  suggestKey,
 };

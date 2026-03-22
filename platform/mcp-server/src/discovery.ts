@@ -150,5 +150,5 @@ const discoverPlugins = async (
   return { registry, errors };
 };
 
-export { discoverPlugins };
 export type { DiscoveryError, DiscoveryResult };
+export { discoverPlugins };

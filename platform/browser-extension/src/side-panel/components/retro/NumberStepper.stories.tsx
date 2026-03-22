@@ -63,4 +63,4 @@ const AllStates: Story = {
 };
 
 export default meta;
-export { Default, FiveDigitPort, TwoDigitPort, Disabled, CustomRange, AllStates };
+export { AllStates, CustomRange, Default, Disabled, FiveDigitPort, TwoDigitPort };

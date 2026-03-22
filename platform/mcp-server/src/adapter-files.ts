@@ -241,13 +241,13 @@ const cleanupStaleExecFiles = async (): Promise<void> => {
 };
 
 export {
-  ensureAdaptersDir,
-  writeAdapterFile,
-  cleanupStaleAdapterFiles,
-  writeExecFile,
-  deleteExecFile,
-  cleanupStaleExecFiles,
-  timeoutRace,
   ADAPTER_WRITE_TIMEOUT_MS,
+  cleanupStaleAdapterFiles,
+  cleanupStaleExecFiles,
+  deleteExecFile,
   EXEC_FILE_PREFIX,
+  ensureAdaptersDir,
+  timeoutRace,
+  writeAdapterFile,
+  writeExecFile,
 };

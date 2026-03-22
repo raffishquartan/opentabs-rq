@@ -79,4 +79,4 @@ const AllStates: Story = {
 };
 
 export default meta;
-export { ShortError, LongError, NpmSpecifier, Removing, AllStates };
+export { AllStates, LongError, NpmSpecifier, Removing, ShortError };

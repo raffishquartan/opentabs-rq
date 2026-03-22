@@ -165,4 +165,4 @@ const PluginIcon = ({
   );
 };
 
-export { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, tryGetSanitizedSvg, PluginIcon };
+export { AVATAR_PALETTE_SIZE, getAvatarLetter, getAvatarVar, hashString, PluginIcon, tryGetSanitizedSvg };

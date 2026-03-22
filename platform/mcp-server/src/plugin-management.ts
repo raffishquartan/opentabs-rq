@@ -707,17 +707,17 @@ const checkPluginUpdates = async (state: ServerState): Promise<CheckUpdatesResul
   return { outdatedPlugins: state.outdatedPlugins };
 };
 
-export type { PluginSearchResult, PluginInstallResult, PluginUpdateResult, CheckUpdatesResult };
+export type { CheckUpdatesResult, PluginInstallResult, PluginSearchResult, PluginUpdateResult };
 export {
-  MAX_OUTPUT_SIZE,
-  normalizePluginName,
-  isValidPluginPackageName,
-  spawnAsync,
-  searchNpmPlugins,
-  installPlugin,
-  updatePlugin,
-  removePlugin,
-  removeLocalPluginBySpecifier,
   checkPluginUpdates,
   findPlugin,
+  installPlugin,
+  isValidPluginPackageName,
+  MAX_OUTPUT_SIZE,
+  normalizePluginName,
+  removeLocalPluginBySpecifier,
+  removePlugin,
+  searchNpmPlugins,
+  spawnAsync,
+  updatePlugin,
 };

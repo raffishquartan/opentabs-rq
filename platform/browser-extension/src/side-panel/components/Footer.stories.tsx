@@ -43,4 +43,4 @@ const WithCustomPort: Story = {
 };
 
 export default meta;
-export { Default, DarkMode, WithCustomPort };
+export { DarkMode, Default, WithCustomPort };

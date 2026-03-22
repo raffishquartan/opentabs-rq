@@ -228,4 +228,4 @@ const FullMenu: Story = {
 };
 
 export default meta;
-export { Default, WithUpdate, LocalPlugin, WithConfirmDialog, UpdateBadge, AllStates, Muted, VersionInMenu, FullMenu };
+export { AllStates, Default, FullMenu, LocalPlugin, Muted, UpdateBadge, VersionInMenu, WithConfirmDialog, WithUpdate };

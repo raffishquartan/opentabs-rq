@@ -609,5 +609,5 @@ export const getActiveCapturesSummary = (): Array<{ tabId: number; requestCount:
     isCapturing: true,
   }));
 
-export { scrubHeaders };
 export type { WsFrame };
+export { scrubHeaders };

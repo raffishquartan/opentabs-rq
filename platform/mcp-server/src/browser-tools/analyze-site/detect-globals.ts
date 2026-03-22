@@ -77,5 +77,5 @@ const detectGlobals = (input: GlobalsDetectionInput): GlobalsAnalysis => {
   return { globals };
 };
 
+export type { GlobalInfo, GlobalProperty, GlobalsAnalysis, GlobalsDetectionInput };
 export { detectGlobals };
-export type { GlobalsDetectionInput, GlobalProperty, GlobalsAnalysis, GlobalInfo };

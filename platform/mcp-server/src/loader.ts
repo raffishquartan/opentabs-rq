@@ -448,6 +448,7 @@ const loadPlugin = async (dir: string, source: PluginSource): Promise<Result<Loa
   });
 };
 
+export type { LoadedPlugin };
 export {
   checkBrowserToolReferences,
   checkSdkCompatibility,
@@ -457,4 +458,3 @@ export {
   pluginNameFromPackage,
   validateTools,
 };
-export type { LoadedPlugin };

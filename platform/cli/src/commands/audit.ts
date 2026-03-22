@@ -338,4 +338,4 @@ Examples:
     .action((_options: AuditOptions, command: Command) => handleAudit(command.optsWithGlobals()));
 };
 
-export { registerAuditCommand, parseDuration, formatTimestamp, formatDuration, parseLimit };
+export { formatDuration, formatTimestamp, parseDuration, parseLimit, registerAuditCommand };

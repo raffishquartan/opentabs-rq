@@ -54,5 +54,5 @@ const Button = ({
   );
 };
 
-export { buttonVariants, Button };
 export type { IButtonProps };
+export { Button, buttonVariants };

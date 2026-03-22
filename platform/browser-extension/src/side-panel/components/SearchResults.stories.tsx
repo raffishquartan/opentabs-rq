@@ -400,14 +400,14 @@ const WithInstallError: Story = { render: () => <WithInstallErrorDemo /> };
 
 export default meta;
 export {
-  InstalledOnly,
-  NpmOnly,
+  AllStates,
   Both,
+  InstalledOnly,
+  InstallingPlugin,
   NoResults,
   NpmLoading,
+  NpmOnly,
   NpmSearchError,
-  InstallingPlugin,
   WithBrowserTools,
-  AllStates,
   WithInstallError,
 };

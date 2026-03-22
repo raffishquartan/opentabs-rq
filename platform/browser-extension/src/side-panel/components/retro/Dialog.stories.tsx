@@ -90,4 +90,4 @@ const BodyOnly: Story = {
 };
 
 export default meta;
-export { Default, Destructive, BodyOnly };
+export { BodyOnly, Default, Destructive };

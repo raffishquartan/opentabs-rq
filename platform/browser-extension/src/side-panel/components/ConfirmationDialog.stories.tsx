@@ -135,12 +135,12 @@ const DarkMode: Story = {
 
 export default meta;
 export {
+  AlwaysAllowInteraction,
+  BrowserTool,
+  DarkMode,
+  DenyInteraction,
+  MultipleConfirmations,
+  NavigateConfirmations,
   SingleConfirmation,
   WithParams,
-  BrowserTool,
-  MultipleConfirmations,
-  DenyInteraction,
-  AlwaysAllowInteraction,
-  NavigateConfirmations,
-  DarkMode,
 };

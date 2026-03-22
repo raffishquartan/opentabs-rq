@@ -232,5 +232,5 @@ const parsePluginPackageJson = (json: unknown, sourcePath: string): Result<Plugi
   });
 };
 
-export { parsePluginPackageJson, isValidPluginPackageName };
 export type { ConfigSchema, ConfigSettingDefinition, ConfigSettingType, PluginOpentabsField, PluginPackageJson };
+export { isValidPluginPackageName, parsePluginPackageJson };

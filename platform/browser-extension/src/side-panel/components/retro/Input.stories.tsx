@@ -26,4 +26,4 @@ const Typing: Story = {
 };
 
 export default meta;
-export { Default, WithValue, Invalid, Disabled, Typing };
+export { Default, Disabled, Invalid, Typing, WithValue };

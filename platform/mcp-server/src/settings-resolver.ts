@@ -121,5 +121,5 @@ const resolvePluginSettings = (
   };
 };
 
-export { resolvePluginSettings };
 export type { ResolvedSettings };
+export { resolvePluginSettings };
