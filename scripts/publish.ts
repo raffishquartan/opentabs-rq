@@ -176,7 +176,7 @@ const main = async (): Promise<void> => {
     const shortName = pkg.split('/')[1] ?? pkg;
     const pkgName = `@opentabs-dev/${shortName}`;
     console.log(`  Publishing ${pkgName}@${version}...`);
-    run(['npm', 'publish', '--access', 'restricted'], resolve(ROOT, pkg));
+    run(['npm', 'publish', '--access', 'public'], resolve(ROOT, pkg));
   }
 
   console.log('');

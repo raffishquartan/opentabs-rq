@@ -1,0 +1,236 @@
+name: Publish Platform Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.0.82)'
+        required: true
+        type: string
+      dry-run:
+        description: 'Dry run (skip npm publish, still bumps and builds)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: publish-platform
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid version format: $VERSION (expected X.Y.Z)"
+            exit 1
+          fi
+
+          # Check that this version is higher than what's on npm
+          CURRENT=$(npm view @opentabs-dev/shared version 2>/dev/null || echo "0.0.0")
+          echo "Current npm version: $CURRENT"
+          echo "Target version: $VERSION"
+
+          # Simple comparison — if target equals current, fail
+          if [ "$VERSION" = "$CURRENT" ]; then
+            echo "::error::Version $VERSION is already published on npm"
+            exit 1
+          fi
+
+      - name: Bump versions in all platform packages
+        run: |
+          VERSION="${{ inputs.version }}"
+          PACKAGES=(
+            platform/shared
+            platform/browser-extension
+            platform/mcp-server
+            platform/plugin-sdk
+            platform/plugin-tools
+            platform/cli
+            platform/create-plugin
+          )
+
+          for PKG in "${PACKAGES[@]}"; do
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$PKG/package.json', 'utf8'));
+              pkg.version = '$VERSION';
+              fs.writeFileSync('$PKG/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            echo "Bumped $PKG → $VERSION"
+          done
+
+      - name: Install dependencies (fresh lockfile for workspace:* resolution)
+        run: |
+          rm -f package-lock.json
+          npm install
+
+      - name: Build all packages
+        run: npm run build:force
+
+      - name: Run quality checks
+        run: |
+          npm run type-check
+          npm run lint
+          npm run test
+
+      - name: Publish packages to npm (dependency order)
+        if: ${{ !inputs.dry-run }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          PACKAGES=(
+            platform/shared
+            platform/browser-extension
+            platform/mcp-server
+            platform/plugin-sdk
+            platform/plugin-tools
+            platform/cli
+            platform/create-plugin
+          )
+
+          for PKG in "${PACKAGES[@]}"; do
+            NAME=$(node -p "require('./$PKG/package.json').name")
+            echo ""
+            echo "Publishing $NAME@$VERSION..."
+            (cd "$PKG" && npm publish --access public)
+            echo "Published $NAME@$VERSION"
+          done
+
+      - name: Update plugin dependencies
+        run: |
+          VERSION="${{ inputs.version }}"
+          OPENTABS_DEPS=("@opentabs-dev/plugin-sdk" "@opentabs-dev/plugin-tools")
+
+          for PLUGIN_DIR in plugins/*/; do
+            [ -f "$PLUGIN_DIR/package.json" ] || continue
+            # Check if this plugin has opentabs deps
+            HAS_DEPS=$(node -p "
+              const pkg = require('./$PLUGIN_DIR/package.json');
+              const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+              ['@opentabs-dev/plugin-sdk', '@opentabs-dev/plugin-tools'].some(d => deps[d]) ? 'yes' : 'no'
+            ")
+            if [ "$HAS_DEPS" = "no" ]; then
+              continue
+            fi
+
+            node -e "
+              const fs = require('fs');
+              const pkg = JSON.parse(fs.readFileSync('$PLUGIN_DIR/package.json', 'utf8'));
+              const deps = ['@opentabs-dev/plugin-sdk', '@opentabs-dev/plugin-tools'];
+              for (const dep of deps) {
+                if (pkg.dependencies?.[dep]) pkg.dependencies[dep] = '^$VERSION';
+                if (pkg.devDependencies?.[dep]) pkg.devDependencies[dep] = '^$VERSION';
+              }
+              fs.writeFileSync('$PLUGIN_DIR/package.json', JSON.stringify(pkg, null, 2) + '\n');
+            "
+            echo "Updated $PLUGIN_DIR deps → ^$VERSION"
+          done
+
+      - name: Wait for npm registry propagation
+        if: ${{ !inputs.dry-run }}
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "Waiting for @opentabs-dev/plugin-sdk@$VERSION to appear on npm..."
+          for i in $(seq 1 30); do
+            NPM_VER=$(npm view "@opentabs-dev/plugin-sdk@$VERSION" version 2>/dev/null || echo "")
+            if [ "$NPM_VER" = "$VERSION" ]; then
+              echo "Registry propagated after ${i}0 seconds"
+              break
+            fi
+            sleep 10
+          done
+
+      - name: Rebuild plugins with new deps
+        if: ${{ !inputs.dry-run }}
+        run: |
+          for PLUGIN_DIR in plugins/*/; do
+            [ -f "$PLUGIN_DIR/package.json" ] || continue
+            grep -q '"opentabs"' "$PLUGIN_DIR/package.json" 2>/dev/null || continue
+            echo ""
+            echo "=== Rebuilding $PLUGIN_DIR ==="
+            (cd "$PLUGIN_DIR" && rm -f package-lock.json && npm install && npm run build)
+          done
+
+      - name: Commit version bumps and create tag
+        run: |
+          VERSION="${{ inputs.version }}"
+          DRY_RUN="${{ inputs.dry-run }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Stage platform package.json files
+          for PKG in platform/*/; do
+            git add "$PKG/package.json" || true
+          done
+
+          # Stage root lockfile
+          git add package-lock.json || true
+
+          # Stage plugin changes
+          for PLUGIN_DIR in plugins/*/; do
+            git add "$PLUGIN_DIR/package.json" || true
+            git add "$PLUGIN_DIR/package-lock.json" || true
+          done
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          if [ "$DRY_RUN" = "true" ]; then
+            COMMIT_MSG="release: v${VERSION} (dry run)"
+          else
+            COMMIT_MSG="release: v${VERSION}"
+          fi
+
+          git commit -m "$COMMIT_MSG"
+
+          if [ "$DRY_RUN" != "true" ]; then
+            git tag "v${VERSION}"
+          fi
+
+          # Push with retry (handle concurrent pushes)
+          for attempt in 1 2 3; do
+            if git push && { [ "$DRY_RUN" = "true" ] || git push --tags; }; then
+              echo "Push succeeded on attempt $attempt"
+              break
+            fi
+            echo "Push failed (attempt $attempt), rebasing and retrying..."
+            git pull --rebase origin main
+          done
+
+      - name: Summary
+        run: |
+          VERSION="${{ inputs.version }}"
+          DRY_RUN="${{ inputs.dry-run }}"
+
+          echo "## Publish Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "**Mode:** Dry run (no packages published)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "**Version:** v${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Packages published:**" >> "$GITHUB_STEP_SUMMARY"
+            for PKG in shared browser-extension mcp-server plugin-sdk plugin-tools cli create-plugin; do
+              echo "- @opentabs-dev/${PKG}@${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+            done
+          fi
