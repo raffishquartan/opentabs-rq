@@ -185,6 +185,7 @@ const resolvePort = (): number => {
 };
 
 const PORT = hotState?.actualPort ?? resolvePort();
+const HOST = process.env.HOST ?? DEFAULT_HOST;
 
 /** Handle EADDRINUSE errors with a helpful message */
 const handleListenError = (error: unknown): never => {
@@ -205,7 +206,7 @@ const handleListenError = (error: unknown): never => {
 const createHttpServer = async (): Promise<ServerInstance> => {
   try {
     return await createNodeServer({
-      hostname: '127.0.0.1',
+      hostname: HOST,
       port: PORT,
       async fetch(req, server) {
         const hs = getHotState();
@@ -235,7 +236,7 @@ const actualPort = server.port;
 
 if (!isHotReload) {
   const modeLabel = isDev() ? ' (dev mode)' : '';
-  log.info(`MCP server v${version} listening on http://${DEFAULT_HOST}:${actualPort}${modeLabel}`);
+  log.info(`MCP server v${version} listening on http://${HOST}:${actualPort}${modeLabel}`);
 }
 
 // When running under the dev proxy (forked with OPENTABS_PROXY=1), report

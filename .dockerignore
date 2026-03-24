@@ -1,0 +1,8 @@
+node_modules
+.git
+plugins/*/node_modules
+docs/node_modules
+docs/.next
+marketing/logs
+.ralph
+.claude
