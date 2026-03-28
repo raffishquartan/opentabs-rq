@@ -25,29 +25,23 @@ import { DEFAULT_PORT } from '@opentabs-dev/shared';
 import { ensureAuthSecret, getConfigDir } from '../config.js';
 
 // ---------------------------------------------------------------------------
-// Sequential stdout writer — prevents interleaving when the notification
-// stream reader and POST response handler write concurrently.
+// Sequential stdout writer — serializes writes from concurrent async contexts
+// (notification stream reader + POST response handler) so they never interleave.
+// Each write waits for the previous one to flush before starting.
 // ---------------------------------------------------------------------------
 
 type StdoutWriter = (data: string) => void;
 
 const createStdoutWriter = (): StdoutWriter => {
-  const queue: string[] = [];
-  let draining = false;
-
-  const drain = (): void => {
-    if (draining) return;
-    draining = true;
-    while (queue.length > 0) {
-      const item = queue.shift();
-      if (item !== undefined) process.stdout.write(item);
-    }
-    draining = false;
-  };
+  let pending: Promise<void> = Promise.resolve();
 
   return (data: string) => {
-    queue.push(data);
-    drain();
+    pending = pending.then(
+      () =>
+        new Promise<void>(resolve => {
+          process.stdout.write(data, () => resolve());
+        }),
+    );
   };
 };
 
@@ -135,15 +129,19 @@ const startBackgroundServer = async (port: number, log: LogFn): Promise<boolean>
 };
 
 /**
- * Extract all JSON data lines from an SSE response body.
- * SSE format: "event: message\ndata: {...}\n\n"
+ * Extract JSON data payloads from an SSE body (fully buffered or partial chunk).
+ * Splits on double-newline event boundaries, then extracts `data:` lines within
+ * each event. Handles multi-line data fields and ignores non-data lines (event:, id:, etc.).
  */
-const extractDataFromSse = (body: string): string[] => {
+const extractSseData = (body: string): string[] => {
   const results: string[] = [];
-  for (const line of body.split('\n')) {
-    if (line.startsWith('data: ')) {
-      const data = line.slice(6).trim();
-      if (data) results.push(data);
+  for (const event of body.split('\n\n')) {
+    if (!event.trim()) continue;
+    for (const line of event.split('\n')) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim();
+        if (data) results.push(data);
+      }
     }
   }
   return results;
@@ -215,18 +213,16 @@ const openNotificationStream = (
 
           sseBuffer += decoder.decode(value, { stream: true });
 
-          const events = sseBuffer.split('\n\n');
-          sseBuffer = events.pop() ?? '';
+          // Split on double-newline boundaries; keep the trailing partial chunk
+          const chunks = sseBuffer.split('\n\n');
+          sseBuffer = chunks.pop() ?? '';
 
-          for (const event of events) {
-            for (const line of event.split('\n')) {
-              if (line.startsWith('data: ')) {
-                const data = line.slice(6).trim();
-                if (data) {
-                  writeStdout(`${data}\n`);
-                  log(`<< notification: ${data.slice(0, 100)}${data.length > 100 ? '...' : ''}`);
-                }
-              }
+          // Rejoin completed events and extract data payloads via shared helper
+          const completedChunk = chunks.join('\n\n');
+          if (completedChunk) {
+            for (const data of extractSseData(completedChunk)) {
+              writeStdout(`${data}\n`);
+              log(`<< notification: ${data.slice(0, 100)}${data.length > 100 ? '...' : ''}`);
             }
           }
         }
@@ -255,7 +251,10 @@ const openNotificationStream = (
     }
   };
 
-  connect().catch(() => {});
+  connect().catch((error: unknown) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    log(`Notification stream connect failed: ${msg}`);
+  });
 };
 
 /**
@@ -358,7 +357,7 @@ const runBridge = async (port: number, secret: string, log: LogFn): Promise<void
         const body = await response.text();
 
         if (contentType.includes('text/event-stream')) {
-          for (const data of extractDataFromSse(body)) {
+          for (const data of extractSseData(body)) {
             writeStdout(`${data}\n`);
             log(`<- ${data.slice(0, 100)}${data.length > 100 ? '...' : ''}`);
           }
