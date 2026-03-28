@@ -228,8 +228,21 @@ test.describe('Side panel npm search', () => {
       await expect(dialog).toBeVisible();
       await dialog.getByRole('button', { name: 'Uninstall' }).click();
 
-      // Wait for the Slack plugin card to disappear (npm uninstall -g + rediscovery)
-      await expect(slackTrigger).toBeHidden({ timeout: 60_000 });
+      // Wait for the dialog to close before checking the card — avoids racing
+      // the Radix Dialog close animation with the subsequent UI assertion.
+      await expect(dialog).toBeHidden();
+
+      // Wait for the server to complete the npm uninstall + rediscovery cycle.
+      // This is the primary reliability fix: instead of relying solely on the
+      // UI card disappearing (which depends on the async chain: npm uninstall →
+      // rediscovery → plugins.changed WS notification → getFullState → React
+      // re-render), we first confirm the server finished processing. Under CI
+      // load, the npm uninstall and rediscovery can be slow.
+      await waitForLog(server, 'Plugin "slack" removed', 60_000);
+
+      // Now wait for the UI to reflect the change — should be fast since the
+      // server already sent plugins.changed.
+      await expect(slackTrigger).toBeHidden({ timeout: 15_000 });
 
       // Verify via MCP that the plugin's tools are gone
       mcpClient = createMcpClient(server.port, server.secret);
