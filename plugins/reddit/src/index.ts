@@ -5,6 +5,7 @@ import { getCommentThread } from './tools/get-comment-thread.js';
 import { getMe } from './tools/get-me.js';
 import { getPost } from './tools/get-post.js';
 import { getSubreddit } from './tools/get-subreddit.js';
+import { listFlairs } from './tools/list-flairs.js';
 import { getUser } from './tools/get-user.js';
 import { hide } from './tools/hide.js';
 import { listPopularSubreddits } from './tools/list-popular-subreddits.js';
@@ -46,6 +47,7 @@ class RedditPlugin extends OpenTabsPlugin {
     report,
     listUserContent,
     getSubreddit,
+    listFlairs,
     searchSubreddits,
     listSubscriptions,
     listPopularSubreddits,
