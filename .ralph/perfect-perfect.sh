@@ -36,7 +36,9 @@ The following files in .ralph/ constitute the "perfect" audit system:
 
 Read ALL of the above files. Every line. These are shell scripts and markdown prompts — they are short. No excuses for skimming.
 
-## Step 2: Audit the shell scripts
+## Step 2: Audit the shell scripts (Phase 1 — Collect)
+
+**As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 For perfect.sh, run-prompt.sh, and every perfect-*.sh script, look for:
 
@@ -55,9 +57,13 @@ For perfect-prompt.md and the embedded prompts in each perfect-*.sh, look for:
 - **Missing guidance that would cause bad PRDs**: are there common mistake patterns that the prompt doesn't warn against?
 - **Prompt quality**: are the instructions clear, precise, and actionable? Or are they vague enough that a literal-minded agent would go off the rails?
 
-## Step 4: Create PRD(s) using the ralph skill
+## Step 4: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 5: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters:
 - Target project: "OpenTabs Platform" (root monorepo)

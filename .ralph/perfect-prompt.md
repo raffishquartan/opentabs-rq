@@ -8,21 +8,38 @@ You are performing a one-time, final audit. Assume this is the **last chance** t
 
 At the same time, be **ruthlessly honest** about what constitutes an issue. Every issue you report will be implemented by an autonomous agent — if you report a non-issue, that agent will make an unnecessary change to working code, potentially introducing a real bug. False positives have a real cost. But so do missed bugs — they ship to users.
 
-## Audit Method
+## Audit Method — MANDATORY
 
-Use a two-phase collect-then-filter approach. This prevents context loss (findings from early files forgotten after reading 20+ files) and prevents premature self-filtering (discarding borderline findings before seeing the full picture).
+You MUST use this collect-then-filter workflow. The per-script prompts below define WHAT files to read. This section defines HOW to audit them. Do not skip any phase.
 
-### Phase 1 — Collect
+### Phase 1 — Collect (during file reading)
 
-As you read each file, **immediately record every potential finding** using TaskCreate. Include the file path, a one-line description, and the suspected consequence. Do NOT evaluate whether it passes the Validation Checklist yet. Do NOT discard anything during this phase. Capture everything that looks like it might be an issue — you will filter later.
+As you read each file, **immediately append every potential finding** to `/tmp/perfect-findings.md` using the Edit or Write tool. Use this exact format per finding:
 
-### Phase 2 — Filter
+```
+### [filename.ts] Short description
+- **File:** path/to/file.ts
+- **Consequence:** [name one from the "What Is an Issue" list]
+- **Details:** One sentence explaining the problem
+```
 
-After you have finished reading **ALL files** in scope, review your complete todo list. For each finding, apply the Validation Checklist below. Discard findings that fail any of the four checks. The findings that survive become your PRD stories.
+**Do NOT evaluate findings during this phase.** Do not ask "is this really an issue?" — just write it down. You will filter in Phase 2. The goal is to capture every candidate so nothing is lost as you read more files.
+
+If you read 10 files and have zero findings written down, you are filtering too early. Go back and re-read with lower threshold.
+
+### Phase 2 — Filter (after ALL files are read)
+
+After reading every file in scope, read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist below. Delete findings that fail any of the four checks. Keep the rest.
+
+**Output your filtering reasoning** — for each finding, write one line: "KEEP: [reason]" or "DISCARD: [reason]". This forces you to explicitly justify each decision.
 
 ### Phase 3 — Create PRDs
 
 Create PRDs from the surviving findings, following the PRD Creation Rules below.
+
+### Why This Matters
+
+Without Phase 1, you will read 20+ files and only remember the last 1-2 things you noticed. Writing findings to a file as you go prevents context loss. Without Phase 2 as a separate step, you self-filter during reading and discard borderline findings before seeing the full picture. Separating collection from filtering produces comprehensive audits.
 
 ## What Is an Issue
 
@@ -64,7 +81,7 @@ For each candidate issue, verify ALL of the following before including it:
 3. **Not already handled.** Have you read the full function and its callers to check for existing guards, catches, cleanup, or fallback logic that addresses this concern? If it is already handled, discard the finding.
 4. **Reproducible trigger.** Does there exist a sequence of events (even if unlikely) that triggers the issue? If no path leads to the problem, discard the finding.
 
-**Discard any finding that fails any of these four checks.** A comprehensive audit that reports 10 genuine issues alongside 1-2 borderline ones is far more valuable than an audit that only reports the 2 most obvious. The autonomous agent receiving these findings can cheaply discard a false positive — but a missed bug ships to users.
+A finding must pass checks 1 and 4 (concrete consequence + reproducible trigger) to be included. Checks 2 and 3 (style preference, already handled) are reasons to discard only when clearly true — if you are unsure, **keep the finding**. When in doubt, include it. A comprehensive audit that reports 10 genuine issues alongside 1-2 borderline ones is far more valuable than an audit that only reports the 2 most obvious. The autonomous agent receiving these findings can cheaply discard a false positive — but a missed bug ships to users.
 
 ## Severity and Completeness
 

@@ -84,9 +84,9 @@ status, doctor, audit, audit --file, logs, plugin list, config show
 ### Phase 6: Cleanup
 `docker kill opentabs-ux-test`
 
-## Step 3: Evaluate every interaction
+## Step 3: Evaluate every interaction (Phase 1 — Collect)
 
-For each command, evaluate as a NORMAL USER:
+As you test each command, **append every friction point or issue to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect. For each command, evaluate as a NORMAL USER:
 1. **Clarity**: Would a new user understand and know what to do next?
 2. **Correctness**: Does output match reality? Are configs functional?
 3. **Completeness**: Is important information missing?
@@ -104,9 +104,13 @@ For each command, evaluate as a NORMAL USER:
 - Docker/headless environment issues — OpenTabs is for headed mode
 - `opentabs` with no args showing "Server not running" — intentional
 
-## Step 4: Create PRD(s) using the ralph skill
+## Step 4: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 5: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters:
 - Target project: "OpenTabs Platform" (root monorepo) unless fix is docs-only

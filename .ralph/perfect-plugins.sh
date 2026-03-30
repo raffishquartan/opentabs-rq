@@ -22,9 +22,9 @@ You are auditing the OpenTabs example plugins (plugins/) to find bugs, SDK misus
 
 List all directories under plugins/ dynamically. For each plugin, read its package.json.
 
-## Step 3: Audit each plugin thoroughly
+## Step 3: Audit each plugin thoroughly (Phase 1 — Collect)
 
-For each plugin, read EVERY source file:
+For each plugin, read EVERY source file. **As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 - Plugin entry point (src/index.ts) — class, tool/resource/prompt registration, lifecycle hooks, isReady()
 - Shared API/schema layer — API client, Zod schemas
@@ -51,9 +51,13 @@ For each plugin, read EVERY source file:
 
 Compare each plugin's SDK usage against platform/plugin-sdk/src/index.ts exports. Check for deprecated APIs, missing new SDK features that would improve reliability.
 
-## Step 5: Create PRD(s) using the ralph skill
+## Step 5: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 6: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters for plugin PRDs:
 - Create SEPARATE PRDs for each plugin that needs fixes

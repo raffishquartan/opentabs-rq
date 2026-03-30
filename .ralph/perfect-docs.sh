@@ -27,9 +27,9 @@ These CLAUDE.md files are the source of truth. If the docs contradict a CLAUDE.m
 
 List all .mdx files under docs/content/docs/ dynamically.
 
-## Step 3: Audit the documentation against the source code
+## Step 3: Audit the documentation against the source code (Phase 1 — Collect)
 
-Systematically compare what the docs say against what the code actually does. For each page, read the corresponding source code and check for:
+Systematically compare what the docs say against what the code actually does. **As you read each doc page and its corresponding source code, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect. For each page, check for:
 
 - **Outdated API signatures** — tool parameters, resource URIs, prompt schemas that have changed
 - **Missing features** — new tools, resources, prompts, CLI commands, config options, SDK utilities not documented
@@ -88,9 +88,13 @@ For every page you create a story to update, the story MUST include updating `la
 - Adding documentation for internal implementation details users don't need
 - Bumping `lastUpdated` without accompanying content changes
 
-## Step 4: Create PRD(s) using the ralph skill
+## Step 4: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) for the docs project.
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 5: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) for the docs project from the surviving findings.
 
 Key parameters for docs PRDs:
 - Target project: "OpenTabs Docs"
