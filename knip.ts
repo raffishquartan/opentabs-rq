@@ -16,6 +16,10 @@ const config: KnipConfig = {
     },
     'platform/mcp-server': {
       entry: ['src/**/*.test.ts', 'src/dev-proxy.ts'],
+      ignoreDependencies: [
+        // Consumed by src/telemetry.ts via dynamic import — added before the module is implemented
+        'posthog-node',
+      ],
     },
     'platform/plugin-sdk': {},
     'platform/cli': {
