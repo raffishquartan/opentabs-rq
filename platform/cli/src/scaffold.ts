@@ -297,7 +297,7 @@ opentabs plugin install ${args.name}
 Or install globally via npm:
 
 \`\`\`bash
-npm install -g @opentabs-dev/opentabs-plugin-${args.name}
+npm install -g opentabs-plugin-${args.name}
 \`\`\`
 
 ## Setup
