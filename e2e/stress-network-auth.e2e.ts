@@ -253,7 +253,7 @@ test.describe('Stress: Health endpoint under rapid polling', () => {
       // At least the e2e-test plugin should be present
       const firstBody = bodies[0];
       expect(firstBody).toBeDefined();
-      expect(firstBody!.plugins).toBeGreaterThanOrEqual(1);
+      expect(firstBody?.plugins).toBeGreaterThanOrEqual(1);
     } finally {
       if (server) await server.kill().catch(() => {});
       cleanupTestConfigDir(configDir);
