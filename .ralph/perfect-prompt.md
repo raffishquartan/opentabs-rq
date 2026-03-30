@@ -6,7 +6,23 @@ This section applies to ALL perfect audit scripts. Read it carefully before star
 
 You are performing a one-time, final audit. Assume this is the **last chance** to find and fix every genuine issue in the code you are reviewing. Be thorough — read every function, every error path, every cleanup handler. Do not skim. Do not stop early because you found a few issues. Exhaust the search space.
 
-At the same time, be **ruthlessly honest** about what constitutes an issue. The goal is zero false positives. Every issue you report will be implemented by an autonomous agent — if you report a non-issue, that agent will make an unnecessary change to working code, potentially introducing a real bug. A false positive is worse than a missed issue.
+At the same time, be **ruthlessly honest** about what constitutes an issue. Every issue you report will be implemented by an autonomous agent — if you report a non-issue, that agent will make an unnecessary change to working code, potentially introducing a real bug. False positives have a real cost. But so do missed bugs — they ship to users.
+
+## Audit Method
+
+Use a two-phase collect-then-filter approach. This prevents context loss (findings from early files forgotten after reading 20+ files) and prevents premature self-filtering (discarding borderline findings before seeing the full picture).
+
+### Phase 1 — Collect
+
+As you read each file, **immediately record every potential finding** using TodoWrite. Include the file path, a one-line description, and the suspected consequence. Do NOT evaluate whether it passes the Validation Checklist yet. Do NOT discard anything during this phase. Capture everything that looks like it might be an issue — you will filter later.
+
+### Phase 2 — Filter
+
+After you have finished reading **ALL files** in scope, review your complete todo list. For each finding, apply the Validation Checklist below. Discard findings that fail any of the four checks. The findings that survive become your PRD stories.
+
+### Phase 3 — Create PRDs
+
+Create PRDs from the surviving findings, following the PRD Creation Rules below.
 
 ## What Is an Issue
 
@@ -48,13 +64,13 @@ For each candidate issue, verify ALL of the following before including it:
 3. **Not already handled.** Have you read the full function and its callers to check for existing guards, catches, cleanup, or fallback logic that addresses this concern? If it is already handled, discard the finding.
 4. **Reproducible trigger.** Does there exist a sequence of events (even if unlikely) that triggers the issue? If no path leads to the problem, discard the finding.
 
-**Discard any finding that fails any of these four checks.** It is better to report 2 genuine issues than 2 genuine issues plus 1 false positive.
+**Discard any finding that fails any of these four checks.** A comprehensive audit that reports 10 genuine issues alongside 1-2 borderline ones is far more valuable than an audit that only reports the 2 most obvious. The autonomous agent receiving these findings can cheaply discard a false positive — but a missed bug ships to users.
 
 ## Severity and Completeness
 
 Report issues at **all severity levels** — critical bugs, minor edge cases, and everything in between. A minor issue (e.g., an error message that shows a raw exception instead of a user-friendly message) is still worth fixing if it has a concrete consequence. Do not filter by severity. Do filter by genuineness.
 
-If you find **zero genuine issues**, that is a valid outcome. Do not manufacture issues to fill a quota. Report nothing and say so explicitly. An empty audit that correctly identifies zero problems is better than an audit that invents problems to look thorough.
+If after exhaustive review you find **zero genuine issues**, that is a valid outcome. Do not manufacture issues to fill a quota. But zero findings from a large, complex codebase should surprise you — double-check that you haven't been filtering too aggressively during Phase 2. Re-scan your discarded findings once more before concluding.
 
 ## Fix Quality — No Future Regressions
 
