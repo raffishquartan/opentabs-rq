@@ -127,9 +127,24 @@ test.describe('Stress — adapter injection during tab navigation', () => {
       const toolPromise = ctx.client.callTool('e2e-test_echo', { message: 'during-navigation' });
       await page.goto('about:blank', { waitUntil: 'load' });
 
-      // The tool call should resolve (success or error — either is acceptable)
-      const midNavResult = await toolPromise;
-      expect(typeof midNavResult.isError).toBe('boolean');
+      // Tool call must resolve within 10s — not hang for 30s dispatch timeout
+      const midNavResult = (await Promise.race([
+        toolPromise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('tool call hung for 10s after tab navigation')), 10_000),
+        ),
+      ])) as { isError?: boolean; content: string };
+
+      if (midNavResult.isError) {
+        // Error must identify the cause (tab navigation/closure)
+        expect(
+          /tab|closed|navigat|disconnect/i.test(midNavResult.content),
+          `error should identify navigation as cause, got: ${midNavResult.content.slice(0, 100)}`,
+        ).toBe(true);
+      } else {
+        // If it succeeded (raced before navigation), content must be valid
+        expect(midNavResult.content.length).toBeGreaterThan(0);
+      }
 
       // Navigate back to the matching URL
       await page.goto(ctx.testServer.url, { waitUntil: 'load' });
