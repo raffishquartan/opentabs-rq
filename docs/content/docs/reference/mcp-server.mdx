@@ -1,7 +1,7 @@
 ---
 title: MCP Server
 description: HTTP endpoints, WebSocket protocol, authentication, MCP capabilities, and client configuration for the OpenTabs server.
-lastUpdated: 2026-03-10
+lastUpdated: 2026-03-29
 ---
 
 Everything here describes the server that `opentabs start` runs on your machine. It's a single localhost HTTP process — port 9515 by default. AI clients connect to `/mcp`, the Chrome extension connects to `/ws`. No cloud, no relay, no accounts. Just a process running locally, bridging your AI agent and your browser.
@@ -171,6 +171,12 @@ The server runs on port 9515 by default (override with the `PORT` environment va
       <Table.Cell>POST</Table.Cell>
       <Table.Cell>Bearer token, rate-limited</Table.Cell>
       <Table.Cell>Signal the Chrome extension to reload.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`/plugin-settings`</Table.Cell>
+      <Table.Cell>POST</Table.Cell>
+      <Table.Cell>Bearer token, rate-limited</Table.Cell>
+      <Table.Cell>Plugin settings update — accepts `{ plugin, settings }`, validates against configSchema. Used by `opentabs plugin configure`.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
@@ -592,6 +598,11 @@ Admin endpoints (`/reload`, `/extension/reload`) are rate-limited to 10 requests
       <Table.Cell className="font-medium">`config.setSkipPermissions`</Table.Cell>
       <Table.Cell>Request</Table.Cell>
       <Table.Cell>Toggle global skip-permissions flag (boolean).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`config.setPluginSettings`</Table.Cell>
+      <Table.Cell>Request</Table.Cell>
+      <Table.Cell>Set plugin configuration values (plugin name + settings map).</Table.Cell>
     </Table.Row>
     <Table.Row>
       <Table.Cell className="font-medium">`plugin.search`</Table.Cell>
