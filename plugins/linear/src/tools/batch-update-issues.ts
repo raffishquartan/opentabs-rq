@@ -50,20 +50,27 @@ export const batchUpdateIssues = defineTool({
       throw ToolError.validation('No update fields specified — provide at least one field to update');
     }
 
-    // Build aliased mutations for batch execution in a single GraphQL request
+    // Build aliased mutations for batch execution in a single GraphQL request.
+    // Issue IDs are passed as GraphQL variables to prevent injection.
+    const varDefs = params.issue_ids.map((_, i) => `$id${i}: String!`).join(', ');
     const aliases = params.issue_ids.map(
-      (id, i) =>
-        `issue${i}: issueUpdate(id: "${id}", input: $input) {
+      (_, i) =>
+        `issue${i}: issueUpdate(id: $id${i}, input: $input) {
         success
         issue { ${ISSUE_FIELDS} }
       }`,
     );
 
-    const query = `mutation BatchUpdateIssues($input: IssueUpdateInput!) {
+    const query = `mutation BatchUpdateIssues($input: IssueUpdateInput!, ${varDefs}) {
       ${aliases.join('\n')}
     }`;
 
-    const data = await graphql<Record<string, { success: boolean; issue: Record<string, unknown> }>>(query, { input });
+    const vars: Record<string, unknown> = { input };
+    for (let i = 0; i < params.issue_ids.length; i++) {
+      vars[`id${i}`] = params.issue_ids[i];
+    }
+
+    const data = await graphql<Record<string, { success: boolean; issue: Record<string, unknown> }>>(query, vars);
 
     const issues: ReturnType<typeof mapIssue>[] = [];
     const failed: string[] = [];
