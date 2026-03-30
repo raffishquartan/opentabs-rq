@@ -234,6 +234,8 @@ const registerInConfig = async (projectDir: string): Promise<boolean> => {
  * Fails silently — the build succeeds regardless of whether the server is running.
  */
 const notifyServer = async (): Promise<void> => {
+  if (process.env.OPENTABS_SKIP_NOTIFY === '1') return;
+
   const authJsonPath = join(getConfigDir(), 'extension', 'auth.json');
   if (
     !(await access(authJsonPath).then(
