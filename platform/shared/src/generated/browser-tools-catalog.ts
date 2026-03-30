@@ -303,8 +303,8 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
   {
     name: 'extension_get_state',
     description:
-      'Get the complete internal state of the OpenTabs Chrome extension. Returns WebSocket connection status, all registered plugins with their tab states, active network captures, and offscreen document status. Use this tool to quickly understand the overall health of the extension without opening DevTools. When multiple browser profiles are connected, use connectionId to target a specific profile.',
-    summary: 'Get extension internal state',
+      'Get the complete internal state of the OpenTabs Chrome extension across all connected browser profiles. Returns a connections array with one entry per profile, each containing WebSocket connection status, all registered plugins with their tab states, active network captures, and offscreen document status. Use this tool to quickly understand the overall health of the extension without opening DevTools.',
+    summary: 'Get extension internal state (all profiles)',
     icon: 'settings',
     group: 'Extension',
   },
