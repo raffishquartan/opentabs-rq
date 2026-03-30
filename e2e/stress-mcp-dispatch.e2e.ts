@@ -9,7 +9,15 @@
  */
 
 import { expect, test } from './fixtures.js';
-import { openTestAppTab, parseToolResult, setupToolTest, waitFor, waitForToolResult } from './helpers.js';
+import {
+  openTestAppTab,
+  parseToolResult,
+  setupToolTest,
+  waitFor,
+  waitForExtensionConnected,
+  waitForLog,
+  waitForToolResult,
+} from './helpers.js';
 
 test.describe('Concurrent dispatch stress — 10+ parallel calls', () => {
   test('10 concurrent echo calls return correct unique results', async ({
@@ -82,6 +90,89 @@ test.describe('Concurrent dispatch stress — 10+ parallel calls', () => {
     // No duplicates — Set.size must equal count
     const unique = new Set(receivedMessages);
     expect(unique.size).toBe(count);
+
+    await page.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Hot reload during active tool dispatch
+// ---------------------------------------------------------------------------
+
+test.describe('Hot reload during active tool dispatch', () => {
+  test('in-flight slow calls resolve cleanly after hot reload, then new calls succeed', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    test.slow();
+
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // Fire 5 slow tool calls (2s each, 2 steps) — some will be mid-execution
+    // when hot reload kills the worker.
+    const count = 5;
+    const callPromises = Array.from({ length: count }, (_, i) =>
+      mcpClient.callTool('e2e-test_slow_with_progress', {
+        durationMs: 2000,
+        steps: 2,
+        message: `hot-reload-${i}`,
+      }),
+    );
+
+    // Wait until at least one dispatch is in-flight before triggering reload
+    await waitFor(
+      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
+      5_000,
+      100,
+      'slow_with_progress dispatch to reach extension',
+    );
+
+    // Trigger hot reload (SIGUSR1 → worker kill + restart)
+    mcpServer.triggerHotReload();
+
+    // All 5 calls must settle within 30s — no infinite hang. Use
+    // Promise.allSettled so individual failures don't short-circuit.
+    const settled = await Promise.allSettled(callPromises);
+
+    // Verify every call resolved (not rejected with an unhandled error)
+    // and each is either a success or an isError response.
+    for (const [i, outcome] of settled.entries()) {
+      if (outcome.status === 'fulfilled') {
+        // Tool returned a response — may be success or isError
+        const result = outcome.value;
+        expect(
+          typeof result.isError === 'boolean',
+          `call ${i}: expected isError to be a boolean, got ${typeof result.isError}`,
+        ).toBe(true);
+      }
+      // 'rejected' is also acceptable — the MCP client may throw on
+      // connection reset during hot reload. The key invariant is that
+      // it settled (didn't hang).
+    }
+
+    // Wait for hot reload to finish and extension to reconnect
+    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+    await waitForExtensionConnected(mcpServer, 30_000);
+
+    // Verify the server is healthy after reload
+    const health = await mcpServer.health();
+    expect(health).not.toBeNull();
+    expect(health?.status).toBe('ok');
+
+    // Verify new tool calls work after the reload. Use waitForToolResult
+    // to tolerate the brief window where the extension is still resyncing
+    // tab state.
+    const recoveredResult = await waitForToolResult(
+      mcpClient,
+      'e2e-test_echo',
+      { message: 'after-hot-reload' },
+      { isError: false },
+      20_000,
+    );
+    const recoveredOutput = parseToolResult(recoveredResult.content);
+    expect(recoveredOutput.message).toBe('after-hot-reload');
 
     await page.close();
   });
