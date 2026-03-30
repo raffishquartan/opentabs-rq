@@ -157,6 +157,14 @@ describe('scaffoldPlugin', () => {
     expect(pkg.version).toBe('0.1.0');
   });
 
+  test('generated README uses unscoped npm install command', async () => {
+    await scaffoldPlugin({ name: 'my-app', domain: 'myapp.com' });
+
+    const readme = await readFile(join(tmpDir, 'my-app', 'README.md'), 'utf-8');
+    expect(readme).toContain('npm install -g opentabs-plugin-my-app');
+    expect(readme).not.toContain('@opentabs-dev/opentabs-plugin-');
+  });
+
   test('cleans up partial directory if a file write fails, allowing retry', async () => {
     const fsp = await import('node:fs/promises');
     vi.mocked(fsp.writeFile).mockRejectedValueOnce(new Error('Disk full'));
