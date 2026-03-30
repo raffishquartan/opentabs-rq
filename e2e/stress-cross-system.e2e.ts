@@ -208,10 +208,20 @@ test.describe('Cross-system stress tests', () => {
       // Let the slow calls settle — some/all may fail (plugin gone)
       const slowResults = await Promise.allSettled(slowCalls);
 
-      // Each call should settle (fulfilled or rejected) — no hangs
-      for (const result of slowResults) {
-        expect(['fulfilled', 'rejected']).toContain(result.status);
+      let failCount = 0;
+      for (const [i, result] of slowResults.entries()) {
+        if (result.status === 'rejected') {
+          failCount++;
+        } else if (result.value.isError) {
+          failCount++;
+          expect(
+            /not found|unavailable|removed|disconnected|no matching tab|plugin/i.test(result.value.content),
+            `call ${i}: error should identify plugin removal, got: ${result.value.content.slice(0, 100)}`,
+          ).toBe(true);
+        }
       }
+      // At least one call MUST have failed — proving the plugin removal took effect
+      expect(failCount).toBeGreaterThanOrEqual(1);
 
       // Verify server health is ok after the disruption
       const health = await server.health();
