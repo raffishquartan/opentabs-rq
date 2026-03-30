@@ -203,3 +203,104 @@ test.describe('Side panel group transitions', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stress tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Count occurrences of a substring in the server logs.
+ */
+const countLogOccurrences = (server: { logs: string[] }, substring: string): number =>
+  server.logs.filter(line => line.includes(substring)).length;
+
+/**
+ * Wait until the server logs contain at least `n` occurrences of `substring`.
+ */
+const waitForLogCount = async (
+  server: { logs: string[] },
+  substring: string,
+  n: number,
+  timeoutMs = 15_000,
+): Promise<void> => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (countLogOccurrences(server, substring) >= n) return;
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error(
+    `waitForLogCount timed out after ${timeoutMs}ms waiting for ${n} occurrences of "${substring}". ` +
+      `Found ${countLogOccurrences(server, substring)}.\nLogs:\n${server.logs.join('\n')}`,
+  );
+};
+
+test.describe('stress', () => {
+  test('rapid tab open/close cycling keeps group state consistent', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-group-stress-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto' }, browser: { permission: 'auto' } },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const testServer = await startTestServer();
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    const pageErrors: Error[] = [];
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+
+      const sidePanel = await openSidePanel(context);
+      sidePanel.on('pageerror', error => pageErrors.push(error));
+
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+      await expect(sidePanel.getByText('NOT CONNECTED')).toBeVisible({ timeout: 15_000 });
+
+      const accordionItem = pluginAccordionItem(sidePanel, 'E2E Test');
+      const cycles = 5;
+
+      for (let i = 0; i < cycles; i++) {
+        // Open a matching tab
+        const appTab = await context.newPage();
+        await appTab.goto(testServer.url, { waitUntil: 'load' });
+        await waitForLogCount(server, 'tab.stateChanged: e2e-test → ready', i + 1, 15_000);
+
+        // Plugin should be in the ready group (no reduced opacity)
+        await expect(accordionItem).not.toHaveClass(/opacity-70/, { timeout: 10_000 });
+
+        // Wait before closing so animations can settle
+        await new Promise(r => setTimeout(r, 500));
+
+        // Close the matching tab
+        await appTab.close();
+        await waitForLogCount(server, 'tab.stateChanged: e2e-test → closed', i + 1, 15_000);
+
+        // Plugin should return to NOT CONNECTED group (reduced opacity)
+        await expect(accordionItem).toHaveClass(/opacity-70/, { timeout: 10_000 });
+
+        // Wait before next cycle so animations can settle
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // After 5 cycles (last action was close), plugin should be in NOT CONNECTED group
+      await expect(sidePanel.getByText('NOT CONNECTED')).toBeVisible({ timeout: 10_000 });
+      await expect(accordionItem).toHaveClass(/opacity-70/, { timeout: 10_000 });
+
+      // Assert zero pageerror events
+      expect(pageErrors).toHaveLength(0);
+
+      await sidePanel.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      await testServer.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});

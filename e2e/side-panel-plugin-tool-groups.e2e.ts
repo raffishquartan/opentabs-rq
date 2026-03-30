@@ -162,3 +162,78 @@ test.describe('Side panel — plugin tool groups', () => {
     }
   });
 });
+
+test.describe('stress', () => {
+  test('rapid accordion expand/collapse 10x keeps group headers intact', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const tools = buildToolsMap();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-plugin-groups-stress-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    const pageErrors: Error[] = [];
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+
+      const sidePanelPage = await openSidePanel(context);
+      sidePanelPage.on('pageerror', error => pageErrors.push(error));
+
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Expand the E2E Test plugin accordion and verify group headers
+      const pluginCard = sidePanelPage.locator('button[aria-expanded]').filter({ hasText: 'E2E Test' });
+      await pluginCard.click();
+
+      const pluginItem = sidePanelPage.locator('[data-state="open"]').filter({ hasText: 'E2E Test' });
+      const groupHeaders = pluginItem.locator('span.uppercase.tracking-wider');
+      await expect(groupHeaders.first()).toBeVisible({ timeout: 5_000 });
+
+      // Rapid expand/collapse 10 times
+      const cycles = 10;
+      for (let i = 0; i < cycles; i++) {
+        await pluginCard.click(); // collapse
+        await new Promise(r => setTimeout(r, 30));
+        await pluginCard.click(); // expand
+        await new Promise(r => setTimeout(r, 30));
+      }
+
+      // After rapid toggling, ensure card is expanded (aria-expanded="true")
+      const isExpanded = await pluginCard.getAttribute('aria-expanded');
+      if (isExpanded !== 'true') {
+        await pluginCard.click();
+      }
+
+      // Verify group headers are still visible and correct
+      const expandedItem = sidePanelPage.locator('[data-state="open"]').filter({ hasText: 'E2E Test' });
+      const headers = expandedItem.locator('span.uppercase.tracking-wider');
+      await expect(headers.first()).toBeVisible({ timeout: 5_000 });
+
+      const headerCount = await headers.count();
+      expect(headerCount).toBeGreaterThanOrEqual(2);
+
+      // Verify known group names still render
+      await expect(expandedItem.locator('span.uppercase.tracking-wider', { hasText: 'Basic' })).toBeVisible({
+        timeout: 5_000,
+      });
+      await expect(expandedItem.locator('span.uppercase.tracking-wider', { hasText: 'Data' })).toBeVisible({
+        timeout: 5_000,
+      });
+
+      // Assert zero pageerror events
+      expect(pageErrors).toHaveLength(0);
+
+      await sidePanelPage.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
