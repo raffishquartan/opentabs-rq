@@ -42,6 +42,9 @@ const postReload = (port: number, headers: Record<string, string>, timeoutMs = 3
 // Tests
 // ---------------------------------------------------------------------------
 
+/** Delay for the given number of milliseconds */
+const delay = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms));
+
 test.describe('Stress: config watcher + POST /reload simultaneous race', () => {
   test('writing config AND POST /reload simultaneously produces no duplicate tools', async () => {
     let configDir: string | undefined;
@@ -112,6 +115,88 @@ test.describe('Stress: config watcher + POST /reload simultaneous race', () => {
       expect(health).not.toBeNull();
       expect(health?.status).toBe('ok');
       expect(health?.plugins).toBe(1);
+    } finally {
+      await client?.close();
+      await server?.kill();
+      if (configDir) cleanupTestConfigDir(configDir);
+    }
+  });
+});
+
+test.describe('Stress: rapid config writes (10x in 2 seconds)', () => {
+  test('10 rapid config writes settle to the final state', async () => {
+    let configDir: string | undefined;
+    let server: McpServer | undefined;
+    let client: McpClient | undefined;
+    try {
+      // Start with the e2e-test plugin registered
+      const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+      const prefixedToolNames = readPluginToolNames();
+
+      configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-stress-rapid-'));
+      writeTestConfig(configDir, { localPlugins: [absPluginPath] });
+
+      server = await startMcpServer(configDir, true);
+      client = createMcpClient(server.port, server.secret);
+      await client.initialize();
+
+      // Wait for config watcher to be ready
+      await waitForLog(server, 'Config watcher: Watching', 10_000);
+
+      // Verify plugin tools are present initially
+      const toolsBefore = await client.listTools();
+      const e2eToolsBefore = toolsBefore.filter(t => t.name.startsWith('e2e-test_'));
+      expect(e2eToolsBefore.length).toBe(prefixedToolNames.length);
+
+      const configDirRef = configDir;
+
+      // Write config 10 times with 200ms between writes.
+      // Odd iterations (1, 3, 5, 7, 9) remove the plugin; even iterations (0, 2, 4, 6, 8) add it.
+      // Final write (i=9) removes the plugin.
+      for (let i = 0; i < 10; i++) {
+        if (i % 2 === 0) {
+          writeTestConfig(configDirRef, { localPlugins: [absPluginPath] });
+        } else {
+          writeTestConfig(configDirRef, { localPlugins: [] });
+        }
+        if (i < 9) await delay(200);
+      }
+
+      // Wait for all watcher events to settle
+      await delay(3_000);
+
+      // Final write was i=9 (odd) → no plugins. Verify e2e-test tools are gone.
+      const toolsAfterRapid = await waitForToolList(
+        client,
+        list => !list.some(t => t.name.startsWith('e2e-test_')),
+        15_000,
+        300,
+        'e2e-test plugin tools to disappear after rapid config writes',
+      );
+
+      // Only browser tools (and platform tools) should remain
+      for (const bt of BROWSER_TOOL_NAMES) {
+        expect(toolsAfterRapid.map(t => t.name)).toContain(bt);
+      }
+
+      // Server health should remain ok throughout
+      const health = await server.health();
+      expect(health).not.toBeNull();
+      expect(health?.status).toBe('ok');
+
+      // Now write valid config WITH the plugin and verify recovery
+      writeTestConfig(configDirRef, { localPlugins: [absPluginPath] });
+
+      const toolsRecovered = await waitForToolList(
+        client,
+        list => list.some(t => t.name.startsWith('e2e-test_')),
+        15_000,
+        300,
+        'e2e-test plugin tools to reappear after recovery write',
+      );
+
+      const e2eToolsRecovered = toolsRecovered.filter(t => t.name.startsWith('e2e-test_'));
+      expect(e2eToolsRecovered.length).toBe(prefixedToolNames.length);
     } finally {
       await client?.close();
       await server?.kill();
