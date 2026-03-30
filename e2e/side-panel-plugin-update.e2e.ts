@@ -242,6 +242,93 @@ test.describe('Side panel — plugin update after reload', () => {
   });
 });
 
+test.describe('stress', () => {
+  test('double-clicking Update only executes one update', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const { name: pkgName, version: currentVersion } = getPluginPackageInfo();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-update-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto' } },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const testServer = await startTestServer();
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    const pageErrors: Error[] = [];
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+
+      await openTestAppTab(context, testServer.url, server, testServer);
+      const sidePanelPage = await openSidePanel(context);
+
+      sidePanelPage.on('pageerror', err => pageErrors.push(err));
+
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const secret = server.secret;
+      expect(secret).toBeTruthy();
+      if (!secret) throw new Error('Server secret is required');
+
+      // Inject fake outdated data
+      const fakeLatestVersion = '99.0.0';
+      await setOutdatedPlugins(server.port, secret, [
+        {
+          name: pkgName,
+          currentVersion,
+          latestVersion: fakeLatestVersion,
+          updateCommand: `npm update -g ${pkgName}`,
+        },
+      ]);
+
+      // Wait for update dot to appear
+      const menuButton = sidePanelPage.locator('[aria-label="Plugin options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
+      await expect(updateDot).toBeVisible({ timeout: 10_000 });
+
+      // Open menu and click Update
+      await menuButton.click();
+      const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
+      await expect(updateMenuItem).toBeVisible({ timeout: 5_000 });
+      await updateMenuItem.click();
+
+      // Menu closes after clicking Update. Immediately try to re-open the
+      // menu and click Update again (simulating a double-click race).
+      await menuButton.click();
+      const secondUpdateVisible = await updateMenuItem.isVisible().catch(() => false);
+      if (secondUpdateVisible) {
+        // If the menu opened and Update is visible, try clicking it — the UI
+        // should either disable it or ignore the second invocation.
+        await updateMenuItem.click().catch(() => {});
+      }
+
+      // Dismiss menu if still open
+      await sidePanelPage.keyboard.press('Escape');
+
+      // Wait for the update to complete (fails for local plugins — error alert)
+      const errorAlert = sidePanelPage.locator('[role="alert"]');
+      await expect(errorAlert).toBeVisible({ timeout: 30_000 });
+
+      // Only one error alert should appear (confirms only one update ran)
+      await expect(errorAlert).toHaveCount(1);
+
+      // Zero page errors
+      expect(pageErrors).toHaveLength(0);
+    } finally {
+      await context.close();
+      await server.kill();
+      await testServer.kill();
+      cleanupTestConfigDir(configDir);
+      if (cleanupDir) fs.rmSync(cleanupDir, { recursive: true, force: true });
+    }
+  });
+});
+
 test.describe('Side panel — plugin update flow', () => {
   test('clicking Update on a local plugin shows error alert on failure', async () => {
     const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
