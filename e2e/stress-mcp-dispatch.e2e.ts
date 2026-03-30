@@ -293,10 +293,10 @@ test.describe('Permission change mid-dispatch', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
     await waitForExtensionConnected(mcpServer, 30_000);
 
-    // The in-flight call should complete (either success or clean error) —
-    // it already passed the permission check before dispatch.
+    // The in-flight call already passed the permission check before dispatch.
+    // It MUST complete successfully — permission changes only affect NEW calls.
     const slowResult = await slowCallPromise;
-    expect(typeof slowResult.isError === 'boolean').toBe(true);
+    expect(slowResult.isError).not.toBe(true);
 
     // A subsequent call should be rejected with a 'disabled' or 'not been reviewed' message
     const rejectedResult = await mcpClient.callTool('e2e-test_echo', { message: 'should-fail' });
