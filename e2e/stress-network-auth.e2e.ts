@@ -79,6 +79,7 @@ test.describe('Stress: WebSocket reconnect with pending tool calls', () => {
       await new Promise(r => setTimeout(r, 500));
 
       // Kill the server
+      const killTime = Date.now();
       await server.kill();
       server = undefined;
 
@@ -88,12 +89,26 @@ test.describe('Stress: WebSocket reconnect with pending tool calls', () => {
       // Wait for the extension to reconnect (backoff: 1s→2s→4s, may take up to 15s)
       await server.waitForHealth(h => h.extensionConnected, 30_000);
 
-      // Verify all 3 in-flight calls settled (success or error, not hanging)
+      // Verify all 3 in-flight calls settled with identifiable errors
       const results = await slowCalls;
-      for (const result of results) {
-        // Each call should have settled — either fulfilled or rejected
-        expect(['fulfilled', 'rejected']).toContain(result.status);
+      const settleTime = Date.now();
+      for (const [i, result] of results.entries()) {
+        if (result.status === 'fulfilled') {
+          const val = result.value;
+          if (val.isError) {
+            expect(
+              /disconnected|timed out|dispatch/i.test(val.content),
+              `call ${i}: error should identify disconnect, got: ${val.content.slice(0, 100)}`,
+            ).toBe(true);
+          }
+          // If somehow succeeded (raced before kill), that's also valid
+        } else {
+          // Transport-level rejection (expected during server death)
+          console.log(`call ${i} rejected: ${String(result.reason).slice(0, 100)}`);
+        }
       }
+      // Timing: calls must not hang for 30s dispatch timeout
+      expect(settleTime - killTime).toBeLessThan(15_000);
 
       // Create a new MCP client (old session is dead with the old server)
       const newClient = createMcpClient(savedPort, server.secret);
