@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { Page } from '@playwright/test';
 import type { McpServer } from './fixtures.js';
 import {
   cleanupTestConfigDir,
@@ -76,6 +77,124 @@ test.describe('Side panel port change', () => {
       await context.close().catch(() => {});
       await serverA.kill();
       if (serverB) await serverB.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
+
+test.describe('Side panel port stress', () => {
+  const tick = (ms = 100) => new Promise(r => setTimeout(r, ms));
+  const collectPageErrors = (page: Page): string[] => {
+    const errors: string[] = [];
+    page.on('pageerror', (err: Error) => errors.push(err.message));
+    return errors;
+  };
+
+  test('boundary values are clamped by NumberStepper', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-port-boundary-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sp = await openSidePanel(context);
+      const pageErrors = collectPageErrors(sp);
+
+      await expect(sp.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const portInput = sp.getByLabel('Server port');
+      const originalPort = await portInput.inputValue();
+
+      // Fill 0 → should clamp to >= 1 on blur
+      await portInput.fill('0');
+      await portInput.blur();
+      await tick(200);
+      const clampedLow = Number(await portInput.inputValue());
+      expect(clampedLow).toBeGreaterThanOrEqual(1);
+
+      // Fill 99999 → should clamp to <= 65535 on blur
+      await portInput.fill('99999');
+      await portInput.blur();
+      await tick(200);
+      const clampedHigh = Number(await portInput.inputValue());
+      expect(clampedHigh).toBeLessThanOrEqual(65535);
+
+      // Restore original port to maintain connection
+      await portInput.fill(originalPort);
+      await portInput.press('Enter');
+      await tick(500);
+
+      // Verify the extension is still connected after restoring the port
+      await expect(sp.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      expect(pageErrors).toEqual([]);
+
+      await sp.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+
+  test('entering same port does not cause unnecessary reconnect', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-port-same-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sp = await openSidePanel(context);
+      const pageErrors = collectPageErrors(sp);
+
+      await expect(sp.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const portInput = sp.getByLabel('Server port');
+      const currentPort = await portInput.inputValue();
+
+      // Fill the same port value and blur
+      await portInput.fill(currentPort);
+      await portInput.blur();
+      await tick(500);
+
+      // Verify no disconnect — plugin cards still visible, no error state
+      await expect(sp.getByText('E2E Test')).toBeVisible();
+      await expect(sp.getByText('Cannot Reach MCP Server')).not.toBeVisible();
+
+      expect(pageErrors).toEqual([]);
+
+      await sp.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
       fs.rmSync(cleanupDir, { recursive: true, force: true });
       cleanupTestConfigDir(configDir);
     }
