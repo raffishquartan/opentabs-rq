@@ -500,3 +500,103 @@ test.describe('Side panel open tab', () => {
     }
   });
 });
+
+test.describe('stress', () => {
+  test('rapid icon clicks with multiple tabs cause no crash', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-opentab-stress-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    let server: Awaited<ReturnType<typeof startMcpServer>> | undefined;
+    let testServer: Awaited<ReturnType<typeof startTestServer>> | undefined;
+    let context: Awaited<ReturnType<typeof launchExtensionContext>>['context'] | undefined;
+    let cleanupDir: string | undefined;
+
+    const pageErrors: Error[] = [];
+
+    try {
+      server = await startMcpServer(configDir, true);
+      testServer = await startTestServer();
+      const ext = await launchExtensionContext(server.port, server.secret);
+      context = ext.context;
+      cleanupDir = ext.cleanupDir;
+      setupAdapterSymlink(configDir, ext.extensionDir);
+
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'tab.syncAll received', 15_000);
+
+      // Open 3 matching tabs
+      const tabs = [];
+      for (let i = 0; i < 3; i++) {
+        const tab = await context.newPage();
+        await tab.goto(testServer.url, { waitUntil: 'load' });
+        tabs.push(tab);
+      }
+
+      // Wait for plugin to reach ready state with 3 tabs
+      await expect
+        .poll(
+          async () => {
+            try {
+              const res = await fetch(`http://localhost:${server?.port}/health`, {
+                headers: { Authorization: `Bearer ${server?.secret ?? ''}` },
+                signal: AbortSignal.timeout(3_000),
+              });
+              const body = (await res.json()) as {
+                pluginDetails?: Array<{ name: string; tabs?: Array<{ tabId: number }> }>;
+              };
+              return body.pluginDetails?.find(p => p.name === 'e2e-test')?.tabs?.length ?? 0;
+            } catch {
+              return 0;
+            }
+          },
+          {
+            timeout: 30_000,
+            message: 'Server did not report 3 tabs for e2e-test plugin',
+          },
+        )
+        .toBeGreaterThanOrEqual(3);
+
+      // Open side panel
+      const sidePanelPage = await openSidePanel(context);
+      sidePanelPage.on('pageerror', error => pageErrors.push(error));
+      await sidePanelPage.reload({ waitUntil: 'load' });
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Find the plugin icon button (3 tabs → shows tab count)
+      const iconButton = sidePanelPage.locator('button[aria-label="Open E2E Test (3 tabs)"]');
+      await expect(iconButton).toBeVisible({ timeout: 5_000 });
+
+      // Click the plugin icon 10x rapidly with 100ms between clicks
+      for (let i = 0; i < 10; i++) {
+        await sidePanelPage.bringToFront();
+        await iconButton.click();
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      // Verify no crash — side panel still renders
+      await sidePanelPage.bringToFront();
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 5_000 });
+
+      // Assert zero pageerror events
+      expect(pageErrors).toHaveLength(0);
+
+      await sidePanelPage.close();
+      for (const tab of tabs) {
+        await tab.close();
+      }
+    } finally {
+      await context?.close().catch(() => {});
+      await server?.kill();
+      await testServer?.kill();
+      if (cleanupDir) fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
