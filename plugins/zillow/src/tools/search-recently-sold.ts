@@ -62,9 +62,10 @@ export const searchRecentlySold = defineTool({
     };
 
     if (params.sort) filterState.sortSelection = { value: params.sort };
-    if (params.min_price || params.max_price) filterState.price = { min: params.min_price, max: params.max_price };
-    if (params.min_beds) filterState.beds = { min: params.min_beds };
-    if (params.min_baths) filterState.baths = { min: params.min_baths };
+    if (params.min_price !== undefined || params.max_price !== undefined)
+      filterState.price = { min: params.min_price, max: params.max_price };
+    if (params.min_beds !== undefined) filterState.beds = { min: params.min_beds };
+    if (params.min_baths !== undefined) filterState.baths = { min: params.min_baths };
 
     const bounds = params.map_bounds ?? { west: -122.5, east: -122.3, south: 37.7, north: 37.8 };
 

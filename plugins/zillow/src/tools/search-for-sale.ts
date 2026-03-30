@@ -60,11 +60,13 @@ export const searchForSale = defineTool({
 
     const filterState: Record<string, unknown> = {};
     if (params.sort) filterState.sortSelection = { value: params.sort };
-    if (params.min_price || params.max_price) filterState.price = { min: params.min_price, max: params.max_price };
-    if (params.min_beds) filterState.beds = { min: params.min_beds };
-    if (params.max_beds) filterState.beds = { ...(filterState.beds as object), max: params.max_beds };
-    if (params.min_baths) filterState.baths = { min: params.min_baths };
-    if (params.min_sqft || params.max_sqft) filterState.sqft = { min: params.min_sqft, max: params.max_sqft };
+    if (params.min_price !== undefined || params.max_price !== undefined)
+      filterState.price = { min: params.min_price, max: params.max_price };
+    if (params.min_beds !== undefined) filterState.beds = { min: params.min_beds };
+    if (params.max_beds !== undefined) filterState.beds = { ...(filterState.beds as object), max: params.max_beds };
+    if (params.min_baths !== undefined) filterState.baths = { min: params.min_baths };
+    if (params.min_sqft !== undefined || params.max_sqft !== undefined)
+      filterState.sqft = { min: params.min_sqft, max: params.max_sqft };
 
     if (params.home_type) {
       const typeMap: Record<string, string> = {
