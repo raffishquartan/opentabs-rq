@@ -8,7 +8,7 @@
  * corruption or drops.
  */
 
-import { expect, test } from './fixtures.js';
+import { expect, readTestConfig, test, writeTestConfig } from './fixtures.js';
 import {
   openTestAppTab,
   parseToolResult,
@@ -240,5 +240,86 @@ test.describe('Tool dispatch during tab close', () => {
     expect(recoveredOutput.message).toBe('after-tab-close');
 
     await newPage.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Permission change mid-dispatch
+// ---------------------------------------------------------------------------
+
+test.describe('Permission change mid-dispatch', () => {
+  test('in-flight call completes after permission changed to off, subsequent calls rejected, restore works', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    test.slow();
+
+    const page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    // Fire a slow tool call (3s duration, 3 steps) — it will be in-flight
+    // when we change the permission to 'off'.
+    const slowCallPromise = mcpClient.callTool('e2e-test_slow_with_progress', {
+      durationMs: 3000,
+      steps: 3,
+    });
+
+    // Wait until the dispatch is in-flight (server sent it to the extension)
+    await waitFor(
+      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
+      5_000,
+      100,
+      'slow_with_progress dispatch to reach extension',
+    );
+
+    // Change e2e-test permission to 'off' via config + hot reload
+    const config = readTestConfig(mcpServer.configDir);
+    config.permissions = { ...config.permissions, 'e2e-test': { permission: 'off' } };
+    writeTestConfig(mcpServer.configDir, config);
+
+    mcpServer.logs.length = 0;
+    mcpServer.triggerHotReload();
+    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+    await waitForExtensionConnected(mcpServer, 30_000);
+
+    // The in-flight call should complete (either success or clean error) —
+    // it already passed the permission check before dispatch.
+    const slowResult = await slowCallPromise;
+    expect(typeof slowResult.isError === 'boolean').toBe(true);
+
+    // A subsequent call should be rejected with a 'disabled' or 'not been reviewed' message
+    const rejectedResult = await mcpClient.callTool('e2e-test_echo', { message: 'should-fail' });
+    expect(rejectedResult.isError).toBe(true);
+    expect(
+      rejectedResult.content.includes('currently disabled') || rejectedResult.content.includes('not been reviewed'),
+      `expected 'currently disabled' or 'not been reviewed', got: ${rejectedResult.content}`,
+    ).toBe(true);
+
+    // Restore permission to 'auto' and verify tool availability returns
+    const restoredConfig = readTestConfig(mcpServer.configDir);
+    restoredConfig.permissions = {
+      ...restoredConfig.permissions,
+      'e2e-test': { permission: 'auto' },
+    };
+    writeTestConfig(mcpServer.configDir, restoredConfig);
+
+    mcpServer.logs.length = 0;
+    mcpServer.triggerHotReload();
+    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
+    await waitForExtensionConnected(mcpServer, 30_000);
+
+    // Verify the tool works again after restoring permission
+    const recoveredResult = await waitForToolResult(
+      mcpClient,
+      'e2e-test_echo',
+      { message: 'after-restore' },
+      { isError: false },
+      20_000,
+    );
+    const recoveredOutput = parseToolResult(recoveredResult.content);
+    expect(recoveredOutput.message).toBe('after-restore');
+
+    await page.close();
   });
 });
