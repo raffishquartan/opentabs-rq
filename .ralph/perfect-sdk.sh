@@ -18,9 +18,9 @@ This is a browser-context audit. Every function in this SDK runs inside a web pa
 2. Read platform/plugin-sdk/CLAUDE.md — SDK public API, lifecycle hooks, utilities, structured errors, Zod schema rules
 3. Read platform/browser-extension/CLAUDE.md — how the extension injects adapters and dispatches tool calls (the SDK's runtime environment)
 
-## Step 2: Read ALL SDK source files
+## Step 2: Read ALL SDK source files (Phase 1 — Collect)
 
-Read every source file thoroughly — every function, every error path, every edge case handler.
+Read every source file thoroughly — every function, every error path, every edge case handler. **As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 ### Core SDK (read in order):
 1. platform/plugin-sdk/src/index.ts — OpenTabsPlugin base class, defineTool, defineResource, definePrompt
@@ -56,9 +56,13 @@ Focus on issues unique to browser page context:
 
 For each test file, check: Are important edge cases tested? Are there tests that pass but verify the wrong thing? Are there missing tests for error/timeout/abort paths? Are test mocks accurate to real browser behavior?
 
-## Step 5: Create PRD(s) using the ralph skill
+## Step 5: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 6: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters for SDK PRDs:
 - Target project: "OpenTabs Platform" (root monorepo)

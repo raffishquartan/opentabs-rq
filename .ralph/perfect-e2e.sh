@@ -37,9 +37,9 @@ Key recent test files to pay special attention to:
 - e2e/tool-http-api.e2e.ts — HTTP tool endpoints (GET /tools, POST /tools/:name/call)
 - e2e/mcp-gateway.e2e.ts — MCP gateway endpoint (/mcp/gateway with 2 meta-tools)
 
-## Step 3: Systematically audit all E2E test files
+## Step 3: Systematically audit all E2E test files (Phase 1 — Collect)
 
-Read through ALL test files in e2e/. Do not skim — read every test case, every assertion, every setup/teardown block. Discover all *.e2e.ts files dynamically.
+Read through ALL test files in e2e/. Do not skim — read every test case, every assertion, every setup/teardown block. Discover all *.e2e.ts files dynamically. **As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 ### What to look for:
 
@@ -65,9 +65,13 @@ Read through ALL test files in e2e/. Do not skim — read every test case, every
 
 Compare features described in CLAUDE.md files against existing tests. Only flag missing coverage if the feature is user-visible and the gap creates real risk.
 
-## Step 5: Create PRD(s) using the ralph skill
+## Step 5: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 6: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters for E2E PRDs:
 - Target project: "OpenTabs Platform" (root monorepo)

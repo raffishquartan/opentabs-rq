@@ -15,9 +15,9 @@ You are auditing the OpenTabs Chrome extension (platform/browser-extension/) to 
 1. Read CLAUDE.md (root) — overall platform architecture, key concepts, commands
 2. Read platform/browser-extension/CLAUDE.md — extension-specific conventions, React rules, theme system, component guidelines
 
-## Step 2: Thoroughly read all extension source code
+## Step 2: Thoroughly read all extension source code (Phase 1 — Collect)
 
-Read every file in the Chrome extension source:
+Read every file in the Chrome extension source. **As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 ### Background service worker
 - platform/browser-extension/src/background.ts
@@ -61,9 +61,13 @@ Read every file in the Chrome extension source:
 - **React anti-patterns**: Stale closures in useCallback/useEffect, missing dependencies in hooks, state that should be derived
 - **Dead code**: Unreachable code paths, unused functions/variables/imports
 
-## Step 3: Create PRD(s) using the ralph skill
+## Step 3: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 4: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters for extension PRDs:
 - Target project: "OpenTabs Platform" (root monorepo)

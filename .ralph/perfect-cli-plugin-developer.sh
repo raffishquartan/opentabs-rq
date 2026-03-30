@@ -95,9 +95,9 @@ Inspect before build, build with syntax error, build with missing import, multip
 ### Phase 10: Cleanup
 `docker stop opentabs-plugin-dev-test`
 
-## Step 4: Evaluate every interaction
+## Step 4: Evaluate every interaction (Phase 1 — Collect)
 
-Evaluate as a first-time plugin developer:
+As you test each workflow, **append every friction point or issue to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect. Evaluate as a first-time plugin developer:
 1. Scaffolding quality — does generated code pass its own lint/format rules?
 2. Build toolchain — are errors clear?
 3. SDK discoverability — can the dev figure out resources, prompts, lifecycle hooks?
@@ -111,9 +111,13 @@ Evaluate as a first-time plugin developer:
 - Zod version migration issues (upstream library changes)
 - SDK source code bugs (audited by perfect-sdk.sh)
 
-## Step 5: Create PRD(s) using the ralph skill
+## Step 5: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 6: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters:
 - Platform code fixes: "OpenTabs Platform", no workingDirectory or qualityChecks

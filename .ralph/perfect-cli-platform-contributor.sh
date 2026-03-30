@@ -94,7 +94,9 @@ Verify lefthook hooks are set up and execute correctly.
 ### Phase 12: Cleanup
 `docker stop opentabs-platform-contributor-test`
 
-## Step 4: Evaluate every interaction
+## Step 4: Evaluate every interaction (Phase 1 — Collect)
+
+As you test each workflow, **append every friction point or issue to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 1. Does `npm install && npm run build` work cleanly on first try?
 2. Do all six checks pass on a clean checkout?
@@ -115,9 +117,13 @@ Verify lefthook hooks are set up and execute correctly.
 - Static documentation inaccuracies noticed by reading (audited by perfect-docs.sh)
 - E2E test code quality (audited by perfect-e2e.sh)
 
-## Step 5: Create PRD(s) using the ralph skill
+## Step 5: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 6: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters:
 - Target project: "OpenTabs Platform" (root monorepo)

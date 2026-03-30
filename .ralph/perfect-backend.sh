@@ -19,9 +19,9 @@ You are auditing the OpenTabs backend code (everything except the browser extens
    - platform/cli/CLAUDE.md
    - platform/plugin-tools/CLAUDE.md
 
-## Step 2: Systematically audit all backend source files
+## Step 2: Systematically audit all backend source files (Phase 1 — Collect)
 
-Read through ALL source files in each backend package. Do not skim — read every function, every error path, every cleanup handler.
+Read through ALL source files in each backend package. Do not skim — read every function, every error path, every cleanup handler. **As you read each file, append every potential finding to `/tmp/perfect-findings.md`** per the Audit Method above. Do not filter yet — just collect.
 
 ### Packages to audit (in order):
 
@@ -52,9 +52,13 @@ Read through ALL source files in each backend package. Do not skim — read ever
 - **Missing defensive guards**: Validation gaps, boundary checks, API version checks, transport-level limits not matching application-level limits
 - **Architectural inconsistencies with concrete consequences**: Shared state protected in some paths but not others, cleanup done on one code path but not an equivalent one
 
-## Step 3: Create PRD(s) using the ralph skill
+## Step 3: Filter findings (Phase 2)
 
-Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s).
+Read `/tmp/perfect-findings.md` in full. For each finding, apply the Validation Checklist from the shared guidelines. For each finding, write "KEEP: [reason]" or "DISCARD: [reason]" to force explicit justification. Delete discarded findings.
+
+## Step 4: Create PRD(s) using the ralph skill (Phase 3)
+
+Use the skill tool to load the "ralph" skill, then follow its instructions to create PRD(s) from the surviving findings.
 
 Key parameters for backend PRDs:
 - Target project: "OpenTabs Platform" (root monorepo)
