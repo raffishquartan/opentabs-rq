@@ -11,6 +11,7 @@ import { expect } from './fixtures.js';
 import {
   callToolExpectSuccess,
   openTestAppTab,
+  parseToolResult,
   replaceIifeClosing,
   setupIsolatedIifeTest,
   waitFor,
@@ -93,6 +94,81 @@ test.describe('Stress — rapid adapter re-injection', () => {
         message: 'after-rapid-changes',
       });
       expect(afterResult.message).toBe('after-rapid-changes');
+
+      await page.close();
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US-002: Adapter injection during tab navigation
+// ---------------------------------------------------------------------------
+
+test.describe('Stress — adapter injection during tab navigation', () => {
+  test('navigating away mid-injection causes no crash, and navigating back re-injects', async () => {
+    const ctx = await setupIsolatedIifeTest('stress-nav-inject');
+
+    try {
+      // Open a tab and wait for adapter injection + ready state
+      const page = await openTestAppTab(ctx.context, ctx.testServer.url, ctx.server, ctx.testServer);
+      await waitForToolResult(ctx.client, 'e2e-test_get_status', {}, { isError: false }, 15_000);
+
+      // Baseline: tool works on the matching tab
+      const baseline = await callToolExpectSuccess(ctx.client, ctx.server, 'e2e-test_echo', {
+        message: 'before-navigation',
+      });
+      expect(baseline.message).toBe('before-navigation');
+
+      // Start a tool call and immediately navigate away — the tool call may
+      // succeed or fail depending on timing, but it must not crash the extension.
+      const toolPromise = ctx.client.callTool('e2e-test_echo', { message: 'during-navigation' });
+      await page.goto('about:blank', { waitUntil: 'load' });
+
+      // The tool call should resolve (success or error — either is acceptable)
+      const midNavResult = await toolPromise;
+      expect(typeof midNavResult.isError).toBe('boolean');
+
+      // Navigate back to the matching URL
+      await page.goto(ctx.testServer.url, { waitUntil: 'load' });
+
+      // Wait for adapter re-injection after navigating back
+      await waitFor(
+        async () => {
+          const present = await page.evaluate(() => {
+            const ot = (globalThis as Record<string, unknown>).__openTabs as
+              | { adapters?: Record<string, unknown> }
+              | undefined;
+            return ot?.adapters?.['e2e-test'] !== undefined;
+          });
+          return present;
+        },
+        20_000,
+        500,
+        'e2e-test adapter to be re-injected after navigating back to matching URL',
+      );
+
+      // Wait for the tab to reach ready state again
+      await waitForToolResult(ctx.client, 'e2e-test_get_status', {}, { isError: false }, 15_000);
+
+      // Verify tool calls work after re-injection
+      const afterResult = await callToolExpectSuccess(ctx.client, ctx.server, 'e2e-test_echo', {
+        message: 'after-navigation-back',
+      });
+      expect(afterResult.message).toBe('after-navigation-back');
+
+      // Check extension logs for error-level entries that indicate crashes.
+      // Expected injection warnings (e.g., tab navigated during injection) are
+      // acceptable — only unexpected errors indicate a real problem.
+      const logsResult = await ctx.client.callTool('extension_get_logs');
+      expect(logsResult.isError).toBe(false);
+      const logsData = parseToolResult(logsResult.content);
+      const entries = logsData.entries as Array<{ level: string; message: string }>;
+      const errorEntries = entries.filter(
+        e => e.level === 'error' && !e.message.includes('No tab found') && !e.message.includes('navigation'),
+      );
+      expect(errorEntries).toEqual([]);
 
       await page.close();
     } finally {
