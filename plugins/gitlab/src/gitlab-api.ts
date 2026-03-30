@@ -1,6 +1,17 @@
-import { ToolError, getMetaContent, getPageGlobal, parseRetryAfterMs, waitUntil } from '@opentabs-dev/plugin-sdk';
+import {
+  ToolError,
+  getConfig,
+  getMetaContent,
+  getPageGlobal,
+  parseRetryAfterMs,
+  waitUntil,
+} from '@opentabs-dev/plugin-sdk';
 
-const API_BASE = 'https://gitlab.com/api/v4';
+const getApiBase = (): string => {
+  const instanceUrl = getConfig('instanceUrl') as string | undefined;
+  if (instanceUrl) return `${instanceUrl.replace(/\/+$/, '')}/api/v4`;
+  return 'https://gitlab.com/api/v4';
+};
 
 interface GitLabAuth {
   username: string;
@@ -37,7 +48,7 @@ const getCsrfToken = (): string | null => getMetaContent('csrf-token');
 // --- Shared fetch helpers ---
 
 const buildUrl = (endpoint: string, query?: Record<string, string | number | boolean | undefined>): string => {
-  let url = `${API_BASE}${endpoint}`;
+  let url = `${getApiBase()}${endpoint}`;
   if (query) {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
