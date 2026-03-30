@@ -48,7 +48,8 @@ export async function extractZipEntry(zipBytes: Uint8Array, filename: string): P
 
     if (name === filename) {
       if (compressionMethod === 8) {
-        return decompressDeflateRaw(rawData);
+        const bytes = await decompressDeflateRaw(rawData);
+        return new TextDecoder().decode(bytes);
       }
       // STORE (method 0) — uncompressed
       return new TextDecoder().decode(rawData);
@@ -60,7 +61,7 @@ export async function extractZipEntry(zipBytes: Uint8Array, filename: string): P
 }
 
 /** Decompress a DEFLATE-raw buffer using the browser DecompressionStream API. */
-async function decompressDeflateRaw(data: Uint8Array): Promise<string> {
+async function decompressDeflateRaw(data: Uint8Array): Promise<Uint8Array> {
   const ds = new DecompressionStream('deflate-raw');
   const writer = ds.writable.getWriter();
   // Copy into a fresh ArrayBuffer to satisfy the BufferSource type constraint
@@ -82,7 +83,7 @@ async function decompressDeflateRaw(data: Uint8Array): Promise<string> {
     result.set(chunk, pos);
     pos += chunk.length;
   }
-  return new TextDecoder().decode(result);
+  return result;
 }
 
 /**
@@ -140,8 +141,7 @@ export async function extractAllZipEntries(zipBytes: Uint8Array): Promise<ZipEnt
 
     let data: Uint8Array;
     if (compressionMethod === 8) {
-      const text = await decompressDeflateRaw(rawData);
-      data = new TextEncoder().encode(text);
+      data = await decompressDeflateRaw(rawData);
     } else {
       data = rawData;
     }
