@@ -34,7 +34,6 @@ const getInstalledVersion = async (): Promise<string> => {
 const getLatestVersion = (): string => {
   const result = spawnSync('npm', ['view', CLI_PACKAGE_NAME, 'version'], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
   });
   if (result.error) {
     throw new Error(`Failed to run npm: ${result.error.message}`);
@@ -173,7 +172,7 @@ const getServerStatus = async (port: number): Promise<ServerStatus> => {
 /** Run `npm install -g` to update the CLI package. */
 const performUpdate = (version: string): boolean => {
   const target = `${CLI_PACKAGE_NAME}@${version}`;
-  const result = spawnSync('npm', ['install', '-g', target], { stdio: 'inherit', shell: true });
+  const result = spawnSync('npm', ['install', '-g', target], { stdio: 'inherit' });
   if (result.error) return false;
   return (result.status ?? 1) === 0;
 };
