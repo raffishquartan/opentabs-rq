@@ -8,7 +8,7 @@
   </picture>
 </a>
 
-<br><br>
+<br>
 
 [Website](https://opentabs.dev) &nbsp;&middot;&nbsp; [Docs](https://opentabs.dev/docs) &nbsp;&middot;&nbsp; [Plugins](plugins/) &nbsp;&middot;&nbsp; [Discord](https://discord.gg/opentabs)
 
@@ -84,7 +84,7 @@ Built entirely by AI agents — zero hand-written application code. Hundreds of 
 
 ---
 
-**[Docs](https://opentabs.dev/docs)** &nbsp;&middot;&nbsp; Quick Start &nbsp;&middot;&nbsp; Plugin Development &nbsp;&middot;&nbsp; SDK Reference &nbsp;&middot;&nbsp; Browser Tools &nbsp;&middot;&nbsp; CLI Reference &nbsp;&middot;&nbsp; Architecture &nbsp;&middot;&nbsp; FAQ
+**[Docs](https://opentabs.dev/docs)** &nbsp;&middot;&nbsp; [Quick Start](https://opentabs.dev/docs/quick-start) &nbsp;&middot;&nbsp; [Plugin Development](https://opentabs.dev/docs/guides/plugin-development) &nbsp;&middot;&nbsp; [SDK Reference](https://opentabs.dev/docs/sdk/plugin-class) &nbsp;&middot;&nbsp; [Browser Tools](https://opentabs.dev/docs/reference/browser-tools) &nbsp;&middot;&nbsp; [CLI Reference](https://opentabs.dev/docs/reference/cli) &nbsp;&middot;&nbsp; [Architecture](https://opentabs.dev/docs/contributing/architecture)
 
 ## Contributing
 
