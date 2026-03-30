@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { defineTool } from '@opentabs-dev/plugin-sdk';
+import { defineTool, ToolError } from '@opentabs-dev/plugin-sdk';
 import { graphqlMutation } from '../x-api.js';
 import { tweetSchema, mapTweet } from './schemas.js';
 import type { RawTweetResult } from './schemas.js';
@@ -40,7 +40,9 @@ export const createTweet = defineTool({
     if (!tweetResult) {
       const errors = (data as any)?.errors;
       const msg = Array.isArray(errors) ? errors.map((e: any) => e.message).join('; ') : undefined;
-      throw new Error(msg ?? `CreateTweet returned unexpected response: ${JSON.stringify(data).slice(0, 500)}`);
+      throw ToolError.internal(
+        msg ?? `CreateTweet returned unexpected response: ${JSON.stringify(data).slice(0, 500)}`,
+      );
     }
 
     return { tweet: mapTweet(tweetResult) };
