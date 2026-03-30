@@ -158,11 +158,7 @@ const getAuth = (): OutlookAuth | null => {
   return auth;
 };
 
-export const isAuthenticated = (): boolean => {
-  if (getAuth() !== null) return true;
-  // Fallback: Outlook sets olk-isauthed=1 when the user is signed in
-  return getLocalStorage('olk-isauthed') === '1';
-};
+export const isAuthenticated = (): boolean => getAuth() !== null;
 
 export const waitForAuth = (): Promise<boolean> =>
   waitUntil(() => isAuthenticated(), { interval: 500, timeout: 5000 }).then(
