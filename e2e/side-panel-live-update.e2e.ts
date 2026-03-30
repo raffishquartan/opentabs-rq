@@ -144,3 +144,64 @@ test.describe('Side panel live-update — plugins.changed notification', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stress tests
+// ---------------------------------------------------------------------------
+
+test.describe('stress', () => {
+  test('rapid add/remove config cycling settles to correct final state', async () => {
+    // Start with the e2e-test plugin registered
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-stress-'));
+    writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+
+    const server = await startMcpServer(configDir, true);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    const pageErrors: Error[] = [];
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'Config watcher: Watching', 10_000);
+
+      // Open side panel and verify initial state
+      const sidePanelPage = await openSidePanel(context);
+      sidePanelPage.on('pageerror', err => pageErrors.push(err));
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Rapid add/remove cycling: 3x remove then add with short delays
+      for (let i = 0; i < 3; i++) {
+        // Remove plugin
+        writeTestConfig(configDir, { localPlugins: [], tools: {} });
+        await postReload(server.port, configDir);
+        await new Promise(r => setTimeout(r, 200));
+
+        // Add plugin back
+        writeTestConfig(configDir, { localPlugins: [absPluginPath], tools });
+        await postReload(server.port, configDir);
+        await new Promise(r => setTimeout(r, 200));
+      }
+
+      // Wait for side panel to settle after all the rapid changes
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Verify zero page errors
+      expect(pageErrors).toHaveLength(0);
+
+      await sidePanelPage.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
