@@ -14,6 +14,7 @@ import {
   registerStartCommand,
   registerStatusCommand,
   registerStopCommand,
+  registerTelemetryCommand,
   registerToolCommand,
   registerUpdateCommand,
 } from './commands/index.js';
@@ -53,6 +54,7 @@ registerLogsCommand(program);
 registerPluginCommand(program);
 registerToolCommand(program);
 registerConfigCommand(program);
+registerTelemetryCommand(program);
 registerUpdateCommand(program);
 
 await program.parseAsync().catch((err: unknown) => {
