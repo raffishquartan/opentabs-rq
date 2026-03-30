@@ -176,3 +176,90 @@ test.describe('Stress — adapter injection during tab navigation', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// US-003: Multiple tabs opening simultaneously with adapter injection
+// ---------------------------------------------------------------------------
+
+/** Shape of plugin_list_tabs response entries. */
+interface PluginTabsEntry {
+  plugin: string;
+  displayName: string;
+  state: string;
+  tabs: Array<{ tabId: number; url: string; title: string; ready: boolean }>;
+}
+
+test.describe('Stress — multiple tabs opening simultaneously', () => {
+  test('5 tabs opened concurrently all get injected and tools dispatch to each via tabId', async () => {
+    const ctx = await setupIsolatedIifeTest('stress-multi-tab');
+
+    try {
+      const TAB_COUNT = 5;
+
+      // Open 5 tabs simultaneously via Promise.all
+      const pages = await Promise.all(
+        Array.from({ length: TAB_COUNT }, () =>
+          openTestAppTab(ctx.context, ctx.testServer.url, ctx.server, ctx.testServer, 30_000),
+        ),
+      );
+
+      // Poll plugin_list_tabs until e2e-test reports TAB_COUNT tabs all ready
+      await waitFor(
+        async () => {
+          try {
+            const result = await ctx.client.callTool('plugin_list_tabs', { plugin: 'e2e-test' });
+            if (result.isError) return false;
+            const plugins = JSON.parse(result.content) as PluginTabsEntry[];
+            const entry = plugins[0];
+            return entry !== undefined && entry.tabs.length >= TAB_COUNT && entry.tabs.every(t => t.ready);
+          } catch {
+            return false;
+          }
+        },
+        30_000,
+        500,
+        `plugin_list_tabs to report ${TAB_COUNT} tabs all ready`,
+      );
+
+      // Read the final plugin_list_tabs response
+      const listResult = await ctx.client.callTool('plugin_list_tabs', { plugin: 'e2e-test' });
+      expect(listResult.isError).toBe(false);
+      const plugins = JSON.parse(listResult.content) as PluginTabsEntry[];
+      const entry = plugins[0];
+      if (!entry) throw new Error('Expected plugin entry in plugin_list_tabs response');
+
+      expect(entry.tabs.length).toBeGreaterThanOrEqual(TAB_COUNT);
+      expect(entry.tabs.every(t => t.ready)).toBe(true);
+
+      // All tab IDs must be distinct
+      const tabIds = entry.tabs.map(t => t.tabId);
+      expect(new Set(tabIds).size).toBe(entry.tabs.length);
+
+      // Dispatch e2e-test_echo with explicit tabId to each tab
+      for (const tab of entry.tabs) {
+        const result = await callToolExpectSuccess(ctx.client, ctx.server, 'e2e-test_echo', {
+          message: `tab-${String(tab.tabId)}`,
+          tabId: tab.tabId,
+        });
+        expect(result.message).toBe(`tab-${String(tab.tabId)}`);
+      }
+
+      // Verify no adapter hash mismatches across tabs
+      const checkResult = await callToolExpectSuccess(ctx.client, ctx.server, 'extension_check_adapter', {
+        plugin: 'e2e-test',
+      });
+      const matchingTabs = checkResult.matchingTabs as Array<{
+        hashMatch: boolean;
+        adapterPresent: boolean;
+      }>;
+      expect(matchingTabs.length).toBeGreaterThanOrEqual(TAB_COUNT);
+      expect(matchingTabs.every(t => t.adapterPresent && t.hashMatch)).toBe(true);
+
+      for (const page of pages) {
+        await page.close();
+      }
+    } finally {
+      await ctx.cleanup();
+    }
+  });
+});
