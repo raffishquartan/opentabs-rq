@@ -53,7 +53,8 @@ const PluginCard = ({
   } | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const toggleCounter = useRef(0);
-  const preToggleRef = useRef<WireToolDef[]>([]);
+  const pendingToolRollbacks = useRef<Map<number, { toolName: string; prev: ToolPermission }>>(new Map());
+  const pendingPluginRollbacks = useRef<Map<number, ToolPermission>>(new Map());
 
   useEffect(() => () => clearTimeout(errorTimerRef.current), []);
 
@@ -68,11 +69,9 @@ const PluginCard = ({
   const updatePluginTools = (updater: (tools: WireToolDef[]) => WireToolDef[]) =>
     setPlugins(prev => prev.map(p => (p.name === plugin.name ? { ...p, tools: updater(p.tools ?? []) } : p)));
 
-  const prePluginPermRef = useRef<ToolPermission>('off');
-
   const applyPluginPermission = (newPermission: ToolPermission, reviewedVersion?: string) => {
     const myVersion = ++toggleCounter.current;
-    prePluginPermRef.current = plugin.permission;
+    pendingPluginRollbacks.current.set(myVersion, plugin.permission);
     setPlugins(prev =>
       prev.map(p =>
         p.name === plugin.name
@@ -80,14 +79,17 @@ const PluginCard = ({
           : p,
       ),
     );
-    void setPluginPermission(plugin.name, newPermission, reviewedVersion).catch(() => {
-      if (toggleCounter.current === myVersion) {
-        setPlugins(prev =>
-          prev.map(p => (p.name === plugin.name ? { ...p, permission: prePluginPermRef.current } : p)),
-        );
-      }
-      showToggleError('Failed to update plugin permission');
-    });
+    void setPluginPermission(plugin.name, newPermission, reviewedVersion)
+      .catch(() => {
+        const prev = pendingPluginRollbacks.current.get(myVersion);
+        if (prev !== undefined) {
+          setPlugins(ps => ps.map(p => (p.name === plugin.name ? { ...p, permission: prev } : p)));
+        }
+        showToggleError('Failed to update plugin permission');
+      })
+      .finally(() => {
+        pendingPluginRollbacks.current.delete(myVersion);
+      });
   };
 
   const handlePluginPermissionChange = (newPermission: ToolPermission) => {
@@ -113,16 +115,22 @@ const PluginCard = ({
 
   const applyToolPermission = (toolName: string, newPermission: ToolPermission) => {
     const myVersion = ++toggleCounter.current;
-    updatePluginTools(prev => {
-      preToggleRef.current = prev;
-      return prev.map(t => (t.name === toolName ? { ...t, permission: newPermission } : t));
-    });
-    void setToolPermission(plugin.name, toolName, newPermission).catch(() => {
-      if (toggleCounter.current === myVersion) {
-        updatePluginTools(() => preToggleRef.current);
-      }
-      showToggleError(`Failed to update ${toolName}`);
-    });
+    const currentPerm = pluginTools.find(t => t.name === toolName)?.permission ?? 'off';
+    pendingToolRollbacks.current.set(myVersion, { toolName, prev: currentPerm });
+    updatePluginTools(prev => prev.map(t => (t.name === toolName ? { ...t, permission: newPermission } : t)));
+    void setToolPermission(plugin.name, toolName, newPermission)
+      .catch(() => {
+        const rollback = pendingToolRollbacks.current.get(myVersion);
+        if (rollback) {
+          updatePluginTools(prev =>
+            prev.map(t => (t.name === rollback.toolName ? { ...t, permission: rollback.prev } : t)),
+          );
+        }
+        showToggleError(`Failed to update ${toolName}`);
+      })
+      .finally(() => {
+        pendingToolRollbacks.current.delete(myVersion);
+      });
   };
 
   const handleToolPermissionChange = (toolName: string, newPermission: ToolPermission) => {
