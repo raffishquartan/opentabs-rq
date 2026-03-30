@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { Page } from '@playwright/test';
 import {
   cleanupTestConfigDir,
   E2E_TEST_PLUGIN_DIR,
@@ -168,6 +169,129 @@ test.describe('Side panel search details', () => {
 
       // All plugins should be visible again
       await expect(sidePanel.getByText('E2E Test')).toBeVisible();
+
+      await sidePanel.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+});
+
+test.describe('Side panel search stress', () => {
+  const tick = (ms = 100) => new Promise(r => setTimeout(r, ms));
+  const collectPageErrors = (page: Page): string[] => {
+    const errors: string[] = [];
+    page.on('pageerror', (err: Error) => errors.push(err.message));
+    return errors;
+  };
+
+  test('rapid type/clear cycles do not leave zombie filter state', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-stress-rapid-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: {
+        'e2e-test': { permission: 'auto' },
+        browser: { permission: 'auto' },
+      },
+    });
+
+    const server = await startMcpServer(configDir, false);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sidePanel = await openSidePanel(context);
+      const pageErrors = collectPageErrors(sidePanel);
+
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const searchInput = sidePanel.getByPlaceholder('Search plugins and tools...');
+
+      // Rapid type/clear: fill 'slack', clear. Repeat 10x with 50ms between.
+      for (let i = 0; i < 10; i++) {
+        await searchInput.fill('slack');
+        await tick(50);
+        await searchInput.fill('');
+        await tick(50);
+      }
+
+      // After final clear, all plugins should be visible (no zombie filter)
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible();
+
+      // Progressive typing: s → sl → sla → slac → slack with 30ms between
+      for (const prefix of ['s', 'sl', 'sla', 'slac', 'slack']) {
+        await searchInput.fill(prefix);
+        await tick(30);
+      }
+
+      // Wait for debounce to settle
+      await tick(500);
+
+      // Clear and verify clean state
+      await searchInput.fill('');
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible();
+
+      expect(pageErrors).toEqual([]);
+
+      await sidePanel.close();
+    } finally {
+      await context.close().catch(() => {});
+      await server.kill();
+      fs.rmSync(cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
+    }
+  });
+
+  test('long input does not freeze and recovers after clear', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-sp-stress-long-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: {
+        'e2e-test': { permission: 'auto' },
+        browser: { permission: 'auto' },
+      },
+    });
+
+    const server = await startMcpServer(configDir, false);
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+
+      const sidePanel = await openSidePanel(context);
+      const pageErrors = collectPageErrors(sidePanel);
+
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const searchInput = sidePanel.getByPlaceholder('Search plugins and tools...');
+
+      // Fill 200 characters — verify no freeze
+      await searchInput.fill('a'.repeat(200));
+      await tick(300);
+
+      // Clear and verify recovery
+      await searchInput.fill('');
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible();
+
+      // Nonsense string that matches nothing, then recover
+      await searchInput.fill('zzz_nonexistent_plugin_xyz');
+      await tick(500);
+      await searchInput.fill('');
+      await expect(sidePanel.getByText('E2E Test')).toBeVisible();
+
+      expect(pageErrors).toEqual([]);
 
       await sidePanel.close();
     } finally {
