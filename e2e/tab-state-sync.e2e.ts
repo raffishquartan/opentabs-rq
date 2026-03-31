@@ -453,11 +453,12 @@ test.describe('Tab state sync — 5-tab churn', () => {
 
     // Open 5 tabs sequentially. Opening in parallel via Promise.all can
     // race with browser context limits, causing "Target page has been closed"
-    // errors on page.goto.
+    // errors on page.goto. Navigations are fire-and-forget (.catch swallows
+    // rejections from tabs closed before their navigation completes).
     const tabs: Awaited<ReturnType<typeof extensionContext.newPage>>[] = [];
     for (let i = 0; i < 5; i++) {
       const page = await extensionContext.newPage();
-      void page.goto(testServer.url, { waitUntil: 'load' });
+      page.goto(testServer.url, { waitUntil: 'load' }).catch(() => {});
       tabs.push(page);
     }
     const [tab0, tab1, tab2, tab3, tab4] = tabs;
