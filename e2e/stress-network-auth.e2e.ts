@@ -59,7 +59,7 @@ test.describe('Stress: WebSocket reconnect with pending tool calls', () => {
       await mcpClient.initialize();
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received');
+      await waitForLog(server, 'plugin(s) mapped');
 
       // Open a page in the test server so e2e-test plugin has a matching tab
       const page = await extensionCtx.context.newPage();
@@ -298,7 +298,7 @@ test.describe('Stress: Audit log under rapid tool calls', () => {
       await mcpClient.initialize();
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received');
+      await waitForLog(server, 'plugin(s) mapped');
 
       // Open a page so e2e-test plugin has a matching tab
       const page = await extensionCtx.context.newPage();

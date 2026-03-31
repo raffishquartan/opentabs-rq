@@ -71,7 +71,7 @@ test.describe('Auth bootstrap', () => {
         //    connect() → bootstrapFromAuthFile() reads auth.json → /ws-info
         //    succeeds → WebSocket connects. The backoff may be at 2-4s by now.
         await waitForExtensionConnected(server, 45_000);
-        await waitForLog(server, 'tab.syncAll received', 15_000);
+        await waitForLog(server, 'plugin(s) mapped', 15_000);
 
         // 7. Verify connection via /health
         const h2 = await server.health();
@@ -138,7 +138,7 @@ test.describe('Auth bootstrap', () => {
       try {
         // 3. Wait for initial connection and verify tools work
         await waitForExtensionConnected(server, 45_000);
-        await waitForLog(server, 'tab.syncAll received', 15_000);
+        await waitForLog(server, 'plugin(s) mapped', 15_000);
 
         const h1 = await server.health();
         expect(h1).not.toBeNull();
@@ -175,7 +175,7 @@ test.describe('Auth bootstrap', () => {
         //    re-reads auth.json (via the symlink), picks up the new secret, and
         //    authenticates with /ws-info using the rotated credentials.
         await waitForExtensionConnected(server, 45_000);
-        await waitForLog(server, 'tab.syncAll received', 15_000);
+        await waitForLog(server, 'plugin(s) mapped', 15_000);
 
         // 7. Verify connection via /health
         const h2 = await server.health();

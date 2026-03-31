@@ -143,7 +143,7 @@ test.describe('Plugin review flow — full cycle', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Open a matching tab so the e2e-test plugin becomes ready.
     // The plugin has no permission config (defaults to 'off'), so we wait for
@@ -415,7 +415,7 @@ test.describe('Side panel — unreviewed icon', () => {
   test('unreviewed plugin shows ShieldQuestionMark icon', async ({ mcpServer, extensionContext }) => {
     // Plugin has no reviewedVersion → it is unreviewed
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -447,7 +447,7 @@ test.describe('Side panel — unreviewed icon', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -473,7 +473,7 @@ test.describe('Side panel — unreviewed plugin confirmation dialog', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -514,7 +514,7 @@ test.describe('Side panel — unreviewed plugin confirmation dialog', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -558,7 +558,7 @@ test.describe('Side panel — unreviewed plugin confirmation dialog', () => {
 
   test('dialog "Cancel" does not change permission', async ({ mcpServer, extensionContext, mcpClient }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -601,7 +601,7 @@ test.describe('Side panel — unreviewed plugin confirmation dialog', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -639,7 +639,7 @@ test.describe('Platform tools visibility', () => {
     extensionContext,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
     await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });

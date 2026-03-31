@@ -151,7 +151,7 @@ fixtureTest.describe('IIFE injection — sync.full removal cleanup', () => {
 
       // Wait for the hot reload to complete (sync.full is sent to the extension).
       // With 0 plugins, the extension's sendTabSyncAll returns early (nothing
-      // to report), so there is no "tab.syncAll received" log.
+      // to report), so there is no "plugin(s) mapped" log.
       await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
       // Plugin tools should be gone from the MCP server's tool list.
@@ -434,7 +434,7 @@ fixtureTest.describe('IIFE injection — overlapping URL patterns', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for extra-plugin tools to appear in the MCP tool list
         await waitForToolList(
@@ -519,7 +519,7 @@ fixtureTest.describe('IIFE injection — overlapping URL patterns', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for diff-pattern-plugin tools to appear in the MCP tool list
         await waitForToolList(
@@ -769,7 +769,7 @@ fixtureTest.describe('IIFE injection — tab opened after sync.full', () => {
     async ({ mcpServer, testServer, extensionContext, mcpClient }) => {
       // Complete full setup: extension connected + sync.full processed
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
       await testServer.reset();
 
       // Wait 3 seconds after sync.full to ensure all initial processing is done.
@@ -824,7 +824,7 @@ fixtureTest.describe('IIFE injection — pre-existing tab gets adapter', () => {
       // sync.full triggers reinjectStoredPlugins which scans all existing tabs
       // (including our pre-existing one) and injects matching adapters.
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       // Poll for the adapter to be injected into the pre-existing tab.
       // The injection happens asynchronously after sync.full is processed.
@@ -1000,7 +1000,7 @@ test.describe('IIFE injection — concurrent file watcher change during hot relo
       expect(namesAfter).toEqual(namesBefore);
 
       // Wait for extension to re-sync after hot reload (sync.full → tab.syncAll)
-      await waitForLog(ctx.server, 'tab.syncAll received', 20_000);
+      await waitForLog(ctx.server, 'plugin(s) mapped', 20_000);
 
       // Verify adapter is present in the page after re-sync
       await waitFor(

@@ -36,7 +36,7 @@ const setupSdkTest = async (
   mcpClient: Parameters<typeof waitForToolResult>[0],
 ) => {
   await waitForExtensionConnected(mcpServer);
-  await waitForLog(mcpServer, 'tab.syncAll received');
+  await waitForLog(mcpServer, 'plugin(s) mapped');
   await testServer.reset();
 
   // Open the /sdk-test page (adapter gets injected because url matches http://localhost/*)

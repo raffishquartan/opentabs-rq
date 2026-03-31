@@ -175,7 +175,7 @@ test.describe('Plugin settings — getConfig tool', () => {
       await client.initialize();
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received');
+      await waitForLog(server, 'plugin(s) mapped');
 
       // Open a tab matching the plugin's URL pattern so the adapter is injected
       const page = await openTestAppTab(context, testServer.url, server, testServer);
@@ -230,7 +230,7 @@ test.describe('Plugin settings — side panel', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received');
+      await waitForLog(server, 'plugin(s) mapped');
 
       // Open a test app tab so the plugin shows as ready
       const page = await openTestAppTab(context, testServer.url, server, testServer);

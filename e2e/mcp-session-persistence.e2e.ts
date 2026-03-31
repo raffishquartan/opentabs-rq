@@ -521,7 +521,7 @@ test.describe
         // Wait for reload to complete and extension to reconnect
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
         await waitForExtensionConnected(mcpServer, 30_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Poll until the tool is callable through the extension (tab state = ready)
         await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
@@ -580,7 +580,7 @@ test.describe
         // Wait for the system to stabilize after reload
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
         await waitForExtensionConnected(mcpServer, 30_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Poll until the tool is callable again
         await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);

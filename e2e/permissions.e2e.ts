@@ -199,7 +199,7 @@ test.describe('Permission: auto', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // browser_list_tabs with 'auto' permission should execute without any dialog
     const result = await mcpClient.callTool('browser_list_tabs', {});
@@ -229,7 +229,7 @@ test.describe('Confirmation dialog — Allow', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -265,7 +265,7 @@ test.describe('Confirmation dialog — Allow', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -300,7 +300,7 @@ test.describe('Confirmation dialog — Deny', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -333,7 +333,7 @@ test.describe('Confirmation dialog — Always Allow', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -377,7 +377,7 @@ test.describe('skipPermissions bypass', () => {
 
         try {
           await waitForExtensionConnected(server);
-          await waitForLog(server, 'tab.syncAll received');
+          await waitForLog(server, 'plugin(s) mapped');
 
           const client = createMcpClient(server.port, server.secret);
           await client.initialize();
@@ -421,7 +421,7 @@ test.describe('skipPermissions bypass', () => {
 
         try {
           await waitForExtensionConnected(server);
-          await waitForLog(server, 'tab.syncAll received');
+          await waitForLog(server, 'plugin(s) mapped');
 
           const client = createMcpClient(server.port, server.secret);
           await client.initialize();
@@ -465,7 +465,7 @@ test.describe('Plugin-level permission', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Multiple browser tools should all work without confirmation
     const listResult = await mcpClient.callTool('browser_list_tabs', {});
@@ -526,7 +526,7 @@ test.describe('Confirmation notification — badge lifecycle', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sw = await getBackgroundWorker(extensionContext);
     const sidePanel = await openSidePanel(extensionContext);
@@ -568,7 +568,7 @@ test.describe('Confirmation dialog — late side panel open', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sw = await getBackgroundWorker(extensionContext);
 
@@ -611,7 +611,7 @@ test.describe('Confirmation dialog — close/reopen persistence', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     let sidePanel = await openSidePanel(extensionContext);
 
@@ -664,7 +664,7 @@ test.describe('Confirmation dialog — multiple pending', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sw = await getBackgroundWorker(extensionContext);
     const sidePanel = await openSidePanel(extensionContext);
@@ -735,7 +735,7 @@ test.describe('Confirmation dialog — dismiss resistance', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -780,7 +780,7 @@ test.describe('Confirmation dialog — parameters display', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -824,7 +824,7 @@ test.describe('Confirmation dialog — parameters display', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -858,7 +858,7 @@ test.describe('Confirmation dialog — plugin tools', () => {
   }) => {
     // Start with e2e-test at 'auto' so the plugin can become ready
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -878,7 +878,7 @@ test.describe('Confirmation dialog — plugin tools', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -913,7 +913,7 @@ test.describe('Confirmation dialog — plugin tools', () => {
   }) => {
     // Start with e2e-test at 'auto' so the plugin can become ready
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -933,7 +933,7 @@ test.describe('Confirmation dialog — plugin tools', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sidePanel = await openSidePanel(extensionContext);
 
@@ -969,7 +969,7 @@ test.describe('Confirmation dialog — Always Allow switch reset', () => {
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sw = await getBackgroundWorker(extensionContext);
     const sidePanel = await openSidePanel(extensionContext);
@@ -1032,7 +1032,7 @@ test.describe('Confirmation notification — badge count for multiple pending', 
     await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const sw = await getBackgroundWorker(extensionContext);
     const sidePanel = await openSidePanel(extensionContext);
@@ -1130,7 +1130,7 @@ test.describe('Permission change mid-flight — in-flight completes, next call d
     // e2e-test starts with permission 'auto' (from createTestConfigDir defaults).
     // Set up the test tab so plugin tools are callable.
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -1143,25 +1143,26 @@ test.describe('Permission change mid-flight — in-flight completes, next call d
       { timeout: 30_000 },
     );
 
-    // Wait until the dispatch is in-flight (server sent it to the extension)
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give the call time to reach the extension and start executing before
+    // changing permissions (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
-    // After 500ms, change e2e-test permission to 'off' and trigger hot reload
-    await new Promise(r => setTimeout(r, 500));
-
+    // Use POST /reload (config reload) instead of triggerHotReload (SIGUSR1)
+    // because hot reload kills the worker process, which would interrupt the
+    // in-flight slow call. Config reload re-reads config.json and updates
+    // permissions in-place without restarting the worker.
     const config = readTestConfig(mcpServer.configDir);
     config.permissions = { ...config.permissions, 'e2e-test': { permission: 'off' } };
     writeTestConfig(mcpServer.configDir, config);
 
     mcpServer.logs.length = 0;
-    mcpServer.triggerHotReload();
-    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-    await waitForExtensionConnected(mcpServer, 30_000);
+    const reloadRes = await fetch(`http://localhost:${mcpServer.port}/reload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${mcpServer.secret}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    expect(reloadRes.ok, `POST /reload failed: ${reloadRes.status}`).toBe(true);
+    await waitForLog(mcpServer, 'Config reload complete', 15_000);
 
     // The in-flight call already passed the permission check before dispatch.
     // It MUST complete successfully — permission changes only affect NEW calls.

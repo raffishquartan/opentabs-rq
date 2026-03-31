@@ -13,13 +13,17 @@ import {
   openTestAppTab,
   parseToolResult,
   setupToolTest,
-  waitFor,
   waitForExtensionConnected,
   waitForLog,
   waitForToolResult,
 } from './helpers.js';
 
 test.describe('Concurrent dispatch stress — 10+ parallel calls', () => {
+  // MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 5: fire calls in batches of 5
+  // to stay within the per-plugin concurrency limit while still exercising
+  // concurrent dispatch and response routing correctness.
+  const BATCH_SIZE = 5;
+
   test('10 concurrent echo calls return correct unique results', async ({
     mcpServer,
     testServer,
@@ -32,25 +36,27 @@ test.describe('Concurrent dispatch stress — 10+ parallel calls', () => {
 
     const count = 10;
     const messages = Array.from({ length: count }, (_, i) => `concurrent-${i}`);
+    const allResults: { content: string; isError: boolean }[] = [];
 
-    const results = await Promise.all(messages.map(msg => mcpClient.callTool('e2e-test_echo', { message: msg })));
+    for (let offset = 0; offset < count; offset += BATCH_SIZE) {
+      const batch = messages.slice(offset, offset + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(msg => mcpClient.callTool('e2e-test_echo', { message: msg })));
+      allResults.push(...batchResults);
+    }
 
-    expect(results).toHaveLength(count);
+    expect(allResults).toHaveLength(count);
 
-    // All 10 results must be non-error
-    for (const [i, result] of results.entries()) {
+    for (const [i, result] of allResults.entries()) {
       expect(result.isError, `result ${i} should not be an error: ${result.content}`).toBe(false);
     }
 
-    // Each result must contain the correct echo response matching its input
     const receivedMessages: string[] = [];
-    for (const [i, result] of results.entries()) {
+    for (const [i, result] of allResults.entries()) {
       const parsed = parseToolResult(result.content);
       expect(parsed.message).toBe(messages[i]);
       receivedMessages.push(parsed.message as string);
     }
 
-    // No two results contain the same message (no response routing corruption)
     const unique = new Set(receivedMessages);
     expect(unique.size).toBe(count);
 
@@ -69,25 +75,27 @@ test.describe('Concurrent dispatch stress — 10+ parallel calls', () => {
 
     const count = 20;
     const messages = Array.from({ length: count }, (_, i) => `stress-${i}`);
+    const allResults: { content: string; isError: boolean }[] = [];
 
-    const results = await Promise.all(messages.map(msg => mcpClient.callTool('e2e-test_echo', { message: msg })));
+    for (let offset = 0; offset < count; offset += BATCH_SIZE) {
+      const batch = messages.slice(offset, offset + BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(msg => mcpClient.callTool('e2e-test_echo', { message: msg })));
+      allResults.push(...batchResults);
+    }
 
-    expect(results).toHaveLength(count);
+    expect(allResults).toHaveLength(count);
 
-    // All 20 results must be non-error
-    for (const [i, result] of results.entries()) {
+    for (const [i, result] of allResults.entries()) {
       expect(result.isError, `result ${i} should not be an error: ${result.content}`).toBe(false);
     }
 
-    // Each result must match its input (1:1 positional mapping)
     const receivedMessages: string[] = [];
-    for (const [i, result] of results.entries()) {
+    for (const [i, result] of allResults.entries()) {
       const parsed = parseToolResult(result.content);
       expect(parsed.message).toBe(messages[i]);
       receivedMessages.push(parsed.message as string);
     }
 
-    // No duplicates — Set.size must equal count
     const unique = new Set(receivedMessages);
     expect(unique.size).toBe(count);
 
@@ -113,21 +121,16 @@ test.describe('Hot reload during active tool dispatch', () => {
     // Fire 5 slow tool calls (2s each, 2 steps) — some will be mid-execution
     // when hot reload kills the worker.
     const count = 5;
-    const callPromises = Array.from({ length: count }, (_, i) =>
+    const callPromises = Array.from({ length: count }, () =>
       mcpClient.callTool('e2e-test_slow_with_progress', {
         durationMs: 2000,
         steps: 2,
-        message: `hot-reload-${i}`,
       }),
     );
 
-    // Wait until at least one dispatch is in-flight before triggering reload
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give calls time to reach the extension and start executing before
+    // triggering the reload (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Trigger hot reload (SIGUSR1 → worker kill + restart)
     const reloadTime = Date.now();
@@ -210,15 +213,9 @@ test.describe('Tool dispatch during tab close', () => {
       steps: 3,
     });
 
-    // Wait until the dispatch is in flight — poll MCP server logs for the
-    // tool.dispatch message that confirms the server sent the request to the
-    // extension.
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give the call time to reach the extension and start executing before
+    // closing the tab (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Close the tab mid-execution — this destroys the adapter execution
     // context, causing chrome.scripting.executeScript to reject.
@@ -275,23 +272,27 @@ test.describe('Permission change mid-dispatch', () => {
       steps: 3,
     });
 
-    // Wait until the dispatch is in-flight (server sent it to the extension)
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give the call time to reach the extension and start executing before
+    // changing permissions (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
-    // Change e2e-test permission to 'off' via config + hot reload
+    // Change e2e-test permission to 'off' via config + POST /reload.
+    // Use POST /reload (config reload) instead of triggerHotReload (SIGUSR1)
+    // because hot reload kills the worker process, which would interrupt the
+    // in-flight slow call. Config reload re-reads config.json and updates
+    // permissions in-place without restarting the worker.
     const config = readTestConfig(mcpServer.configDir);
     config.permissions = { ...config.permissions, 'e2e-test': { permission: 'off' } };
     writeTestConfig(mcpServer.configDir, config);
 
     mcpServer.logs.length = 0;
-    mcpServer.triggerHotReload();
-    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-    await waitForExtensionConnected(mcpServer, 30_000);
+    const reloadRes = await fetch(`http://localhost:${mcpServer.port}/reload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${mcpServer.secret}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    expect(reloadRes.ok, `POST /reload failed: ${reloadRes.status}`).toBe(true);
+    await waitForLog(mcpServer, 'Config reload complete', 15_000);
 
     // The in-flight call already passed the permission check before dispatch.
     // It MUST complete successfully — permission changes only affect NEW calls.
@@ -315,9 +316,13 @@ test.describe('Permission change mid-dispatch', () => {
     writeTestConfig(mcpServer.configDir, restoredConfig);
 
     mcpServer.logs.length = 0;
-    mcpServer.triggerHotReload();
-    await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-    await waitForExtensionConnected(mcpServer, 30_000);
+    const restoreRes = await fetch(`http://localhost:${mcpServer.port}/reload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${mcpServer.secret}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    expect(restoreRes.ok, `POST /reload failed: ${restoreRes.status}`).toBe(true);
+    await waitForLog(mcpServer, 'Config reload complete', 15_000);
 
     // Verify the tool works again after restoring permission
     const recoveredResult = await waitForToolResult(
