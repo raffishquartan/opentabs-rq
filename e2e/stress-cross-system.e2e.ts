@@ -293,7 +293,8 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      // No tab.syncAll wait here — with 0 plugins, no match patterns exist,
+      // so the extension never evaluates tabs and never sends tab.syncAll.
 
       // Open side panel
       const sp = await openSidePanel(context);
