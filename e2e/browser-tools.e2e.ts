@@ -3290,4 +3290,49 @@ test.describe('stress', () => {
 
     await mcpClient.callTool('browser_close_tab', { tabId });
   });
+
+  test('browser_execute_script on tab closed mid-execution returns error within 5s', async ({
+    mcpServer,
+    testServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+    const tabId = await openTestServerTab(mcpClient, testServer);
+
+    // Fire a slow script (3s async operation)
+    const scriptPromise = mcpClient.callTool('browser_execute_script', {
+      tabId,
+      code: "return new Promise(resolve => setTimeout(() => resolve('slow'), 3000))",
+    });
+
+    // Close the tab 500ms after the call starts
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const closeStart = Date.now();
+    await mcpClient.callTool('browser_close_tab', { tabId });
+
+    // Result must arrive within 5s of tab closure
+    const result = await scriptPromise;
+    const elapsed = Date.now() - closeStart;
+
+    expect(result.isError).toBe(true);
+    expect(elapsed).toBeLessThan(5000);
+
+    // Error must reference tab being gone, not a generic timeout
+    const errorText = JSON.stringify(result.content);
+    expect(errorText).toMatch(/tab|cannot access/i);
+    expect(errorText).not.toMatch(/timed out/i);
+
+    // System not corrupted — a fresh execute_script on a different tab succeeds
+    const freshTabId = await openTestServerTab(mcpClient, testServer);
+    const freshResult = await mcpClient.callTool('browser_execute_script', {
+      tabId: freshTabId,
+      code: "return 'alive'",
+    });
+    expect(freshResult.isError).toBe(false);
+    const freshData = parseToolResult(freshResult.content);
+    expect((freshData.value as Record<string, unknown>).value).toBe('alive');
+
+    await mcpClient.callTool('browser_close_tab', { tabId: freshTabId });
+  });
 });
