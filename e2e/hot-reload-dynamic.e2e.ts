@@ -559,7 +559,7 @@ test.describe
       test.slow();
 
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
       await testServer.reset();
 
       // Verify e2e-test plugin tools are visible
@@ -607,7 +607,7 @@ test.describe
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
         // Wait for extension to re-sync after hot reload
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Poll until the tool is callable instead of fixed sleep
         await waitForToolResult(
@@ -1494,7 +1494,7 @@ test.describe
 
         // Wait for the extension to connect and open a test tab
         await waitForExtensionConnected(server);
-        await waitForLog(server, 'tab.syncAll received');
+        await waitForLog(server, 'plugin(s) mapped');
         await testServer.reset();
         const page = await openTestAppTab(context, testServer.url, server, testServer);
 

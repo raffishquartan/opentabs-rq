@@ -64,7 +64,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
       sendJsonRpc(wsAlpha, 'tab.syncAll', {
         tabs: {},
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // conn-beta has e2e-test plugin in ready state
       mcpServer.logs.length = 0;
@@ -76,7 +76,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up listener on conn-beta for the tool.dispatch message BEFORE calling the tool
       const betaDispatch = waitForWsMessage(wsBeta, msg => msg.method === 'tool.dispatch', 15_000);
@@ -126,7 +126,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -137,7 +137,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up dispatch handlers on BOTH connections — exactly one will receive it
       const setupDispatchHandler = (ws: WebSocket, marker: string) => {
@@ -182,11 +182,11 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
 
       // Neither connection has any e2e-test tabs
       sendJsonRpc(wsAlpha, 'tab.syncAll', { tabs: {} });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', { tabs: {} });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up handlers on both connections to respond with a "No matching tab" error
       // (simulating what the real extension would do when no adapter is loaded)
@@ -238,7 +238,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -249,7 +249,7 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Call plugin_list_tabs for the e2e-test plugin
       const result = await mcpClient.callTool('plugin_list_tabs', { plugin: 'e2e-test' });

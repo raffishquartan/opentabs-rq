@@ -117,7 +117,7 @@ test.describe('Side panel data flow — tab state changes', () => {
     try {
       // 2. Wait for extension to connect and content scripts to be registered
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -246,7 +246,7 @@ test.describe('Side panel data flow — tab state changes', () => {
     try {
       // 2. Wait for extension to connect and content scripts to be registered
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -411,7 +411,7 @@ test.describe('Side panel data flow — tool invocation animation', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open test app tab and wait for ready state
       const appTab = await context.newPage();
@@ -519,7 +519,7 @@ test.describe('Side panel data flow — tool invocation animation', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Initialize MCP client
       await mcpClient.initialize();
@@ -632,7 +632,7 @@ test.describe('stress', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open test app tab and wait for ready state
       const appTab = await context.newPage();

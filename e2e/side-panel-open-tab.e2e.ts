@@ -82,7 +82,7 @@ test.describe('Side panel open tab', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open a matching tab
       const appTab = await context.newPage();
@@ -150,7 +150,7 @@ test.describe('Side panel open tab', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open two matching tabs
       const appTab1 = await context.newPage();
@@ -260,7 +260,7 @@ test.describe('Side panel open tab', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel with no matching tabs (closed state, has homepage)
       const sidePanelPage = await openSidePanel(context);
@@ -365,7 +365,7 @@ test.describe('Side panel open tab', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel with no matching tabs — plugin is in 'closed' state
       const sidePanelPage = await openSidePanel(context);
@@ -443,7 +443,7 @@ test.describe('Side panel open tab', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 1. Open a matching tab at the test server URL (dynamic port).
       //    This causes the extension to persist the test server URL as the last-seen URL.
@@ -529,7 +529,7 @@ test.describe('stress', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open 3 matching tabs
       const tabs = [];

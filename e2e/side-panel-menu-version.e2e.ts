@@ -69,7 +69,7 @@ test.describe('stress', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -126,7 +126,7 @@ test.describe('Side panel — menu version items', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -193,7 +193,7 @@ test.describe('Side panel — menu version items', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);

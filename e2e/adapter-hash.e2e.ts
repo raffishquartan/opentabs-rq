@@ -48,7 +48,7 @@ test.describe('Adapter hash', () => {
     mcpServer.triggerHotReload();
 
     // Wait for the sync.full to be received and processed
-    await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
     // Give the extension time to process the sync.full and (not) re-inject.
     // The hash check happens synchronously during the injection pipeline,
@@ -98,7 +98,7 @@ test.describe('Adapter hash', () => {
     for (let i = 0; i < 3; i++) {
       mcpServer.logs.length = 0;
       mcpServer.triggerHotReload();
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
     }
 
     // After three skipped reconnects, the adapter and tools should still work
@@ -177,7 +177,7 @@ test.describe('Adapter hash', () => {
     // Trigger a hot reload (sync.full with same hash → skip re-injection)
     mcpServer.logs.length = 0;
     mcpServer.triggerHotReload();
-    await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
     // Wait for tool dispatch to be operational after the reconnect
     await waitForToolResult(mcpClient, 'e2e-test_get_status', {}, { isError: false }, 15_000);
@@ -218,7 +218,7 @@ test.describe('Adapter hash', () => {
     for (let i = 0; i < 3; i++) {
       mcpServer.logs.length = 0;
       mcpServer.triggerHotReload();
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
     }
 
     // Wait for tool dispatch to be operational after the reconnects
