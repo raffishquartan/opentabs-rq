@@ -307,11 +307,14 @@ test.describe('Stress: Audit log under rapid tool calls', () => {
       // Wait for the plugin to become ready
       await waitForToolResult(mcpClient, 'e2e-test_get_status', {}, { isError: false }, 30_000);
 
-      // Fire 50 echo calls sequentially (tests ordering, not throughput)
+      // Fire 50 echo calls sequentially (tests ordering, not throughput).
+      // Pace calls with a small delay to stay under the extension's
+      // tool.dispatch rate limit (30 requests per 1s window).
       const CALL_COUNT = 50;
       for (let i = 0; i < CALL_COUNT; i++) {
         const result = await mcpClient.callTool('e2e-test_echo', { message: `audit-seq-${i}` });
         expect(result.isError).toBe(false);
+        if (i < CALL_COUNT - 1) await new Promise(r => setTimeout(r, 40));
       }
 
       // Fetch audit log with limit high enough to capture all entries
