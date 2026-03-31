@@ -579,8 +579,10 @@ test.describe('Cross-system stress tests', () => {
       expect(client1.sessionId).not.toBe(client3.sessionId);
       expect(client2.sessionId).not.toBe(client3.sessionId);
 
-      // Warm up: verify echo tool is callable
-      await waitForToolResult(client1, 'e2e-test_echo', { message: 'warmup' }, { isError: false }, 15_000);
+      // Warm up: verify dispatch pipeline is ready for ALL clients
+      await waitForToolResult(client1, 'e2e-test_echo', { message: 'warmup-1' }, { isError: false }, 15_000);
+      await waitForToolResult(client2, 'e2e-test_echo', { message: 'warmup-2' }, { isError: false }, 15_000);
+      await waitForToolResult(client3, 'e2e-test_echo', { message: 'warmup-3' }, { isError: false }, 15_000);
 
       // Fire 15 calls in parallel (5 per client, each with unique prefix)
       const makeEchoCalls = (client: ReturnType<typeof createMcpClient>, prefix: string) =>
