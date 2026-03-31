@@ -157,6 +157,60 @@ test.describe('Browser permission persistence across reloads', () => {
     }
   });
 
+  test('5 concurrent POST /reload does not corrupt browser permission', async () => {
+    let configDir: string | undefined;
+    let server: McpServer | undefined;
+    let client: McpClient | undefined;
+    try {
+      // Start with browser permission 'auto'
+      configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-bperm-stress-'));
+      writeTestConfig(configDir, {
+        localPlugins: [],
+        permissions: { browser: { permission: 'auto' } },
+      });
+
+      server = await startMcpServer(configDir, true);
+      client = createMcpClient(server.port, server.secret);
+      await client.initialize();
+
+      // Wait for initial load
+      await waitForLog(server, 'Config loaded', 10_000);
+
+      // Fire 5 concurrent POST /reload requests
+      const port = server.port;
+      const dir = configDir;
+      const reloadPromises = Array.from({ length: 5 }, () => postReload(port, dir));
+      const results = await Promise.all(reloadPromises);
+
+      // All 5 must return HTTP 200
+      for (const resp of results) {
+        expect(resp.ok).toBe(true);
+      }
+
+      // Wait for the last reload to complete
+      await waitForLog(server, 'Config reload complete', 10_000);
+
+      // config.json on disk must be valid JSON
+      const configPath = path.join(configDir, 'config.json');
+      const rawConfig = fs.readFileSync(configPath, 'utf-8');
+      expect(() => {
+        JSON.parse(rawConfig);
+      }).not.toThrow();
+
+      // Browser permission must still be 'auto'
+      const diskPermission = readBrowserPermissionFromDisk(configDir);
+      expect(diskPermission).toBe('auto');
+
+      // listTools must return a non-empty array
+      const tools = await client.listTools();
+      expect(tools.length).toBeGreaterThan(0);
+    } finally {
+      await client?.close();
+      await server?.kill();
+      if (configDir) cleanupTestConfigDir(configDir);
+    }
+  });
+
   test('in-memory browser permission preserved when disk config has no browser entry', async () => {
     let configDir: string | undefined;
     let server: McpServer | undefined;
