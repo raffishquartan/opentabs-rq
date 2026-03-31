@@ -98,22 +98,26 @@ test.describe('Cross-system stress tests', () => {
         durationMs: 3000,
       });
 
-      // While the slow call is running, toggle the echo tool's permission Off→Auto
+      // While the slow call is running, toggle a DIFFERENT plugin's permission.
+      // Toggling the browser tools permission is truly independent of the e2e-test
+      // plugin's dispatch pipeline, so the in-flight slow call must be unaffected.
       await tick(300); // let the slow call get started
-      await selectPermission(sp, 'Permission for e2e-test plugin', 'Off');
+      await selectPermission(sp, 'Permission for browser tools', 'Off');
       await tick(200);
-      await selectPermission(sp, 'Permission for e2e-test plugin', 'Auto');
+      await selectPermission(sp, 'Permission for browser tools', 'Auto');
 
       // Wait for the slow call to settle
       const [slowResult] = await Promise.allSettled([slowCallPromise]);
 
-      // The slow call is on slow_with_progress, NOT echo.
-      // Permission change on echo must NOT affect unrelated in-flight calls.
+      // The slow call is on the e2e-test plugin. Toggling the browser plugin's
+      // permission must NOT affect the in-flight e2e-test call.
       expect(slowResult.status).toBe('fulfilled');
       const slowValue = (slowResult as PromiseFulfilledResult<{ isError?: boolean; content: string }>).value;
       expect(slowValue.isError).not.toBe(true);
 
-      // Verify the side panel's permission select shows 'Auto'
+      // Verify both permission selects show 'Auto' (browser was toggled back, e2e-test was never touched)
+      const browserTrigger = sp.locator('[aria-label="Permission for browser tools"]');
+      await expect(browserTrigger).toContainText('Auto', { timeout: 10_000 });
       const e2ePluginTrigger = sp.locator('[aria-label="Permission for e2e-test plugin"]');
       await expect(e2ePluginTrigger).toContainText('Auto', { timeout: 10_000 });
 
