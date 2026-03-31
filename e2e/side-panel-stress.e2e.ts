@@ -67,7 +67,7 @@ test.describe('Side panel stress test', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sp = await openSidePanel(context);

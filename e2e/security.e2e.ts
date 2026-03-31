@@ -579,7 +579,7 @@ test.describe('Network capture cleanup when tab closes', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await mcpClient.listTools();
 
     // 1. Open a tab
@@ -785,7 +785,7 @@ askTest.describe('Extension disconnect during pending ask confirmation', () => {
       await waitForLog(mcpServer, 'Hot reload complete', 20_000);
 
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       // Open the side panel so the confirmation dialog can appear
       const sidePanel = await openSidePanel(extensionContext);

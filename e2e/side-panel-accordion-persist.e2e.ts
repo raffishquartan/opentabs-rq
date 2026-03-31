@@ -41,7 +41,7 @@ test.describe('Side panel accordion state persistence', () => {
     try {
       // 2. Wait for extension to connect, open side panel
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
 
@@ -128,7 +128,7 @@ test.describe('Side panel accordion stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
       const pageErrors = collectPageErrors(sidePanelPage);

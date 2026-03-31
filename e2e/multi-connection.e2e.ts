@@ -128,7 +128,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Send tab.syncAll from wsBeta with e2e-test plugin having tab 2001
       mcpServer.logs.length = 0;
@@ -140,7 +140,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Health endpoint should show plugin with 'ready' state (merged view)
       const health = await mcpServer.waitForHealth(
@@ -166,7 +166,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Beta's tab should still be there
       const healthAfter = await mcpServer.waitForHealth(h => {
@@ -279,7 +279,7 @@ test.describe('Multi-connection WebSocket support', () => {
 
     // Wait for the real extension to connect and report tabs
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Open a page so the e2e-test plugin has a matching tab
     const page = await extensionContext.newPage();
@@ -403,7 +403,7 @@ test.describe('Multi-connection WebSocket support', () => {
 
     // Wait for the real extension to connect
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Open a second raw WS connection
     let rawWs: WebSocket | undefined;
@@ -479,7 +479,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -490,7 +490,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Call plugin_list_tabs for the e2e-test plugin
       const result = await mcpClient.callTool('plugin_list_tabs', { plugin: 'e2e-test' });
@@ -543,7 +543,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -554,7 +554,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up both connections to handle browser.enableNetworkCapture and browser.disableNetworkCapture
       const setupCaptureHandler = (ws: WebSocket) => {
@@ -969,7 +969,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -980,7 +980,7 @@ test.describe('Multi-connection WebSocket support', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up Beta to respond to tool.dispatch messages with a successful echo
       wsBeta.addEventListener('message', (event: MessageEvent) => {

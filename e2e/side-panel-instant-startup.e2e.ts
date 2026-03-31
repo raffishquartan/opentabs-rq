@@ -54,7 +54,7 @@ test.describe('Side panel instant startup from background cache', () => {
     try {
       // 2. Wait for extension to connect and sync.full to complete
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel and verify plugin is visible
       const sidePanelPage1 = await openSidePanel(context);
@@ -95,7 +95,7 @@ test.describe('Side panel instant startup from background cache', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel and verify plugin card is visible
       const sidePanelPage = await openSidePanel(context);
@@ -159,7 +159,7 @@ test.describe('Side panel instant startup from background cache', () => {
     try {
       // 2. Wait for extension to connect and initial sync to complete
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open a matching tab so there's a tab to probe during sync
       const appTab = await context.newPage();

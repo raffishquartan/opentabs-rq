@@ -54,7 +54,7 @@ test.describe('Side panel — browser tool groups', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel and verify Browser card is visible
       const sidePanelPage = await openSidePanel(context);
@@ -125,7 +125,7 @@ test.describe('Side panel — browser tool groups', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel and verify Browser card is visible
       const sidePanelPage = await openSidePanel(context);
@@ -210,7 +210,7 @@ test.describe('stress', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -284,7 +284,7 @@ test.describe('stress', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);

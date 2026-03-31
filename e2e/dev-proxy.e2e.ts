@@ -609,7 +609,7 @@ test.describe
         await waitForExtensionConnected(mcpServer, 30_000);
 
         // Wait for the extension to resync plugin/tool state with the new worker
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Poll until the tool is callable end-to-end through the extension
         await waitForToolResult(mcpClient, 'e2e-test_echo', { message: 'poll-check' }, { isError: false }, 20_000);
@@ -885,7 +885,7 @@ test.describe
         await waitForExtensionConnected(mcpServer, 30_000);
 
         // Wait for the extension to resync its plugin/tool state with the new worker
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Poll until the tool is callable again (tab state = ready after worker restart).
         // Both clients auto-reinitialize their sessions against the new worker.

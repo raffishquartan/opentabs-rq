@@ -46,7 +46,7 @@ test.describe('Side panel — plugin tool groups', () => {
     try {
       // 2. Wait for extension to connect
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // 3. Open side panel and verify plugin card is visible
       const sidePanelPage = await openSidePanel(context);
@@ -129,7 +129,7 @@ test.describe('Side panel — plugin tool groups', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -179,7 +179,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
       sidePanelPage.on('pageerror', error => pageErrors.push(error));

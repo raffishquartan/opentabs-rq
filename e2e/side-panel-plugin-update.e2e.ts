@@ -107,7 +107,7 @@ test.describe('Side panel — plugin update indicator', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open a matching tab so the plugin is in 'ready' state
       await openTestAppTab(context, testServer.url, server, testServer);
@@ -194,7 +194,7 @@ test.describe('Side panel — plugin update after reload', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -262,7 +262,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -347,7 +347,7 @@ test.describe('Side panel — plugin update flow', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);
@@ -409,7 +409,7 @@ test.describe('Side panel — plugin update flow', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       await openTestAppTab(context, testServer.url, server, testServer);
       const sidePanelPage = await openSidePanel(context);

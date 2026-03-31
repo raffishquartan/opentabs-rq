@@ -77,7 +77,7 @@ test.describe('Side panel — plugin list rendering', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -169,7 +169,7 @@ test.describe('Side panel — tool permission change', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open side panel
@@ -301,7 +301,7 @@ test.describe('Side panel — disabled tool dispatch rejection', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open a matching tab so the plugin reaches 'ready' state
@@ -422,7 +422,7 @@ test.describe('Side panel — plugin-level permission select', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Verify all e2e-test plugin tools initially appear in tools/list
@@ -549,7 +549,7 @@ test.describe('Side panel — browser tool plugin-level permission', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open side panel and verify browser card is visible
@@ -682,7 +682,7 @@ test.describe('Side panel — individual browser tool permission change', () => 
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open side panel and verify browser card is visible
@@ -815,7 +815,7 @@ test.describe('Side panel — plugin-level re-selection clears overrides', () =>
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);
@@ -875,7 +875,7 @@ test.describe('Side panel — skipPermissions mode and group headers', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -943,7 +943,7 @@ test.describe('Side panel — skipPermissions mode and group headers', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);
@@ -1010,7 +1010,7 @@ test.describe('Side panel — skipPermissions mode and group headers', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);
@@ -1096,7 +1096,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);
@@ -1192,7 +1192,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);

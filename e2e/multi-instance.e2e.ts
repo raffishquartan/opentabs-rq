@@ -95,7 +95,7 @@ const setupMultiInstanceTest = async (): Promise<MultiInstanceTestContext> => {
   await client.initialize();
 
   await waitForExtensionConnected(server);
-  await waitForLog(server, 'tab.syncAll received');
+  await waitForLog(server, 'plugin(s) mapped');
 
   return {
     configDir,

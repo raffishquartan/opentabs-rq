@@ -303,7 +303,7 @@ test.describe('Tab state transitions', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     // Don't open any tab to the test server.
@@ -568,7 +568,7 @@ test.describe('Adapter injection', () => {
     extensionContext,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -638,7 +638,7 @@ test.describe('Adapter injection', () => {
     extensionContext,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -689,7 +689,7 @@ test.describe('Adapter injection', () => {
     extensionContext,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);

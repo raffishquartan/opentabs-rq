@@ -335,7 +335,7 @@ test.describe('Tab state sync — server restart reconnect', () => {
     try {
       // 1. Wait for extension to connect and initial sync
       await waitForExtensionConnected(server1);
-      await waitForLog(server1, 'tab.syncAll received', 15_000);
+      await waitForLog(server1, 'plugin(s) mapped', 15_000);
 
       // 2. Open a matching tab and wait for 'ready' state
       const appTab = await context.newPage();
@@ -372,7 +372,7 @@ test.describe('Tab state sync — server restart reconnect', () => {
       try {
         // 4. Wait for the extension to reconnect and send tab.syncAll
         await waitForExtensionConnected(server2, 45_000);
-        await waitForLog(server2, 'tab.syncAll received', 30_000);
+        await waitForLog(server2, 'plugin(s) mapped', 30_000);
 
         // 5. Verify the server reports 'ready' state for the e2e-test plugin
         // after the reconnect sync — the matching tab is still open.
@@ -448,7 +448,7 @@ test.describe('Tab state sync — 5-tab churn', () => {
 
     // Wait for extension to connect and initial sync
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     // Open 5 tabs in a tight loop — no waiting for ready state between opens.

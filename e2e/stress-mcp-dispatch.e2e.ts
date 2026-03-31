@@ -13,7 +13,6 @@ import {
   openTestAppTab,
   parseToolResult,
   setupToolTest,
-  waitFor,
   waitForExtensionConnected,
   waitForLog,
   waitForToolResult,
@@ -122,21 +121,16 @@ test.describe('Hot reload during active tool dispatch', () => {
     // Fire 5 slow tool calls (2s each, 2 steps) — some will be mid-execution
     // when hot reload kills the worker.
     const count = 5;
-    const callPromises = Array.from({ length: count }, (_, i) =>
+    const callPromises = Array.from({ length: count }, () =>
       mcpClient.callTool('e2e-test_slow_with_progress', {
         durationMs: 2000,
         steps: 2,
-        message: `hot-reload-${i}`,
       }),
     );
 
-    // Wait until at least one dispatch is in-flight before triggering reload
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give calls time to reach the extension and start executing before
+    // triggering the reload (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Trigger hot reload (SIGUSR1 → worker kill + restart)
     const reloadTime = Date.now();
@@ -219,15 +213,9 @@ test.describe('Tool dispatch during tab close', () => {
       steps: 3,
     });
 
-    // Wait until the dispatch is in flight — poll MCP server logs for the
-    // tool.dispatch message that confirms the server sent the request to the
-    // extension.
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give the call time to reach the extension and start executing before
+    // closing the tab (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Close the tab mid-execution — this destroys the adapter execution
     // context, causing chrome.scripting.executeScript to reject.
@@ -284,13 +272,9 @@ test.describe('Permission change mid-dispatch', () => {
       steps: 3,
     });
 
-    // Wait until the dispatch is in-flight (server sent it to the extension)
-    await waitFor(
-      () => mcpServer.logs.some(line => line.includes('tool.dispatch') && line.includes('slow_with_progress')),
-      5_000,
-      100,
-      'slow_with_progress dispatch to reach extension',
-    );
+    // Give the call time to reach the extension and start executing before
+    // changing permissions (dispatch is near-instant over WebSocket).
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Change e2e-test permission to 'off' via config + hot reload
     const config = readTestConfig(mcpServer.configDir);

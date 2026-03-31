@@ -64,7 +64,7 @@ const setupStrictCspToolTest = async (
   mcpClient: McpClient,
 ): Promise<Page> => {
   await waitForExtensionConnected(mcpServer);
-  await waitForLog(mcpServer, 'tab.syncAll received');
+  await waitForLog(mcpServer, 'plugin(s) mapped');
   await strictCspServer.reset();
 
   const page = await openTestAppTab(extensionContext, strictCspServer.url, mcpServer);
@@ -355,7 +355,7 @@ fixtureTest.describe('Strict CSP — plugin.update re-injection', () => {
       mcpServer.triggerHotReload();
 
       await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
       // Adapter should still be present after sync.full (not torn down)
       const adapterAfter = await page.evaluate(() => {
@@ -386,7 +386,7 @@ fixtureTest.describe('Strict CSP — plugin.update re-injection', () => {
       mcpServer.triggerHotReload();
 
       await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
       // Reload the page — clears the JS context including the adapter.
       // The extension's tabs.onUpdated listener (status: 'complete') triggers
@@ -431,7 +431,7 @@ fixtureTest.describe('Strict CSP — connect-src blocks fetch', () => {
     'adapter injects but isReady returns false when connect-src blocks fetch',
     async ({ mcpServer, strictCspServer, extensionContext, mcpClient }) => {
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       // Enable connect-src 'none' — all fetch requests from the page will be blocked.
       // The adapter is injected via chrome.scripting.executeScript (bypasses CSP),
@@ -484,7 +484,7 @@ const openStrictCspTab = async (
   strictCspServer: TestServer,
 ): Promise<number> => {
   await waitForExtensionConnected(mcpServer);
-  await waitForLog(mcpServer, 'tab.syncAll received');
+  await waitForLog(mcpServer, 'plugin(s) mapped');
 
   const openResult = await mcpClient.callTool('browser_open_tab', { url: strictCspServer.url });
   expect(openResult.isError).toBe(false);
@@ -759,7 +759,7 @@ test.describe('Strict CSP — file watcher IIFE re-injection', () => {
 
       await client.initialize();
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received');
+      await waitForLog(server, 'plugin(s) mapped');
 
       // Open a tab to the strict-CSP test server and wait for adapter injection
       const page = await openTestAppTab(context, strictCspSrv.url, server);
@@ -856,7 +856,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for the extra plugin's tool to appear in the MCP tool list
         await waitForToolList(
@@ -923,7 +923,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for both adapters
         await waitFor(
@@ -984,7 +984,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for both adapters to be present
         await waitFor(
@@ -1021,7 +1021,7 @@ fixtureTest.describe('Strict CSP — multiple plugins on same page', () => {
         mcpServer.triggerHotReload();
 
         await waitForLog(mcpServer, 'Hot reload complete', 20_000);
-        await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
         // Wait for the removed plugin's tool to disappear from the tool list
         await waitForToolList(

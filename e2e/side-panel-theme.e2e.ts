@@ -40,7 +40,7 @@ test.describe('Side panel theme toggle', () => {
     try {
       // 2. Wait for extension to connect, open side panel
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanel = await openSidePanel(context);
 
@@ -97,7 +97,7 @@ test.describe('Side panel theme toggle', () => {
     try {
       // 2. Wait for extension to connect, open side panel
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       let sidePanel = await openSidePanel(context);
 
@@ -165,7 +165,7 @@ test.describe('Side panel theme stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanel = await openSidePanel(context);
       const pageErrors = collectPageErrors(sidePanel);
@@ -227,7 +227,7 @@ test.describe('Side panel theme stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       let sidePanel = await openSidePanel(context);
       const pageErrors = collectPageErrors(sidePanel);
