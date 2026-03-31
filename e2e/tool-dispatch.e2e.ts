@@ -775,11 +775,11 @@ test.describe('stress', () => {
     // Health endpoint shows exactly 1 matching tab with tabState='ready'
     const health = await mcpServer.health();
     expect(health).not.toBeNull();
-    expect(health!.status).toBe('ok');
-    const e2ePlugin = health!.pluginDetails?.find(p => p.name === 'e2e-test');
+    expect(health?.status).toBe('ok');
+    const e2ePlugin = health?.pluginDetails?.find(p => p.name === 'e2e-test');
     expect(e2ePlugin).toBeDefined();
-    expect(e2ePlugin!.tabState).toBe('ready');
-    expect(e2ePlugin!.tabs).toHaveLength(1);
+    expect(e2ePlugin?.tabState).toBe('ready');
+    expect(e2ePlugin?.tabs).toHaveLength(1);
 
     await page.close();
   });
