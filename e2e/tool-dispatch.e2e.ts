@@ -719,6 +719,73 @@ test.describe('Adapter injection', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Stress tests
+// ---------------------------------------------------------------------------
+
+test.describe('stress', () => {
+  test('tab churn 5 cycles — tool dispatch always recovers', async ({
+    mcpServer,
+    testServer,
+    extensionContext,
+    mcpClient,
+  }) => {
+    test.slow();
+
+    let page = await setupToolTest(mcpServer, testServer, extensionContext, mcpClient);
+
+    const CYCLES = 5;
+
+    for (let i = 0; i < CYCLES; i++) {
+      // Close the matching tab
+      await page.close();
+
+      // Verify tool call fails with isError=true within 10s
+      const failResult = await waitForToolResult(
+        mcpClient,
+        'e2e-test_echo',
+        { message: `churn-fail-${i}` },
+        { isError: true },
+        10_000,
+      );
+      expect(failResult.isError).toBe(true);
+
+      // Reopen matching tab and verify tool call succeeds within 15s
+      page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
+
+      const okResult = await waitForToolResult(
+        mcpClient,
+        'e2e-test_echo',
+        { message: `churn-ok-${i}` },
+        { isError: false },
+        15_000,
+      );
+      const output = parseToolResult(okResult.content);
+      expect(output.message).toBe(`churn-ok-${i}`);
+    }
+
+    // After all 5 cycles, verify final echo succeeds in under 3s (no accumulated recovery delay)
+    const finalStart = Date.now();
+    const finalResult = await mcpClient.callTool('e2e-test_echo', { message: 'churn-final' });
+    const finalElapsed = Date.now() - finalStart;
+    expect(finalResult.isError).toBe(false);
+    const finalOutput = parseToolResult(finalResult.content);
+    expect(finalOutput.message).toBe('churn-final');
+    expect(finalElapsed).toBeLessThan(3_000);
+
+    // Health endpoint shows exactly 1 matching tab with tabState='ready'
+    const health = await mcpServer.health();
+    expect(health).not.toBeNull();
+    expect(health!.status).toBe('ok');
+    const e2ePlugin = health!.pluginDetails?.find(p => p.name === 'e2e-test');
+    expect(e2ePlugin).toBeDefined();
+    expect(e2ePlugin!.tabState).toBe('ready');
+    expect(e2ePlugin!.tabs).toHaveLength(1);
+
+    await page.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Sequential tool calls — verifies no state leaks
 // ---------------------------------------------------------------------------
 
