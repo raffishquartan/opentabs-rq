@@ -223,10 +223,13 @@ test.describe('stress', () => {
       await waitForLog(server, 'Config reload complete', 15_000);
       await new Promise(r => setTimeout(r, 2_000));
 
-      // Verify exactly 1 plugin card (no duplicates).
-      // The INSTALLED section renders plugin names inside accordion triggers.
-      const pluginNames = sidePanelPage.getByText('E2E Test', { exact: true });
-      await expect(pluginNames).toHaveCount(1, { timeout: 30_000 });
+      // Verify the plugin card is still visible after rapid reloads.
+      await expect(sidePanelPage.locator('text=E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      // Verify no duplicate plugin cards. Count the number of accordion triggers
+      // whose text includes "E2E Test" (each plugin renders one trigger button).
+      const pluginTriggers = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'E2E Test' });
+      await expect(pluginTriggers).toHaveCount(1, { timeout: 5_000 });
 
       // Verify zero page errors
       expect(pageErrors).toHaveLength(0);
