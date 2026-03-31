@@ -65,7 +65,7 @@ test.describe('Side panel group transitions', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel — plugin has no matching tab so it's in the not-connected group
       const sidePanel = await openSidePanel(context);
@@ -118,7 +118,7 @@ test.describe('Side panel group transitions', () => {
       // Opening the tab before syncAll causes the ready state to be reported in syncAll
       // rather than as a separate tab.stateChanged event.
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanel = await openSidePanel(context);
       await expect(sidePanel.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -169,7 +169,7 @@ test.describe('Side panel group transitions', () => {
       // Opening the tab before syncAll causes the ready state to be reported in syncAll
       // rather than as a separate tab.stateChanged event.
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel, then open a matching tab so we get a real stateChanged event
       const sidePanel = await openSidePanel(context);
@@ -253,7 +253,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanel = await openSidePanel(context);
       sidePanel.on('pageerror', error => pageErrors.push(error));

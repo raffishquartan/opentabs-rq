@@ -84,7 +84,7 @@ test.describe('Icon pipeline — side panel rendering', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
 
@@ -130,7 +130,7 @@ test.describe('Icon pipeline — side panel rendering', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
       await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
@@ -238,7 +238,7 @@ test.describe('Icon pipeline — side panel rendering', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
 
@@ -332,7 +332,7 @@ test.describe('stress', () => {
       setupAdapterSymlink(configDir, ext.extensionDir);
 
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       const sidePanelPage = await openSidePanel(context);
       sidePanelPage.on('pageerror', error => pageErrors.push(error));

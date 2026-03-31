@@ -236,7 +236,7 @@ export const setupToolTest = async (
   mcpClient: McpClient,
 ): Promise<Page> => {
   await waitForExtensionConnected(mcpServer);
-  await waitForLog(mcpServer, 'tab.syncAll received');
+  await waitForLog(mcpServer, 'plugin(s) mapped');
   await testServer.reset();
 
   const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
@@ -422,7 +422,7 @@ export const setupIsolatedIifeTest = async (configDirPrefix: string): Promise<Is
 
     await client.initialize();
     await waitForExtensionConnected(server);
-    await waitForLog(server, 'tab.syncAll received');
+    await waitForLog(server, 'plugin(s) mapped');
 
     // Capture definite values for the cleanup closure (avoids non-null assertions
     // since the outer let bindings are typed as T | undefined).

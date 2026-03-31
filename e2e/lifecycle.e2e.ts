@@ -63,7 +63,7 @@ test.describe('MCP server lifecycle', () => {
     // Wait for the full connect→syncAll handshake to complete in the logs.
     // Under heavy parallel load, the extension's initial connection and
     // sync.full → tab.syncAll handshake can take longer than the default 15s.
-    await waitForLog(mcpServer, 'tab.syncAll received', 30_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 30_000);
 
     const h = await mcpServer.health();
     expect(h).not.toBeNull();
@@ -76,7 +76,7 @@ test.describe('MCP server lifecycle', () => {
     const logsJoined = mcpServer.logs.join('\n');
     expect(logsJoined).toMatch(/MCP server v[\d.]+ listening/);
     expect(logsJoined).toContain('Extension WebSocket connected');
-    expect(logsJoined).toContain('tab.syncAll received');
+    expect(logsJoined).toContain('plugin(s) mapped');
   });
 
   test('server starts without --hot and stays alive (no crash)', async ({ mcpServerNoHot }) => {
@@ -101,7 +101,7 @@ test.describe
     }) => {
       // 1. Wait for initial connection + full handshake
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       // 2. Clear logs to isolate hot-reload output
       mcpServer.logs.length = 0;
@@ -113,12 +113,12 @@ test.describe
       //    The server and WebSocket connection are preserved across reloads.
       //    The server sends sync.full to the extension via the existing connection,
       //    and the extension responds with tab.syncAll.
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
       // 5. Verify logs show the reload → resync sequence
       const logsJoined = mcpServer.logs.join('\n');
       expect(logsJoined).toContain('Hot reload complete');
-      expect(logsJoined).toContain('tab.syncAll received');
+      expect(logsJoined).toContain('plugin(s) mapped');
 
       // 6. Extension should still be connected after reload
       const h = await mcpServer.health();
@@ -135,7 +135,7 @@ test.describe
 
       // Wait for initial full handshake
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       for (let i = 1; i <= 3; i++) {
         mcpServer.logs.length = 0;
@@ -144,7 +144,7 @@ test.describe
         // Wait for the reload cycle: sync.full → tab.syncAll.
         // Use 30s timeout per reload — under parallel load, reconnect backoff
         // can take longer than the default 15s.
-        await waitForLog(mcpServer, 'tab.syncAll received', 30_000);
+        await waitForLog(mcpServer, 'plugin(s) mapped', 30_000);
 
         const logsJoined = mcpServer.logs.join('\n');
         expect(logsJoined).toContain('Hot reload complete');
@@ -162,7 +162,7 @@ test.describe
       extensionContext: _extensionContext,
     }) => {
       await waitForExtensionConnected(mcpServer);
-      await waitForLog(mcpServer, 'tab.syncAll received');
+      await waitForLog(mcpServer, 'plugin(s) mapped');
 
       // Note the plugin count before reload
       const before = await mcpServer.health();
@@ -175,7 +175,7 @@ test.describe
       mcpServer.triggerHotReload();
 
       // Wait for full cycle
-      await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
       // Plugin count should be the same after reload
       const after = await mcpServer.health();
@@ -196,7 +196,7 @@ test.describe('Kill and restart', () => {
   }) => {
     // 1. Initial connection
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Remember the port — the extension is configured for THIS port
     const serverPort = mcpServer.port;
@@ -224,7 +224,7 @@ test.describe('Kill and restart', () => {
       //    for the next max-backoff interval + 5s for the reconnection handshake.
       await newServer.waitForHealth(h => h.extensionConnected, 65_000);
 
-      await waitForLog(newServer, 'tab.syncAll received', 15_000);
+      await waitForLog(newServer, 'plugin(s) mapped', 15_000);
 
       expect(newServer.logs.join('\n')).toContain('Extension WebSocket connected');
     } finally {
@@ -240,7 +240,7 @@ test.describe('WebSocket connection management', () => {
   }) => {
     // 1. Wait for the real extension to connect
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     mcpServer.logs.length = 0;
 
     // 2. Open a second WebSocket with wsSecret — this should replace the extension's slot.
@@ -334,7 +334,7 @@ test.describe('Pong watchdog (zombie detection)', () => {
   }) => {
     // 1. Wait for extension to connect
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // 2. Steal the extension's slot with a fake client.
     //    The server's replacement logic closes the real extension's WS.
@@ -374,7 +374,7 @@ test.describe('Pong watchdog (zombie detection)', () => {
     await waitForExtensionConnected(mcpServer, 15_000);
 
     // Wait for full handshake
-    await waitForLog(mcpServer, 'tab.syncAll received', 15_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 15_000);
 
     const h = await mcpServer.health();
     expect(h).not.toBeNull();
@@ -384,7 +384,7 @@ test.describe('Pong watchdog (zombie detection)', () => {
     // Verify the reconnect happened (fresh "connected" + "tab.syncAll")
     const logsJoined = mcpServer.logs.join('\n');
     expect(logsJoined).toContain('Extension WebSocket connected');
-    expect(logsJoined).toContain('tab.syncAll received');
+    expect(logsJoined).toContain('plugin(s) mapped');
   });
 });
 
@@ -490,7 +490,7 @@ test.describe('Secret rotation during hot reload', () => {
 
     // Verify extension is connected and tools work
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const preResult = await mcpClient.callTool('browser_list_tabs');
     expect(preResult.isError).toBe(false);
@@ -517,7 +517,7 @@ test.describe('Secret rotation during hot reload', () => {
     // re-fetching /ws-info to get a token signed with the new secret.
     // Wait for the extension to reconnect after the hot reload.
     await waitForExtensionConnected(mcpServer, 45_000);
-    await waitForLog(mcpServer, 'tab.syncAll received', 15_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 15_000);
 
     // Tool dispatch works through the new authenticated connection.
     // The original mcpClient was created with the old secret, so create a
@@ -537,7 +537,7 @@ test.describe('Side panel connectivity', () => {
   test('side panel shows connected state after extension connects', async ({ mcpServer, extensionContext }) => {
     // Wait for the extension to connect to the server
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Verify the background service worker is running.
     // In Playwright, MV3 service workers appear via context.serviceWorkers().
@@ -651,12 +651,12 @@ test.describe('extension_reload', () => {
     try {
       // 6. Wait for the fresh extension to connect and complete the full handshake
       await waitForExtensionConnected(mcpServer, 45_000);
-      await waitForLog(mcpServer, 'tab.syncAll received', 15_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 15_000);
 
       // 7. Verify server logs show the full reconnect cycle
       const logsJoined = mcpServer.logs.join('\n');
       expect(logsJoined).toContain('Extension WebSocket connected');
-      expect(logsJoined).toContain('tab.syncAll received');
+      expect(logsJoined).toContain('plugin(s) mapped');
 
       // 8. Verify the extension is connected via health endpoint
       const h = await mcpServer.health();
@@ -824,7 +824,7 @@ test.describe('URL change reconnection', () => {
 
     // 1. Verify extension is connected to server A and tools work
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const preResult = await mcpClient.callTool('browser_list_tabs');
     expect(preResult.isError).toBe(false);
@@ -882,7 +882,7 @@ test.describe('URL change reconnection', () => {
 
       // 5. Wait for extension to connect to server B
       await waitForExtensionConnected(serverB, 45_000);
-      await waitForLog(serverB, 'tab.syncAll received', 15_000);
+      await waitForLog(serverB, 'plugin(s) mapped', 15_000);
 
       // 6. Verify server B shows the extension connected
       const h = await serverB.health();

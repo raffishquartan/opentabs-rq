@@ -72,7 +72,7 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open test app tab and wait for adapter injection
@@ -181,7 +181,7 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       // Open test app tab and wait for adapter injection
@@ -287,7 +287,7 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel
       const sp = await openSidePanel(context);
@@ -382,7 +382,7 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open test app tab and wait for adapter injection
       await openTestAppTab(context, testServer.url, server, testServer);
@@ -554,7 +554,7 @@ test.describe('Cross-system stress tests', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open test app tab and wait for adapter injection
       await openTestAppTab(context, testServer.url, server, testServer);

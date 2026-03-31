@@ -40,7 +40,7 @@ const initAndListTools = async (
   mcpClient: McpClient,
 ): Promise<Array<{ name: string; description: string }>> => {
   await waitForExtensionConnected(mcpServer);
-  await waitForLog(mcpServer, 'tab.syncAll received');
+  await waitForLog(mcpServer, 'plugin(s) mapped');
   return mcpClient.listTools();
 };
 
@@ -3215,7 +3215,7 @@ test.describe('Extension debugging tools', () => {
     await initAndListTools(mcpServer, mcpClient);
 
     // Record how many tab.syncAll messages have been received before reconnect
-    const syncCountBefore = mcpServer.logs.filter(l => l.includes('tab.syncAll received')).length;
+    const syncCountBefore = mcpServer.logs.filter(l => l.includes('plugin(s) mapped')).length;
 
     // Call force reconnect
     const result = await mcpClient.callTool('extension_force_reconnect');
@@ -3227,7 +3227,7 @@ test.describe('Extension debugging tools', () => {
     // Wait for a fresh tab.syncAll (indicates the extension reconnected and re-synced)
     await waitFor(
       () => {
-        const syncCount = mcpServer.logs.filter(l => l.includes('tab.syncAll received')).length;
+        const syncCount = mcpServer.logs.filter(l => l.includes('plugin(s) mapped')).length;
         return syncCount > syncCountBefore;
       },
       30_000,

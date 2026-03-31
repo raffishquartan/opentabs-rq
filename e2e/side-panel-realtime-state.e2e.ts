@@ -57,7 +57,7 @@ test.describe('Side panel real-time state propagation', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await waitForLog(server, 'Config watcher: Watching', 10_000);
       await mcpClient.initialize();
 
@@ -131,7 +131,7 @@ test.describe('Side panel real-time state propagation', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -192,7 +192,7 @@ test.describe('Side panel real-time state propagation', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open side panel
       const sidePanelPage = await openSidePanel(context);
@@ -248,7 +248,7 @@ test.describe('Side panel real-time state propagation', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await waitForLog(server, 'Config watcher: Watching', 10_000);
       await mcpClient.initialize();
 
@@ -327,7 +327,7 @@ test.describe('Side panel real-time state propagation', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
 
       // Open a matching tab and wait for ready state
       const appTab = await context.newPage();
@@ -413,7 +413,7 @@ test.describe('stress', () => {
 
     try {
       await waitForExtensionConnected(server);
-      await waitForLog(server, 'tab.syncAll received', 15_000);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
       await mcpClient.initialize();
 
       const sidePanelPage = await openSidePanel(context);

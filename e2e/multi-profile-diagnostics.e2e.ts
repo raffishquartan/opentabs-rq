@@ -61,7 +61,7 @@ test.describe('Multi-profile aggregated extension diagnostics', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -72,7 +72,7 @@ test.describe('Multi-profile aggregated extension diagnostics', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up auto-responders for extension.getState on both connections
       setupAutoResponder(wsAlpha, 'extension.getState', {
@@ -274,7 +274,7 @@ test.describe('Multi-profile aggregated extension diagnostics', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       mcpServer.logs.length = 0;
       sendJsonRpc(wsBeta, 'tab.syncAll', {
@@ -285,7 +285,7 @@ test.describe('Multi-profile aggregated extension diagnostics', () => {
           },
         },
       });
-      await waitForLog(mcpServer, 'tab.syncAll received', 5_000);
+      await waitForLog(mcpServer, 'plugin(s) mapped', 5_000);
 
       // Set up auto-responders with different log entries
       setupAutoResponder(wsAlpha, 'extension.getState', {

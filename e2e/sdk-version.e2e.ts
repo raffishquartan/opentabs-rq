@@ -133,7 +133,7 @@ test.describe('SDK version compatibility', () => {
     extensionContext: _extensionContext,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const health = await mcpServer.health();
     expect(health).not.toBeNull();

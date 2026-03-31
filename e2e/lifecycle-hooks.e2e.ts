@@ -328,7 +328,7 @@ test.describe('Lifecycle hooks', () => {
     mcpServer.triggerHotReload();
 
     // Wait for sync.full to be processed
-    await waitForLog(mcpServer, 'tab.syncAll received', 20_000);
+    await waitForLog(mcpServer, 'plugin(s) mapped', 20_000);
 
     // Give the extension time to process (injection skip is synchronous)
     await waitFor(

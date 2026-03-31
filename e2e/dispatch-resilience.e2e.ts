@@ -170,7 +170,7 @@ test.describe('Multi-tab same plugin', () => {
     test.slow();
 
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
     await testServer.reset();
 
     // Open first tab
@@ -290,7 +290,7 @@ test.describe('Tool call during reconnect window', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Replace the extension's WebSocket slot with a fake client to disconnect the real extension.
     mcpServer.logs.length = 0;
@@ -343,7 +343,7 @@ test.describe('Tool call during reconnect window', () => {
     mcpClient,
   }) => {
     await waitForExtensionConnected(mcpServer);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Disconnect the extension by replacing the WS slot
     mcpServer.logs.length = 0;
@@ -601,7 +601,7 @@ test.describe('Server-side dispatch timeout', () => {
     // Verify recovery: wait for the real extension to reconnect, then confirm
     // subsequent tool calls work normally.
     await waitForExtensionConnected(mcpServer, 45_000);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     const afterTimeoutResult = await waitForToolResult(
       mcpClient,
@@ -835,7 +835,7 @@ test.describe('Malformed WebSocket messages', () => {
     }
     // Wait for the real extension to reconnect after the raw WS is closed
     await waitForExtensionConnected(mcpServer, 45_000);
-    await waitForLog(mcpServer, 'tab.syncAll received');
+    await waitForLog(mcpServer, 'plugin(s) mapped');
 
     // Verify tool calls still work after the malformed message barrage
     const afterOutput = await waitForToolResult(
