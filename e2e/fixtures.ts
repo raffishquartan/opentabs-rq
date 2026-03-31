@@ -878,6 +878,19 @@ const createExtensionCopy = (
     }
     fs.writeFileSync(offscreenPath, patchedOffscreen, 'utf-8');
 
+    // Patch the side panel bundle so the PortEditor shows the test port
+    // instead of the default 9515. Without this, stress tests that read
+    // the displayed port and re-enter it would trigger a reconnect to 9515.
+    const sidePanelPath = path.join(extensionDir, 'dist/side-panel/side-panel.js');
+    const sidePanelCode = fs.readFileSync(sidePanelPath, 'utf-8');
+    const patchedSidePanel = sidePanelCode.replace(portPattern, `var DEFAULT_SERVER_PORT = ${mcpPort}`);
+    if (patchedSidePanel === sidePanelCode) {
+      throw new Error(
+        `Failed to patch side-panel.js — could not find "var DEFAULT_SERVER_PORT = 9515" in ${sidePanelPath}`,
+      );
+    }
+    fs.writeFileSync(sidePanelPath, patchedSidePanel, 'utf-8');
+
     // Create adapters/ directory for plugin adapter IIFEs
     fs.mkdirSync(path.join(extensionDir, 'adapters'), { recursive: true });
 
