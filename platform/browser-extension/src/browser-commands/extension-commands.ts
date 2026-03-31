@@ -464,6 +464,17 @@ export const handleBrowserExecuteScript = async (
             return { value: data.result };
           }
 
+          // No usable result — verify the tab still exists before continuing.
+          // On some platforms, chrome.scripting.executeScript returns empty
+          // results instead of throwing when the tab is closing.
+          if (!data) {
+            try {
+              await chrome.tabs.get(tabId);
+            } catch {
+              throw new Error(`Tab ${tabId} was closed during script execution`);
+            }
+          }
+
           // Still pending — wait and retry
           await new Promise(resolve => setTimeout(resolve, EXEC_POLL_INTERVAL_MS));
           elapsed += EXEC_POLL_INTERVAL_MS;
