@@ -501,85 +501,18 @@ test.describe('Multi-instance robust — hot-reload instance addition', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cross-host test infrastructure (localhost vs 127.0.0.1)
+// Two-instance test infrastructure (both on localhost, different ports)
 // ---------------------------------------------------------------------------
 
-interface CrossHostTestContext {
-  configDir: string;
-  server: McpServer;
-  alphaServer: TestServer;
-  betaServer: TestServer;
-  context: Awaited<ReturnType<typeof launchExtensionContext>>['context'];
-  cleanupDir: string;
-  client: McpClient;
-  alphaUrl: string;
-  betaUrl: string;
-}
-
 /**
- * Set up a cross-host multi-instance test environment:
- * alpha on localhost, beta on 127.0.0.1 (same server, different hostnames).
+ * Alias for SameHostTestContext — used by tests that need two distinct
+ * instances with separate servers. Originally used localhost vs 127.0.0.1 but
+ * chrome.tabs.query in Playwright Chromium doesn't match IP-address-based
+ * patterns reliably, so both instances use localhost on different ports.
  */
-const setupCrossHostTest = async (): Promise<CrossHostTestContext> => {
-  const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
-  const prefixedToolNames = readPluginToolNames();
-  const tools: Record<string, boolean> = {};
-  for (const t of prefixedToolNames) {
-    tools[t] = true;
-  }
-
-  const alphaServer = await startTestServer();
-  const betaServer = await startTestServer();
-
-  const alphaUrl = alphaServer.url; // http://localhost:<portA>
-  const betaUrl = betaServer.url.replace('localhost', '127.0.0.1'); // http://127.0.0.1:<portB>
-
-  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-crosshost-'));
-  writeTestConfig(configDir, {
-    localPlugins: [absPluginPath],
-    tools,
-    settings: {
-      'e2e-test': {
-        instanceUrl: {
-          alpha: alphaUrl,
-          beta: betaUrl,
-        },
-      },
-    },
-  });
-
-  const server = await startMcpServer(configDir, true);
-  const ext = await launchExtensionContext(server.port, server.secret);
-  setupAdapterSymlink(configDir, ext.extensionDir);
-
-  const client = createMcpClient(server.port, server.secret);
-  await client.initialize();
-
-  await waitForExtensionConnected(server);
-  await waitForLog(server, 'plugin(s) mapped');
-
-  return {
-    configDir,
-    server,
-    alphaServer,
-    betaServer,
-    context: ext.context,
-    cleanupDir: ext.cleanupDir,
-    client,
-    alphaUrl,
-    betaUrl,
-  };
-};
-
-const cleanupCrossHostTest = async (ctx: CrossHostTestContext): Promise<void> => {
-  await ctx.client.close();
-  await ctx.context.close().catch(() => {});
-  await ctx.alphaServer.kill();
-  await ctx.betaServer.kill();
-  await ctx.server.kill();
-  fs.rmSync(ctx.cleanupDir, { recursive: true, force: true });
-  cleanupTestConfigDir(ctx.configDir);
-};
+type CrossHostTestContext = SameHostTestContext;
+const setupCrossHostTest = setupSameHostTest;
+const cleanupCrossHostTest = cleanupSameHostTest;
 
 test.describe('Multi-instance robust — hot-reload instance removal', () => {
   test('removing an instance via config + POST /reload returns Unknown instance error', async () => {
@@ -671,10 +604,10 @@ test.describe('Multi-instance robust — tabId + instance conflict precedence', 
     try {
       ctx = await setupCrossHostTest();
 
-      // Open alpha tab (localhost)
+      // Open alpha tab
       const alphaPage = await openTabAndWaitForAdapter(ctx.context, ctx.alphaUrl, ctx.server, ctx.alphaServer);
 
-      // Open beta tab (127.0.0.1)
+      // Open beta tab
       const betaPage = await openTabAndWaitForAdapter(ctx.context, ctx.betaUrl, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
@@ -732,10 +665,10 @@ test.describe('Multi-instance robust — rapid sequential dispatch', () => {
     try {
       ctx = await setupCrossHostTest();
 
-      // Open alpha tab (localhost)
+      // Open alpha tab
       const alphaPage = await openTabAndWaitForAdapter(ctx.context, ctx.alphaUrl, ctx.server, ctx.alphaServer);
 
-      // Open beta tab (127.0.0.1)
+      // Open beta tab
       const betaPage = await openTabAndWaitForAdapter(ctx.context, ctx.betaUrl, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
@@ -799,10 +732,10 @@ test.describe('Multi-instance robust — concurrent burst dispatch', () => {
     try {
       ctx = await setupCrossHostTest();
 
-      // Open alpha tab (localhost)
+      // Open alpha tab
       const alphaPage = await openTabAndWaitForAdapter(ctx.context, ctx.alphaUrl, ctx.server, ctx.alphaServer);
 
-      // Open beta tab (127.0.0.1)
+      // Open beta tab
       const betaPage = await openTabAndWaitForAdapter(ctx.context, ctx.betaUrl, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
@@ -1130,6 +1063,92 @@ test.describe('Multi-instance robust — per-tab getConfig isolation under concu
       await betaPage.close();
     } finally {
       if (ctx) await cleanupCrossHostTest(ctx);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US-016: Duplicate hostname warning is logged
+// ---------------------------------------------------------------------------
+
+test.describe('Multi-instance robust — duplicate hostname warning', () => {
+  test('two instances with same derived pattern trigger ambiguous routing warning', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const prefixedToolNames = readPluginToolNames();
+    const tools: Record<string, boolean> = {};
+    for (const t of prefixedToolNames) {
+      tools[t] = true;
+    }
+
+    // Start one test server — both instances will point to the same host:port
+    const testServer = await startTestServer();
+    const serverUrl = testServer.url; // http://localhost:<port>
+
+    // Configure two instances with same host:port but different paths.
+    // Both derive the same pattern: *://localhost:<port>/*
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-robust-dup-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      tools,
+      settings: {
+        'e2e-test': {
+          instanceUrl: {
+            prod: `${serverUrl}/prod`,
+            staging: `${serverUrl}/staging`,
+          },
+        },
+      },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    let ext: Awaited<ReturnType<typeof launchExtensionContext>> | undefined;
+    let client: McpClient | undefined;
+
+    try {
+      // Wait for the server to process settings — the duplicate pattern warning
+      // is logged during settings resolution at startup.
+      await waitForLog(server, 'instance routing will be ambiguous', 15_000);
+
+      // Verify the warning names both instances and the duplicate pattern
+      const warningLine = server.logs.find(l => l.includes('instance routing will be ambiguous'));
+      expect(warningLine).toBeDefined();
+      expect(warningLine).toContain('prod');
+      expect(warningLine).toContain('staging');
+
+      // Set up extension and client to verify dispatch still works
+      ext = await launchExtensionContext(server.port, server.secret);
+      setupAdapterSymlink(configDir, ext.extensionDir);
+      client = createMcpClient(server.port, server.secret);
+      await client.initialize();
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'plugin(s) mapped');
+
+      // Open a tab to the test server
+      const page = await openTabAndWaitForAdapter(ext.context, serverUrl, server, testServer);
+
+      // Wait for the tab to be ready
+      await waitForReadyTabs(client, 1);
+
+      // Dispatch should still work (last-write-wins for duplicate patterns)
+      await testServer.reset();
+      const echoResult = await client.callTool('e2e-test_echo', {
+        message: 'dup-pattern-test',
+        instance: 'staging',
+      });
+      expect(echoResult.isError).toBe(false);
+      const echoParsed = JSON.parse(echoResult.content) as { message: string };
+      expect(echoParsed.message).toBe('dup-pattern-test');
+
+      await page.close();
+    } finally {
+      if (client) await client.close();
+      if (ext) await ext.context.close().catch(() => {});
+      await server.kill();
+      await testServer.kill();
+      if (ext) fs.rmSync(ext.cleanupDir, { recursive: true, force: true });
+      cleanupTestConfigDir(configDir);
     }
   });
 });
