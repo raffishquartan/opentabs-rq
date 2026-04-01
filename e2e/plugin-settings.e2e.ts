@@ -243,8 +243,8 @@ test.describe('Plugin settings — side panel', () => {
         timeout: 30_000,
       });
 
-      // Verify NeedsSetup badge is NOT shown (all configSchema fields are optional)
-      await expect(sidePanelPage.getByText('Needs Setup')).not.toBeVisible();
+      // Verify unconfigured state is NOT shown (all configSchema fields are optional)
+      await expect(sidePanelPage.getByRole('button', { name: 'Configure' })).not.toBeVisible();
 
       // Open the kebab menu (PluginMenu) on the e2e-test plugin card
       const menuButton = sidePanelPage.locator('[aria-label="Plugin options"]');
