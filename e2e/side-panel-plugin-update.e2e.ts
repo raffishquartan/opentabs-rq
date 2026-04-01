@@ -488,6 +488,92 @@ test.describe('stress — rapid reload spam with update notification', () => {
   });
 });
 
+test.describe('stress — concurrent update + reload race condition', () => {
+  test('concurrent simulate-update and POST /reload settle to correct state', async () => {
+    test.slow();
+
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const { name: pkgName, version: currentVersion } = getPluginPackageInfo();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-update-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto' } },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const testServer = await startTestServer();
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    const pageErrors: Error[] = [];
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
+
+      await openTestAppTab(context, testServer.url, server, testServer);
+      const sidePanelPage = await openSidePanel(context);
+
+      sidePanelPage.on('pageerror', err => pageErrors.push(err));
+
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const secret = server.secret;
+      expect(secret).toBeTruthy();
+      if (!secret) throw new Error('Server secret is required');
+
+      // Inject outdated data with latestVersion = '99.0.0'
+      await setOutdatedPlugins(server.port, secret, [
+        {
+          name: pkgName,
+          currentVersion,
+          latestVersion: '99.0.0',
+          updateCommand: `npm update -g ${pkgName}`,
+        },
+      ]);
+
+      // Wait for update dot to appear
+      const menuButton = sidePanelPage.locator('[aria-label="Plugin options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
+      await expect(updateDot).toBeVisible({ timeout: 10_000 });
+
+      // Fire simulate-update and POST /reload concurrently.
+      // simulateUpdate sets the registry version to 99.0.0 and clears the
+      // outdated entry. POST /reload re-runs discovery and pruneStaleState
+      // (which also clears the entry since installed version now matches).
+      // Both send plugins.changed notifications — the side panel must settle
+      // to a consistent final state regardless of completion order.
+      await Promise.all([
+        simulateUpdate(server.port, secret, 'e2e-test', '99.0.0'),
+        fetch(`http://localhost:${server.port}/reload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${secret}` },
+        }),
+      ]);
+
+      // Wait for everything to settle
+      await new Promise(r => setTimeout(r, 3_000));
+
+      // Update dot should be gone (plugin is now at latest version)
+      await expect(updateDot).not.toBeVisible({ timeout: 10_000 });
+
+      // Verify exactly one plugin card (no duplicates from rapid state updates)
+      const pluginTriggers = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'E2E Test' });
+      await expect(pluginTriggers).toHaveCount(1, { timeout: 5_000 });
+
+      // Zero page errors
+      expect(pageErrors).toHaveLength(0);
+    } finally {
+      await context.close();
+      await server.kill();
+      await testServer.kill();
+      cleanupTestConfigDir(configDir);
+      if (cleanupDir) fs.rmSync(cleanupDir, { recursive: true, force: true });
+    }
+  });
+});
+
 test.describe('Side panel — plugin update flow', () => {
   test('clicking Update on a local plugin shows error alert on failure', async () => {
     const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
