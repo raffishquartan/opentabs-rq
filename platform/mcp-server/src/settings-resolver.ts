@@ -88,6 +88,18 @@ const resolvePluginSettings = (
             );
             continue;
           }
+          const duplicateInField = Object.entries(validEntries).find(([, p]) => p === pattern);
+          if (duplicateInField) {
+            log.warn(
+              `Plugin "${pluginName}" setting "${key}": instances "${duplicateInField[0]}" and "${instanceName}" both derive pattern "${pattern}" — instance routing will be ambiguous`,
+            );
+          }
+          const duplicateInPrev = Object.entries(instanceMap).find(([, p]) => p === pattern);
+          if (duplicateInPrev) {
+            log.warn(
+              `Plugin "${pluginName}": instances "${duplicateInPrev[0]}" and "${instanceName}" both derive pattern "${pattern}" — instance routing will be ambiguous`,
+            );
+          }
           derivedPatterns.push(pattern);
           validEntries[instanceName] = pattern;
           if (!derivedHomepage) derivedHomepage = url;
