@@ -122,6 +122,68 @@ describe('plugin_list_tabs connectionId annotations', () => {
     expect(result.error).toContain('not found');
   });
 
+  test('port-aware instance annotation: same hostname different ports are distinguished', async () => {
+    const state = createState();
+    const conn = createMockConnection('conn-a');
+    state.extensionConnections.set('conn-a', conn);
+
+    const plugin = {
+      ...makePlugin('grafana', 'Grafana'),
+      instanceMap: {
+        alpha: '*://localhost:3000/*',
+        beta: '*://localhost:3001/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+
+    conn.tabMapping.set('grafana', {
+      state: 'ready',
+      tabs: [
+        { tabId: 10, url: 'http://localhost:3000/dashboard', title: 'Grafana Alpha', ready: true },
+        { tabId: 20, url: 'http://localhost:3001/dashboard', title: 'Grafana Beta', ready: true },
+      ],
+    });
+
+    const result = (await pluginListTabs.handler({ plugin: 'grafana' }, state)) as Array<{
+      plugin: string;
+      tabs: Array<{ tabId: number; instance?: string }>;
+    }>;
+
+    expect(result).toHaveLength(1);
+    const entry = result[0];
+    expect(entry?.tabs).toHaveLength(2);
+    expect(entry?.tabs.find(t => t.tabId === 10)?.instance).toBe('alpha');
+    expect(entry?.tabs.find(t => t.tabId === 20)?.instance).toBe('beta');
+  });
+
+  test('port-aware instance annotation: tab on wrong port gets no instance label', async () => {
+    const state = createState();
+    const conn = createMockConnection('conn-a');
+    state.extensionConnections.set('conn-a', conn);
+
+    const plugin = {
+      ...makePlugin('grafana', 'Grafana'),
+      instanceMap: {
+        alpha: '*://localhost:3000/*',
+      },
+    };
+    state.registry = buildRegistry([plugin], []);
+
+    conn.tabMapping.set('grafana', {
+      state: 'ready',
+      tabs: [{ tabId: 10, url: 'http://localhost:3001/dashboard', title: 'Grafana Wrong Port', ready: true }],
+    });
+
+    const result = (await pluginListTabs.handler({ plugin: 'grafana' }, state)) as Array<{
+      plugin: string;
+      tabs: Array<{ tabId: number; instance?: string }>;
+    }>;
+
+    expect(result).toHaveLength(1);
+    const tab = result[0]?.tabs[0];
+    expect(tab?.instance).toBeUndefined();
+  });
+
   test('tabs from multiple connections for the same plugin are merged', async () => {
     const state = createState();
     const connA = createMockConnection('profile-1');
