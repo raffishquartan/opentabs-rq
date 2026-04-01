@@ -229,9 +229,16 @@ test.describe('Side panel — plugin update after reload', () => {
       expect(reloadRes.ok).toBe(true);
 
       // After reload completes, the update dot should still be visible.
-      // The new checkForUpdates + plugins.changed path in performConfigReload
-      // ensures the extension's update state stays in sync with the server.
+      // pruneStaleState checks versions: since the installed version is still
+      // older than latestVersion (99.0.0), the outdated entry is retained.
       await expect(updateDot).toBeVisible({ timeout: 15_000 });
+
+      // Open menu and verify the Update menu item is still present with correct version
+      await menuButton.click();
+      const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
+      await expect(updateMenuItem).toBeVisible({ timeout: 5_000 });
+      await expect(updateMenuItem).toContainText('Update to v99.0.0');
+      await sidePanelPage.keyboard.press('Escape');
     } finally {
       await context.close();
       await server.kill();
