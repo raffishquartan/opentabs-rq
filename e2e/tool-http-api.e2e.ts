@@ -23,7 +23,7 @@ const fetchWithAuth = (
 ): Promise<Response> => {
   const headers: Record<string, string> = { ...(init?.headers as Record<string, string>) };
   if (secret) headers.Authorization = `Bearer ${secret}`;
-  return fetch(`http://localhost:${port}${path}`, {
+  return fetch(`http://127.0.0.1:${port}${path}`, {
     ...init,
     headers,
     signal: AbortSignal.timeout(10_000),
@@ -107,7 +107,7 @@ test.describe('HTTP API — GET /tools', () => {
 
   test('returns 401 without auth', async ({ mcpServer }) => {
     await mcpServer.waitForHealth(h => h.status === 'ok');
-    const res = await fetch(`http://localhost:${mcpServer.port}/tools`, {
+    const res = await fetch(`http://127.0.0.1:${mcpServer.port}/tools`, {
       signal: AbortSignal.timeout(5_000),
     });
     expect(res.status).toBe(401);
@@ -191,7 +191,7 @@ test.describe('HTTP API — POST /tools/:name/call', () => {
 
   test('returns 401 without auth', async ({ mcpServer }) => {
     await mcpServer.waitForHealth(h => h.status === 'ok');
-    const res = await fetch(`http://localhost:${mcpServer.port}/tools/e2e-test_get_status/call`, {
+    const res = await fetch(`http://127.0.0.1:${mcpServer.port}/tools/e2e-test_get_status/call`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ arguments: {} }),
