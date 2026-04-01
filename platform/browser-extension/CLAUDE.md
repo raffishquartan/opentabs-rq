@@ -165,7 +165,7 @@ The `debugger` permission in the manifest is required for network capture via th
 
 **`ConfigDialog`** (`src/side-panel/components/ConfigDialog.tsx`): A modal dialog that renders a plugin's `configSchema` as a dynamic form. Supported field types: `url` (text input with URL validation), `string` (text input), `number` (number input), `boolean` (Switch), `select` (Radix Select with options). The form uses an uncontrolled pattern (`defaultValue` + `formRef`) so values are only committed on save. On save, settings are sent via `setPluginSettings` in `bridge.ts`. The `needsSetup(plugin)` helper (exported from `ConfigDialog.tsx`) returns true when the plugin has a `configSchema` with at least one `required` field that has no resolved value.
 
-**NeedsSetup badge**: `PluginCard` shows a Settings icon + "Needs Setup" badge in the plugin card header when `needsSetup(plugin)` is true. When the badge is present, the card content area shows a "Configure" button instead of the tool list, prompting the user to open `ConfigDialog`.
+**Unconfigured state**: When `needsSetup(plugin)` is true, the plugin card is forced open (expanded by default, cannot be collapsed). The accordion trigger and chevron are disabled, and the content area shows a "Configure" button instead of the tool list. This makes the setup CTA immediately visible without requiring user interaction.
 
 **Settings menu item**: `PluginMenu` includes a "Settings" menu item (Cog icon) when `plugin.configSchema` is defined. Clicking it calls the `onConfigOpen` callback, which `PluginCard` passes to trigger the `ConfigDialog`.
 
