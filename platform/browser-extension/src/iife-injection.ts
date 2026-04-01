@@ -263,7 +263,7 @@ const resolvePerTabSettings = (
 
   let matchedInstance: string | undefined;
   try {
-    const tabHost = new URL(tabUrl).hostname;
+    const tabHost = new URL(tabUrl).host;
     for (const [name, pattern] of Object.entries(instanceMap)) {
       const patternHost = pattern.replace('*://', '').replace('/*', '');
       if (tabHost === patternHost) {
@@ -283,9 +283,10 @@ const resolvePerTabSettings = (
       if (matchedInstance && urlMap[matchedInstance] !== undefined) {
         resolved[key] = urlMap[matchedInstance];
       } else {
-        // Fallback: use the first URL in the map
-        const firstValue = Object.values(urlMap)[0];
-        resolved[key] = firstValue ?? '';
+        console.warn(
+          `[opentabs] resolvePerTabSettings: tab URL "${tabUrl}" does not match any instance — url-type field "${key}" resolved to empty string`,
+        );
+        resolved[key] = '';
       }
     } else {
       resolved[key] = value;

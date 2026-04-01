@@ -24,12 +24,15 @@ interface ResolvedSettings {
 
 /**
  * Derive a Chrome match pattern from a URL string.
- * Returns `*://hostname/*` for valid URLs, or null for invalid ones.
+ * Returns `*://host/*` for valid URLs (including port for non-standard ports),
+ * or null for invalid ones.
  */
 const deriveMatchPattern = (urlString: string): string | null => {
   try {
     const url = new URL(urlString);
-    return `*://${url.hostname}/*`;
+    // url.host includes port when non-default; url.hostname does not.
+    // For standard ports (80/443), url.host === url.hostname (port is stripped).
+    return `*://${url.host}/*`;
   } catch {
     return null;
   }
@@ -84,6 +87,18 @@ const resolvePluginSettings = (
               `Plugin "${pluginName}" setting "${key}" instance "${instanceName}": invalid URL "${url}" — skipping`,
             );
             continue;
+          }
+          const duplicateInField = Object.entries(validEntries).find(([, p]) => p === pattern);
+          if (duplicateInField) {
+            log.warn(
+              `Plugin "${pluginName}" setting "${key}": instances "${duplicateInField[0]}" and "${instanceName}" both derive pattern "${pattern}" — instance routing will be ambiguous`,
+            );
+          }
+          const duplicateInPrev = Object.entries(instanceMap).find(([, p]) => p === pattern);
+          if (duplicateInPrev) {
+            log.warn(
+              `Plugin "${pluginName}": instances "${duplicateInPrev[0]}" and "${instanceName}" both derive pattern "${pattern}" — instance routing will be ambiguous`,
+            );
           }
           derivedPatterns.push(pattern);
           validEntries[instanceName] = pattern;
