@@ -1012,3 +1012,71 @@ test.describe('Multi-instance robust — tab close and reopen recovery', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// US-014: URL path and trailing slash variations in pattern derivation
+// ---------------------------------------------------------------------------
+
+test.describe('Multi-instance robust — URL path variations in pattern derivation', () => {
+  test('config URL with path derives host:port pattern, dispatch works, getConfig returns original URL', async () => {
+    test.slow();
+    let ctx: SingleInstanceTestContext | undefined;
+    try {
+      ctx = await setupSingleInstanceTest();
+
+      // Rewrite config to use a URL with a path (e.g., /grafana/)
+      const configUrlWithPath = `${ctx.serverUrl}/grafana/`;
+
+      const config = readTestConfig(ctx.configDir);
+      const settings = config.settings?.['e2e-test'] as Record<string, unknown>;
+      settings.instanceUrl = { main: configUrlWithPath };
+      writeTestConfig(ctx.configDir, config);
+
+      // POST /reload to pick up the config change
+      const reloadRes = await triggerReload(ctx.server.port, ctx.server.secret);
+      expect(reloadRes.ok).toBe(true);
+
+      // Wait for the tool list to update (instance parameter should not be
+      // present since there's only one instance)
+      await waitForToolList(
+        ctx.client,
+        tools => {
+          const echo = tools.find(t => t.name === 'e2e-test_echo');
+          return echo !== undefined;
+        },
+        10_000,
+        500,
+        'tools to be available after reload',
+      );
+
+      // Open a tab to the root of the test server — the derived pattern
+      // *://localhost:PORT/* matches any path on this host:port
+      const page = await openTabAndWaitForAdapter(ctx.context, ctx.serverUrl, ctx.server, ctx.testServer);
+
+      // Wait for the tab to be ready
+      await waitForReadyTabs(ctx.client, 1);
+
+      // Dispatch echo — should succeed (pattern matched the tab)
+      await ctx.testServer.reset();
+      const echoResult = await ctx.client.callTool('e2e-test_echo', {
+        message: 'path-variation-test',
+      });
+      expect(echoResult.isError).toBe(false);
+      const echoParsed = JSON.parse(echoResult.content) as { message: string };
+      expect(echoParsed.message).toBe('path-variation-test');
+
+      // getConfig('instanceUrl') should return the original URL with path
+      const configResult = await ctx.client.callTool('e2e-test_sdk_get_config', {
+        key: 'instanceUrl',
+      });
+      expect(configResult.isError).toBe(false);
+      const configData = JSON.parse(configResult.content) as { key: string; value: string | null };
+      expect(configData.key).toBe('instanceUrl');
+      expect(configData.value).toBe(configUrlWithPath);
+
+      await page.close();
+    } finally {
+      if (ctx) await cleanupSingleInstanceTest(ctx);
+    }
+  });
+});
