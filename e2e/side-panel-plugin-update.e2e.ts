@@ -242,6 +242,77 @@ test.describe('Side panel — plugin update after reload', () => {
   });
 });
 
+test.describe('Side panel — pruneStaleState clears update after reload', () => {
+  test('update notification clears after POST /reload when installed version matches latestVersion', async () => {
+    const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+    const { name: pkgName, version: currentVersion } = getPluginPackageInfo();
+
+    const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-update-'));
+    writeTestConfig(configDir, {
+      localPlugins: [absPluginPath],
+      permissions: { 'e2e-test': { permission: 'auto' } },
+    });
+
+    const server = await startMcpServer(configDir, true);
+    const testServer = await startTestServer();
+    const { context, cleanupDir, extensionDir } = await launchExtensionContext(server.port, server.secret);
+    setupAdapterSymlink(configDir, extensionDir);
+
+    try {
+      await waitForExtensionConnected(server);
+      await waitForLog(server, 'plugin(s) mapped', 15_000);
+
+      await openTestAppTab(context, testServer.url, server, testServer);
+      const sidePanelPage = await openSidePanel(context);
+      await expect(sidePanelPage.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
+
+      const secret = server.secret;
+      expect(secret).toBeTruthy();
+      if (!secret) throw new Error('Server secret is required');
+
+      // Inject outdated data where latestVersion equals the plugin's actual
+      // installed version. The server blindly stores this, so the update dot
+      // appears even though the plugin is already at the "latest" version.
+      await setOutdatedPlugins(server.port, secret, [
+        {
+          name: pkgName,
+          currentVersion: '0.0.1',
+          latestVersion: currentVersion,
+          updateCommand: `npm update -g ${pkgName}`,
+        },
+      ]);
+
+      const menuButton = sidePanelPage.locator('[aria-label="Plugin options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
+      await expect(updateDot).toBeVisible({ timeout: 10_000 });
+
+      // Trigger POST /reload — pruneStaleState now checks that the installed
+      // version matches latestVersion and removes the stale entry.
+      const reloadRes = await fetch(`http://localhost:${server.port}/reload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${secret}` },
+      });
+      expect(reloadRes.ok).toBe(true);
+
+      // After reload, the update dot should disappear because pruneStaleState
+      // removed the outdated entry (installed version == latestVersion).
+      await expect(updateDot).not.toBeVisible({ timeout: 15_000 });
+
+      // Open menu and verify no Update menu item exists
+      await menuButton.click();
+      const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
+      await expect(updateMenuItem).not.toBeVisible();
+      await sidePanelPage.keyboard.press('Escape');
+    } finally {
+      await context.close();
+      await server.kill();
+      await testServer.kill();
+      cleanupTestConfigDir(configDir);
+      if (cleanupDir) fs.rmSync(cleanupDir, { recursive: true, force: true });
+    }
+  });
+});
+
 test.describe('stress', () => {
   test('double-clicking Update only executes one update', async () => {
     const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
