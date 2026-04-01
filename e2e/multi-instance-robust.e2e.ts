@@ -150,6 +150,80 @@ const openTabAndWaitForAdapter = async (
 ): Promise<Awaited<ReturnType<typeof openTestAppTab>>> => openTestAppTab(context, url, mcpServer, testServer);
 
 // ---------------------------------------------------------------------------
+// Single-instance test infrastructure
+// ---------------------------------------------------------------------------
+
+interface SingleInstanceTestContext {
+  configDir: string;
+  server: McpServer;
+  testServer: TestServer;
+  context: Awaited<ReturnType<typeof launchExtensionContext>>['context'];
+  cleanupDir: string;
+  client: McpClient;
+  serverUrl: string;
+}
+
+/**
+ * Set up a single-instance test environment:
+ * 1. Start one test server on an ephemeral port
+ * 2. Write config.json with a single url-type instance
+ * 3. Start MCP server, extension, and MCP client
+ */
+const setupSingleInstanceTest = async (): Promise<SingleInstanceTestContext> => {
+  const absPluginPath = path.resolve(E2E_TEST_PLUGIN_DIR);
+  const prefixedToolNames = readPluginToolNames();
+  const tools: Record<string, boolean> = {};
+  for (const t of prefixedToolNames) {
+    tools[t] = true;
+  }
+
+  const testServer = await startTestServer();
+  const serverUrl = testServer.url; // http://localhost:<port>
+
+  const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-single-instance-'));
+  writeTestConfig(configDir, {
+    localPlugins: [absPluginPath],
+    tools,
+    settings: {
+      'e2e-test': {
+        instanceUrl: {
+          default: serverUrl,
+        },
+      },
+    },
+  });
+
+  const server = await startMcpServer(configDir, true);
+  const ext = await launchExtensionContext(server.port, server.secret);
+  setupAdapterSymlink(configDir, ext.extensionDir);
+
+  const client = createMcpClient(server.port, server.secret);
+  await client.initialize();
+
+  await waitForExtensionConnected(server);
+  await waitForLog(server, 'plugin(s) mapped');
+
+  return {
+    configDir,
+    server,
+    testServer,
+    context: ext.context,
+    cleanupDir: ext.cleanupDir,
+    client,
+    serverUrl,
+  };
+};
+
+const cleanupSingleInstanceTest = async (ctx: SingleInstanceTestContext): Promise<void> => {
+  await ctx.client.close();
+  await ctx.context.close().catch(() => {});
+  await ctx.testServer.kill();
+  await ctx.server.kill();
+  fs.rmSync(ctx.cleanupDir, { recursive: true, force: true });
+  cleanupTestConfigDir(ctx.configDir);
+};
+
+// ---------------------------------------------------------------------------
 // US-006: Same-host-different-port dispatch
 // ---------------------------------------------------------------------------
 
@@ -243,6 +317,67 @@ test.describe('Multi-instance robust — same host different ports', () => {
       await betaPage.close();
     } finally {
       if (ctx) await cleanupSameHostTest(ctx);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// US-007: Single-instance seamless (no instance parameter needed)
+// ---------------------------------------------------------------------------
+
+test.describe('Multi-instance robust — single instance seamless', () => {
+  test('single instance works without instance parameter and schema omits instance enum', async () => {
+    test.slow();
+    let ctx: SingleInstanceTestContext | undefined;
+    try {
+      ctx = await setupSingleInstanceTest();
+
+      // List tools — verify e2e-test_echo does NOT have an instance property
+      const tools = await ctx.client.listTools();
+      const echoTool = tools.find(t => t.name === 'e2e-test_echo');
+      expect(echoTool).toBeDefined();
+
+      const schema = echoTool?.inputSchema as {
+        properties?: Record<string, unknown>;
+        required?: string[];
+      };
+      expect(schema.properties?.instance).toBeUndefined();
+      expect(schema.required ?? []).not.toContain('instance');
+      // tabId should still be present
+      expect(schema.properties?.tabId).toBeDefined();
+
+      // Open one tab to the test server
+      const page = await openTabAndWaitForAdapter(ctx.context, ctx.serverUrl, ctx.server, ctx.testServer);
+
+      // Wait for the tab to be ready
+      await waitForReadyTabs(ctx.client, 1);
+
+      // Dispatch echo without instance parameter — should succeed
+      await ctx.testServer.reset();
+      const echoResult = await ctx.client.callTool('e2e-test_echo', {
+        message: 'hello-single',
+      });
+      expect(echoResult.isError).toBe(false);
+      const echoParsed = JSON.parse(echoResult.content) as { message: string };
+      expect(echoParsed.message).toBe('hello-single');
+
+      // Verify test server received the call
+      const invocations = await ctx.testServer.invocations();
+      const echoes = invocations.filter(i => i.path === '/api/echo');
+      expect(echoes.length).toBe(1);
+
+      // getConfig('instanceUrl') should return the URL as a string (not a map)
+      const configResult = await ctx.client.callTool('e2e-test_sdk_get_config', {
+        key: 'instanceUrl',
+      });
+      expect(configResult.isError).toBe(false);
+      const config = JSON.parse(configResult.content) as { key: string; value: string | null };
+      expect(config.key).toBe('instanceUrl');
+      expect(config.value).toBe(ctx.serverUrl);
+
+      await page.close();
+    } finally {
+      if (ctx) await cleanupSingleInstanceTest(ctx);
     }
   });
 });
