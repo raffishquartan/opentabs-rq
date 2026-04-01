@@ -75,6 +75,15 @@ jobs:
             echo "Bumped $PKG → $VERSION"
           done
 
+          # Sync Chrome extension manifest.json version
+          node -e "
+            const fs = require('fs');
+            const manifest = JSON.parse(fs.readFileSync('platform/browser-extension/manifest.json', 'utf8'));
+            manifest.version = '$VERSION';
+            fs.writeFileSync('platform/browser-extension/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+          echo "Bumped manifest.json → $VERSION"
+
       - name: Install dependencies (fresh lockfile for workspace:* resolution)
         run: |
           rm -f package-lock.json
@@ -176,10 +185,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Stage platform package.json files
+          # Stage platform package.json files and manifest.json
           for PKG in platform/*/; do
             git add "$PKG/package.json" || true
           done
+          git add platform/browser-extension/manifest.json || true
 
           # Stage root lockfile
           git add package-lock.json || true
