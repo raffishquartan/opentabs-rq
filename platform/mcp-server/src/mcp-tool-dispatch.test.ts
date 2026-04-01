@@ -2362,4 +2362,114 @@ describe('handlePluginToolCall — instance parameter', () => {
       expect.any(Object) as Record<string, unknown>,
     );
   });
+
+  test('port-aware instance matching: same hostname different ports are distinguished', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            alpha: '*://localhost:3000/*',
+            beta: '*://localhost:3001/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [
+              { tabId: 301, url: 'http://localhost:3000/app', title: 'Alpha', ready: true },
+              { tabId: 302, url: 'http://localhost:3001/app', title: 'Beta', ready: true },
+            ],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'beta' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    expect(dispatchToExtension).toHaveBeenCalledWith(
+      state,
+      'tool.dispatch',
+      expect.objectContaining({ tabId: 302 }) as Record<string, unknown>,
+      expect.any(Object) as Record<string, unknown>,
+    );
+  });
+
+  test('port-aware instance matching: tab on wrong port does not match', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+
+    const pluginMap = new Map([
+      [
+        'testplugin',
+        {
+          name: 'testplugin',
+          version: '1.0.0',
+          instanceMap: {
+            alpha: '*://localhost:3000/*',
+          },
+        },
+      ],
+    ]) as unknown as ReadonlyMap<string, RegisteredPlugin>;
+    const state = createMockState({
+      registry: { plugins: pluginMap, toolLookup: new Map(), failures: [] },
+    });
+
+    // Tab is on port 3001 but instance pattern is for port 3000
+    vi.mocked(getMergedTabMapping).mockReturnValue(
+      new Map([
+        [
+          'testplugin',
+          {
+            state: 'ready' as const,
+            tabs: [{ tabId: 400, url: 'http://localhost:3001/app', title: 'Wrong port', ready: true }],
+          },
+        ],
+      ]),
+    );
+
+    const lookup = createMockLookup();
+    const extra = createMockExtra();
+    const callbacks = createMockCallbacks();
+
+    const result = await handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      { instance: 'alpha' },
+      'testplugin',
+      'test_action',
+      lookup,
+      extra,
+      callbacks,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toContain('No open tab found for instance "alpha"');
+  });
 });

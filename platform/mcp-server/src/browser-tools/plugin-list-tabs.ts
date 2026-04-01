@@ -18,7 +18,7 @@ interface AnnotatedMapping {
   tabs: AnnotatedTab[];
 }
 
-/** Extract the hostname from a Chrome match pattern (`*://hostname/*` → `hostname`). */
+/** Extract the host (hostname:port when non-standard) from a Chrome match pattern. */
 const hostnameFromPattern = (pattern: string): string | undefined => {
   const match = pattern.match(/^\*:\/\/([^/]+)\/\*$/);
   return match?.[1];
@@ -33,7 +33,7 @@ const annotateTabsWithInstance = (
   return tabs.map(tab => {
     let instance: string | undefined;
     try {
-      const tabHost = new URL(tab.url).hostname;
+      const tabHost = new URL(tab.url).host;
       for (const [name, pattern] of Object.entries(instanceMap)) {
         if (hostnameFromPattern(pattern) === tabHost) {
           instance = name;

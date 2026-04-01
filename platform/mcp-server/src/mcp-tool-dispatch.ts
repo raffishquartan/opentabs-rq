@@ -35,7 +35,8 @@ import {
 const MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 25;
 
 /**
- * Extract the hostname from a Chrome match pattern (e.g., `*://hostname/*` → `hostname`).
+ * Extract the host (hostname:port when non-standard) from a Chrome match pattern
+ * (e.g., `*://localhost:3000/*` → `localhost:3000`, `*://example.com/*` → `example.com`).
  * Returns undefined if the pattern doesn't match the expected format.
  */
 const hostnameFromPattern = (pattern: string): string | undefined => {
@@ -46,8 +47,8 @@ const hostnameFromPattern = (pattern: string): string | undefined => {
 /**
  * Find a tab matching a specific instance's Chrome match pattern within a plugin's
  * tab mapping. Scans all extension connections' tab mappings for the plugin and
- * returns the tab ID of the first tab whose URL hostname matches the pattern hostname.
- * Prefers ready tabs over non-ready ones.
+ * returns the tab ID of the first tab whose URL host (hostname:port) matches the
+ * pattern host. Prefers ready tabs over non-ready ones.
  */
 const findTabForInstance = (state: ServerState, pluginName: string, pattern: string): number | undefined => {
   const patternHost = hostnameFromPattern(pattern);
@@ -60,7 +61,7 @@ const findTabForInstance = (state: ServerState, pluginName: string, pattern: str
   let fallback: number | undefined;
   for (const tab of mapping.tabs) {
     try {
-      const tabHost = new URL(tab.url).hostname;
+      const tabHost = new URL(tab.url).host;
       if (tabHost === patternHost) {
         if (tab.ready) return tab.tabId;
         fallback ??= tab.tabId;
