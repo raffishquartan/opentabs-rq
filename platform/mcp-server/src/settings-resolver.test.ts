@@ -1,5 +1,6 @@
 import type { ConfigSchema } from '@opentabs-dev/shared';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import { log } from './logger.js';
 import { resolvePluginSettings } from './settings-resolver.js';
 
 describe('resolvePluginSettings', () => {
@@ -400,6 +401,69 @@ describe('resolvePluginSettings', () => {
 
     expect(result.effectiveUrlPatterns).toEqual(['*://grafana.example.com/*']);
     expect(result.instanceMap).toEqual({ main: '*://grafana.example.com/*' });
+  });
+
+  test('warns when two instances in the same field derive the same pattern', () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const schema: ConfigSchema = {
+      instanceUrl: { type: 'url', label: 'Instance URL', required: true },
+    };
+    const settings = {
+      instanceUrl: {
+        prod: 'http://localhost:3000/prod',
+        staging: 'http://localhost:3000/staging',
+      },
+    };
+    const result = resolvePluginSettings('my-plugin', [], undefined, schema, settings);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('instances "prod" and "staging" both derive pattern "*://localhost:3000/*"'),
+    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('instance routing will be ambiguous'));
+    expect(result.instanceMap).toEqual({
+      prod: '*://localhost:3000/*',
+      staging: '*://localhost:3000/*',
+    });
+    warnSpy.mockRestore();
+  });
+
+  test('warns when instances across different fields derive the same pattern', () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const schema: ConfigSchema = {
+      primaryUrl: { type: 'url', label: 'Primary URL', required: true },
+      secondaryUrl: { type: 'url', label: 'Secondary URL' },
+    };
+    const settings = {
+      primaryUrl: { alpha: 'https://shared.example.com/app1' },
+      secondaryUrl: { beta: 'https://shared.example.com/app2' },
+    };
+    const result = resolvePluginSettings('my-plugin', [], undefined, schema, settings);
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('instances "alpha" and "beta" both derive pattern "*://shared.example.com/*"'),
+    );
+    expect(result.instanceMap).toEqual({
+      alpha: '*://shared.example.com/*',
+      beta: '*://shared.example.com/*',
+    });
+    warnSpy.mockRestore();
+  });
+
+  test('does not warn when instances derive different patterns', () => {
+    const warnSpy = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    const schema: ConfigSchema = {
+      instanceUrl: { type: 'url', label: 'Instance URL', required: true },
+    };
+    const settings = {
+      instanceUrl: {
+        alpha: 'http://localhost:3000',
+        beta: 'http://localhost:3001',
+      },
+    };
+    resolvePluginSettings('my-plugin', [], undefined, schema, settings);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
   });
 
   test('homepage is derived from the first valid URL in the map', () => {
