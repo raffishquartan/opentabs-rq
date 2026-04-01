@@ -787,3 +787,63 @@ test.describe('Multi-instance robust — rapid sequential dispatch', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// US-011: Concurrent burst dispatch across instances
+// ---------------------------------------------------------------------------
+
+test.describe('Multi-instance robust — concurrent burst dispatch', () => {
+  test('10 concurrent calls (5 alpha, 5 beta) via Promise.all route correctly', async () => {
+    test.slow();
+    let ctx: CrossHostTestContext | undefined;
+    try {
+      ctx = await setupCrossHostTest();
+
+      // Open alpha tab (localhost)
+      const alphaPage = await openTabAndWaitForAdapter(ctx.context, ctx.alphaUrl, ctx.server, ctx.alphaServer);
+
+      // Open beta tab (127.0.0.1)
+      const betaPage = await openTabAndWaitForAdapter(ctx.context, ctx.betaUrl, ctx.server, ctx.betaServer);
+
+      // Wait for both tabs to be ready
+      await waitForReadyTabs(ctx.client, 2);
+
+      // Reset invocation counters before the burst
+      await ctx.alphaServer.reset();
+      await ctx.betaServer.reset();
+
+      // Build array of 10 promises: indices 0-4 → alpha, indices 5-9 → beta
+      const { client } = ctx;
+      const promises = Array.from({ length: 10 }, (_, i) => {
+        const instance = i < 5 ? 'alpha' : 'beta';
+        const message = `burst-${String(i)}-${instance}`;
+        return client
+          .callTool('e2e-test_echo', { message, instance })
+          .then(result => ({ index: i, instance, message, result }));
+      });
+
+      const results = await Promise.all(promises);
+
+      // Verify all 10 calls succeeded with correct responses
+      for (const { message, result } of results) {
+        expect(result.isError).toBe(false);
+        const parsed = JSON.parse(result.content) as { message: string };
+        expect(parsed.message).toBe(message);
+      }
+
+      // Check invocation counts: alpha=5, beta=5
+      const alphaInvocations = await ctx.alphaServer.invocations();
+      const alphaEchoes = alphaInvocations.filter(i => i.path === '/api/echo');
+      expect(alphaEchoes.length).toBe(5);
+
+      const betaInvocations = await ctx.betaServer.invocations();
+      const betaEchoes = betaInvocations.filter(i => i.path === '/api/echo');
+      expect(betaEchoes.length).toBe(5);
+
+      await alphaPage.close();
+      await betaPage.close();
+    } finally {
+      if (ctx) await cleanupCrossHostTest(ctx);
+    }
+  });
+});
