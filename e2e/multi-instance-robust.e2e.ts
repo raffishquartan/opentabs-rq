@@ -874,6 +874,68 @@ const waitForTabCount = async (client: McpClient, count: number, timeoutMs = 20_
   return last;
 };
 
+test.describe('Multi-instance robust — all instance tabs closed', () => {
+  test('closing all tabs returns No open tab error and plugin_list_tabs shows closed state', async () => {
+    test.slow();
+    let ctx: CrossHostTestContext | undefined;
+    try {
+      ctx = await setupCrossHostTest();
+
+      // Open alpha tab (localhost) and beta tab (127.0.0.1)
+      const alphaPage = await openTabAndWaitForAdapter(ctx.context, ctx.alphaUrl, ctx.server, ctx.alphaServer);
+      const betaPage = await openTabAndWaitForAdapter(ctx.context, ctx.betaUrl, ctx.server, ctx.betaServer);
+
+      // Wait for both tabs to be ready
+      await waitForReadyTabs(ctx.client, 2);
+
+      // Verify dispatch works before closing
+      const alphaCheck = await ctx.client.callTool('e2e-test_echo', {
+        message: 'pre-close-alpha',
+        instance: 'alpha',
+      });
+      expect(alphaCheck.isError).toBe(false);
+
+      const betaCheck = await ctx.client.callTool('e2e-test_echo', {
+        message: 'pre-close-beta',
+        instance: 'beta',
+      });
+      expect(betaCheck.isError).toBe(false);
+
+      // Close both tabs
+      await alphaPage.close();
+      await betaPage.close();
+
+      // Wait for tab mapping to reflect 0 tabs
+      await waitForTabCount(ctx.client, 0);
+
+      // Dispatch to alpha — should fail
+      const alphaFailResult = await ctx.client.callTool('e2e-test_echo', {
+        message: 'should-fail-alpha',
+        instance: 'alpha',
+      });
+      expect(alphaFailResult.isError).toBe(true);
+
+      // Dispatch to beta — should fail
+      const betaFailResult = await ctx.client.callTool('e2e-test_echo', {
+        message: 'should-fail-beta',
+        instance: 'beta',
+      });
+      expect(betaFailResult.isError).toBe(true);
+
+      // plugin_list_tabs should show closed state with empty tabs
+      const listResult = await ctx.client.callTool('plugin_list_tabs', { plugin: 'e2e-test' });
+      expect(listResult.isError).toBe(false);
+      const plugins = JSON.parse(listResult.content) as PluginTabsEntry[];
+      const entry = plugins[0];
+      expect(entry).toBeDefined();
+      expect(entry?.state).toBe('closed');
+      expect(entry?.tabs.length).toBe(0);
+    } finally {
+      if (ctx) await cleanupCrossHostTest(ctx);
+    }
+  });
+});
+
 test.describe('Multi-instance robust — tab close and reopen recovery', () => {
   test('closing beta tab causes dispatch error, reopening restores dispatch', async () => {
     test.slow();
