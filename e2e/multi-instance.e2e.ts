@@ -1,7 +1,7 @@
 /**
  * Multi-instance plugin E2E tests — verify the complete multi-instance flow:
  *
- * - Configure a plugin with two url-type instances (alpha on localhost, beta on 127.0.0.1)
+ * - Configure a plugin with two url-type instances (alpha and beta on localhost, different ports)
  * - Verify both tabs appear in plugin_list_tabs with correct instance labels
  * - Verify dispatching with instance parameter hits the correct tab
  * - Verify dispatching with a non-existent instance returns an error
@@ -51,7 +51,7 @@ interface MultiInstanceTestContext {
 
 /**
  * Set up the full multi-instance test environment:
- * 1. Start two test servers (alpha on localhost, beta on 127.0.0.1)
+ * 1. Start two test servers on localhost (different ports)
  * 2. Write config.json with multi-instance url settings
  * 3. Start MCP server, extension, and MCP client
  */
@@ -68,10 +68,10 @@ const setupMultiInstanceTest = async (): Promise<MultiInstanceTestContext> => {
   const betaServer = await startTestServer();
 
   // Write config with multi-instance url settings.
-  // alpha uses localhost (same hostname as the server), beta uses 127.0.0.1
-  // (different hostname, so match patterns differ).
-  const alphaUrl = alphaServer.url; // http://localhost:<port>
-  const betaUrl = betaServer.url.replace('localhost', '127.0.0.1'); // http://127.0.0.1:<port>
+  // Both on localhost with different ports — port-aware pattern derivation
+  // distinguishes them via *://localhost:<portA>/* vs *://localhost:<portB>/*.
+  const alphaUrl = alphaServer.url; // http://localhost:<portA>
+  const betaUrl = betaServer.url; // http://localhost:<portB>
 
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-multi-instance-'));
   writeTestConfig(configDir, {
@@ -150,24 +150,11 @@ test.describe('Multi-instance — plugin_list_tabs instance labels', () => {
     try {
       ctx = await setupMultiInstanceTest();
 
-      // Open alpha tab (localhost)
+      // Open alpha tab
       const alphaPage = await openTestAppTab(ctx.context, ctx.alphaServer.url, ctx.server, ctx.alphaServer);
 
-      // Open beta tab (127.0.0.1)
-      const betaUrl = ctx.betaServer.url.replace('localhost', '127.0.0.1');
-      const betaPage = await ctx.context.newPage();
-      await betaPage.goto(betaUrl, { waitUntil: 'load' });
-
-      // Wait for adapter injection on beta tab
-      await betaPage.waitForFunction(
-        () => {
-          const ot = (globalThis as Record<string, unknown>).__openTabs as
-            | { adapters?: Record<string, unknown> }
-            | undefined;
-          return ot?.adapters?.['e2e-test'] !== undefined;
-        },
-        { timeout: 15_000 },
-      );
+      // Open beta tab
+      const betaPage = await openTestAppTab(ctx.context, ctx.betaServer.url, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
       const plugins = await waitForReadyTabs(ctx.client, 2);
@@ -184,8 +171,8 @@ test.describe('Multi-instance — plugin_list_tabs instance labels', () => {
 
       expect(alphaTab).toBeDefined();
       expect(betaTab).toBeDefined();
-      expect(alphaTab?.url).toContain('localhost');
-      expect(betaTab?.url).toContain('127.0.0.1');
+      expect(alphaTab?.url).toContain(`localhost:${String(ctx.alphaServer.port)}`);
+      expect(betaTab?.url).toContain(`localhost:${String(ctx.betaServer.port)}`);
 
       await alphaPage.close();
       await betaPage.close();
@@ -210,18 +197,7 @@ test.describe('Multi-instance — instance dispatch', () => {
       const alphaPage = await openTestAppTab(ctx.context, ctx.alphaServer.url, ctx.server, ctx.alphaServer);
 
       // Open beta tab
-      const betaUrl = ctx.betaServer.url.replace('localhost', '127.0.0.1');
-      const betaPage = await ctx.context.newPage();
-      await betaPage.goto(betaUrl, { waitUntil: 'load' });
-      await betaPage.waitForFunction(
-        () => {
-          const ot = (globalThis as Record<string, unknown>).__openTabs as
-            | { adapters?: Record<string, unknown> }
-            | undefined;
-          return ot?.adapters?.['e2e-test'] !== undefined;
-        },
-        { timeout: 15_000 },
-      );
+      const betaPage = await openTestAppTab(ctx.context, ctx.betaServer.url, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
       await waitForReadyTabs(ctx.client, 2);
@@ -323,23 +299,10 @@ test.describe('Multi-instance — per-tab getConfig', () => {
       const alphaPage = await openTestAppTab(ctx.context, ctx.alphaServer.url, ctx.server, ctx.alphaServer);
 
       // Open beta tab
-      const betaUrl = ctx.betaServer.url.replace('localhost', '127.0.0.1');
-      const betaPage = await ctx.context.newPage();
-      await betaPage.goto(betaUrl, { waitUntil: 'load' });
-      await betaPage.waitForFunction(
-        () => {
-          const ot = (globalThis as Record<string, unknown>).__openTabs as
-            | { adapters?: Record<string, unknown> }
-            | undefined;
-          return ot?.adapters?.['e2e-test'] !== undefined;
-        },
-        { timeout: 15_000 },
-      );
+      const betaPage = await openTestAppTab(ctx.context, ctx.betaServer.url, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
-      const plugins = await waitForReadyTabs(ctx.client, 2);
-      const entry = plugins[0];
-      if (!entry) throw new Error('Expected plugin entry');
+      await waitForReadyTabs(ctx.client, 2);
 
       // Call sdk_get_config targeting the alpha instance
       const alphaConfigResult = await ctx.client.callTool('e2e-test_sdk_get_config', {
@@ -352,7 +315,6 @@ test.describe('Multi-instance — per-tab getConfig', () => {
         value: string | null;
       };
       expect(alphaConfig.key).toBe('instanceUrl');
-      // Alpha's URL should be the localhost URL
       expect(alphaConfig.value).toBe(ctx.alphaServer.url);
 
       // Call sdk_get_config targeting the beta instance
@@ -366,8 +328,7 @@ test.describe('Multi-instance — per-tab getConfig', () => {
         value: string | null;
       };
       expect(betaConfig.key).toBe('instanceUrl');
-      // Beta's URL should be the 127.0.0.1 URL
-      expect(betaConfig.value).toBe(betaUrl);
+      expect(betaConfig.value).toBe(ctx.betaServer.url);
 
       await alphaPage.close();
       await betaPage.close();
@@ -422,22 +383,11 @@ test.describe('Multi-instance — concurrent dispatch no cross-routing', () => {
     try {
       ctx = await setupMultiInstanceTest();
 
-      // Open alpha tab (localhost)
+      // Open alpha tab
       const alphaPage = await openTestAppTab(ctx.context, ctx.alphaServer.url, ctx.server, ctx.alphaServer);
 
-      // Open beta tab (127.0.0.1)
-      const betaUrl = ctx.betaServer.url.replace('localhost', '127.0.0.1');
-      const betaPage = await ctx.context.newPage();
-      await betaPage.goto(betaUrl, { waitUntil: 'load' });
-      await betaPage.waitForFunction(
-        () => {
-          const ot = (globalThis as Record<string, unknown>).__openTabs as
-            | { adapters?: Record<string, unknown> }
-            | undefined;
-          return ot?.adapters?.['e2e-test'] !== undefined;
-        },
-        { timeout: 15_000 },
-      );
+      // Open beta tab
+      const betaPage = await openTestAppTab(ctx.context, ctx.betaServer.url, ctx.server, ctx.betaServer);
 
       // Wait for both tabs to be ready
       await waitForReadyTabs(ctx.client, 2);
