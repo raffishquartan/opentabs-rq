@@ -23,3 +23,4 @@ opencode.json
 .opencode/
 marketing/logs/
 marketing/state.json
+.playwright-browsers/
