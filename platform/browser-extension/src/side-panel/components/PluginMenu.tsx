@@ -80,7 +80,7 @@ const PluginMenu = ({
             aria-label="Plugin options">
             <MoreHorizontal className={`h-4 w-4 ${muted ? 'text-muted-foreground' : ''}`} />
             {plugin.update && (
-              <div className="absolute top-0 right-0 h-1.5 w-1.5 rounded-full border border-background bg-primary" />
+              <div className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full border border-border bg-primary" />
             )}
           </button>
         </Menu.Trigger>
