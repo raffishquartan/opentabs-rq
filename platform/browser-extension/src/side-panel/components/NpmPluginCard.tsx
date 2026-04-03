@@ -19,7 +19,16 @@ const NpmPluginCard = ({ plugin, installing, error, onInstall }: NpmPluginCardPr
     <div className="space-y-2 rounded border-2 border-border bg-card p-3 shadow-md transition-all hover:shadow-sm">
       {/* Header row: icon | name+meta | install button */}
       <div className="flex items-center gap-2">
-        <PluginIcon pluginName={plugin.name} displayName={displayName} tabState="closed" size={28} />
+        <PluginIcon
+          pluginName={plugin.name}
+          displayName={displayName}
+          tabState="closed"
+          size={28}
+          iconSvg={plugin.iconSvg || undefined}
+          iconInactiveSvg={plugin.iconSvg || undefined}
+          iconDarkSvg={plugin.iconDarkSvg || undefined}
+          iconDarkInactiveSvg={plugin.iconDarkSvg || undefined}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex flex-wrap items-center gap-1">
             <a
