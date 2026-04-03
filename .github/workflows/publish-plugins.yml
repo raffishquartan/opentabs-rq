@@ -38,7 +38,10 @@ jobs:
           # not just the last commit. This catches multi-commit pushes and rebases.
           BEFORE="${{ github.event.before }}"
           if [ -z "$BEFORE" ] || echo "$BEFORE" | grep -qE '^0+$'; then
-            # First push or force push — fall back to HEAD~1
+            # First push or force push to new branch — no previous SHA
+            BEFORE="HEAD~1"
+          elif ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            # SHA exists but is unreachable (force-push rewrote history)
             BEFORE="HEAD~1"
           fi
           CHANGED_PLUGINS=$(git diff --name-only "$BEFORE" HEAD -- 'plugins/' \
