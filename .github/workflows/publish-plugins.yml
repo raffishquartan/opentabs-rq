@@ -73,6 +73,13 @@ jobs:
           PLUGINS='${{ steps.detect.outputs.plugins }}'
           PUBLISHED=()
 
+          # Build local plugin-tools once so plugins use the monorepo version instead of
+          # the npm-published version. This ensures unpublished fixes (e.g., icon validation)
+          # take effect immediately without waiting for a platform publish.
+          echo "Building local plugin-tools..."
+          (cd platform/shared && npm run build 2>/dev/null) || echo "::warning::Failed to build local shared, using npm version"
+          (cd platform/plugin-tools && npm run build 2>/dev/null) || echo "::warning::Failed to build local plugin-tools, using npm version"
+
           for PLUGIN in $(echo "$PLUGINS" | jq -r '.[]'); do
             DIR="plugins/$PLUGIN"
             echo ""
@@ -108,6 +115,14 @@ jobs:
             # Install dependencies and full build (tsc + opentabs-plugin build)
             echo "Installing dependencies..."
             (cd "$DIR" && npm install)
+
+            # Override with local plugin-tools to pick up unpublished fixes.
+            # Copies only the dist/ directory — does not modify package.json or package-lock.json.
+            if [ -d "platform/plugin-tools/dist" ]; then
+              echo "Linking local plugin-tools..."
+              rm -rf "$DIR/node_modules/@opentabs-dev/plugin-tools/dist"
+              cp -r platform/plugin-tools/dist "$DIR/node_modules/@opentabs-dev/plugin-tools/dist"
+            fi
 
             echo "Building..."
             (cd "$DIR" && npm run build)
