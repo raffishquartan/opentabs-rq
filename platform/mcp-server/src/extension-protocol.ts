@@ -138,6 +138,7 @@ const sendSyncFull = async (state: ServerState): Promise<void> => {
       serverVersion: configState.serverVersion,
       serverSourcePath: configState.serverSourcePath,
       skipPermissions: configState.skipPermissions,
+      extensionHash: configState.extensionHash,
     },
   });
   if (sent) {
