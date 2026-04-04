@@ -25,7 +25,7 @@ test.describe('Extension package integrity', () => {
 
     try {
       // Pack the browser-extension package
-      const tarball = execSync('npm pack --pack-destination ' + tmpDir, {
+      const tarball = execSync(`npm pack --pack-destination ${tmpDir}`, {
         cwd: BROWSER_EXT_DIR,
         encoding: 'utf-8',
         timeout: 30_000,
