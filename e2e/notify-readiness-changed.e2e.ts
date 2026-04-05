@@ -30,13 +30,16 @@ test.describe('notifyReadinessChanged — full pipeline', () => {
     const output = await callToolExpectSuccess(mcpClient, mcpServer, 'e2e-test_sdk_notify_readiness_changed');
     expect(output.ok).toBe(true);
 
-    // Give the pipeline time to propagate (relay → background → re-probe)
-    await new Promise(r => setTimeout(r, 2_000));
-
-    // Verify state is still ready (re-probe ran but isReady() still returns true)
-    const healthAfter = await mcpServer.health();
-    const stateAfter = healthAfter?.pluginDetails?.find(p => p.name === 'e2e-test')?.tabState;
-    expect(stateAfter).toBe('ready');
+    // Wait for the re-probe pipeline to propagate and verify state is still ready
+    await expect
+      .poll(
+        async () => {
+          const h = await mcpServer.health();
+          return h?.pluginDetails?.find(p => p.name === 'e2e-test')?.tabState;
+        },
+        { timeout: 10_000, message: 'tabState should remain ready after notifyReadinessChanged' },
+      )
+      .toBe('ready');
 
     // Tool dispatch still works
     const echoResult = await mcpClient.callTool('e2e-test_echo', { message: 'still ready' });

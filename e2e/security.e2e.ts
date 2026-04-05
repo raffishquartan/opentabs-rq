@@ -309,13 +309,21 @@ test.describe('Per-plugin concurrency limit', () => {
 
     // --- Phase 1: Fire 25 slow calls, then fire the 26th while they're in-flight ---
 
+    // Clear logs so we can count fresh dispatch entries
+    mcpServer.logs.length = 0;
+
     // Start 25 slow calls (10s each) — these occupy all dispatch slots
     const batch1Promises = Array.from({ length: 25 }, () =>
       mcpClient.callTool('e2e-test_slow_with_progress', { durationMs: 10_000, steps: 2 }, { timeout: 30_000 }),
     );
 
-    // Give the 25 calls time to be dispatched and registered in activeDispatches
-    await new Promise(r => setTimeout(r, 2_000));
+    // Wait for all 25 calls to be dispatched and registered in activeDispatches
+    await expect
+      .poll(() => mcpServer.logs.filter(l => l.includes('tool.call: input validated')).length, {
+        timeout: 10_000,
+        message: '25 dispatches should be in-flight',
+      })
+      .toBeGreaterThanOrEqual(25);
 
     // Fire the 26th call — should be rejected immediately (not after 10s)
     const overflowStart = Date.now();
