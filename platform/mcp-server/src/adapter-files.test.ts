@@ -105,8 +105,8 @@ describe('writeExecFile', () => {
     expect(content).toContain('__execAsync_async-test');
     // Uses .then(onFulfilled, onRejected) for direct rejection handling
     expect(content).toContain('})().then(');
-    expect(content).toContain('function(v) { __ot[__resultKey] = { value: v }; }');
-    expect(content).toContain('function(e) { __ot[__resultKey] = { error:');
+    expect(content).toContain('function(v) { delete __ot[__asyncKey]; __ot[__resultKey] = { value: v }; }');
+    expect(content).toContain('function(e) { delete __ot[__asyncKey]; __ot[__resultKey] = { error:');
   });
 
   test('user code is placed inline in the inner function body', async () => {

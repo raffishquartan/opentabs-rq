@@ -317,13 +317,10 @@ test.describe('Per-plugin concurrency limit', () => {
       mcpClient.callTool('e2e-test_slow_with_progress', { durationMs: 10_000, steps: 2 }, { timeout: 30_000 }),
     );
 
-    // Wait for all 25 calls to be dispatched and registered in activeDispatches
-    await expect
-      .poll(() => mcpServer.logs.filter(l => l.includes('tool.call: input validated')).length, {
-        timeout: 10_000,
-        message: '25 dispatches should be in-flight',
-      })
-      .toBeGreaterThanOrEqual(25);
+    // Give the 25 calls time to be dispatched and registered in activeDispatches.
+    // Dispatch logs are at debug level (not captured in test logs at default info level),
+    // so we use a short sleep to let the WebSocket relay complete.
+    await new Promise(r => setTimeout(r, 2_000));
 
     // Fire the 26th call — should be rejected immediately (not after 10s)
     const overflowStart = Date.now();
