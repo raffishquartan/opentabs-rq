@@ -1136,6 +1136,9 @@ test.describe('Permission change mid-flight — in-flight completes, next call d
     const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
     await waitForToolResult(mcpClient, 'e2e-test_get_status', {}, { isError: false }, 15_000);
 
+    // Clear logs so we can detect the dispatch log for the upcoming slow call
+    mcpServer.logs.length = 0;
+
     // Fire a slow tool call (5s duration) — it passes the permission check at dispatch entry
     const slowCallPromise = mcpClient.callTool(
       'e2e-test_slow_with_progress',
@@ -1143,10 +1146,8 @@ test.describe('Permission change mid-flight — in-flight completes, next call d
       { timeout: 30_000 },
     );
 
-    // Wait for the dispatch to reach the extension. Dispatch is near-instant
-    // over WebSocket, but we wait 1s to ensure the slow call is genuinely
-    // in-flight before changing permissions.
-    await new Promise(r => setTimeout(r, 1_000));
+    // Wait for the slow call dispatch to be in-flight before changing permissions
+    await waitForLog(mcpServer, 'tool.call: input validated', 5_000);
 
     // Change e2e-test permission to 'off' via config reload.
     // Use POST /reload (config reload) instead of triggerHotReload (SIGUSR1)
