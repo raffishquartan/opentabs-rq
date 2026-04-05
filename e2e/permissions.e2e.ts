@@ -1146,8 +1146,11 @@ test.describe('Permission change mid-flight — in-flight completes, next call d
       { timeout: 30_000 },
     );
 
-    // Wait for the slow call dispatch to be in-flight before changing permissions
-    await waitForLog(mcpServer, 'tool.call: input validated', 5_000);
+    // Wait for the dispatch to reach the extension. Dispatch is near-instant
+    // over WebSocket, but we wait 1s to ensure the slow call is genuinely
+    // in-flight before changing permissions. Dispatch logs are at debug level
+    // (not captured at default info level), so we use a short sleep.
+    await new Promise(r => setTimeout(r, 1_000));
 
     // Change e2e-test permission to 'off' via config reload.
     // Use POST /reload (config reload) instead of triggerHotReload (SIGUSR1)
