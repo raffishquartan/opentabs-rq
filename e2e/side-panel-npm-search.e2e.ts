@@ -66,15 +66,28 @@ const npmPluginHasIcons = (): boolean => {
   }
 };
 
-const searchAvailable = npmSearchFindsPlugins();
-const slackArtifactsAvailable = npmSlackPluginHasArtifacts();
-const iconsAvailable = npmPluginHasIcons();
+let searchAvailable = false;
+let slackArtifactsAvailable = false;
+let iconsAvailable = false;
+let npmChecksInitialized = false;
+
+const initNpmChecks = () => {
+  if (npmChecksInitialized) return;
+  npmChecksInitialized = true;
+  searchAvailable = npmSearchFindsPlugins();
+  slackArtifactsAvailable = npmSlackPluginHasArtifacts();
+  iconsAvailable = npmPluginHasIcons();
+};
 
 test.describe('Side panel npm search', () => {
-  // These two tests require npm search to return opentabs plugin results.
-  // The npm registry search index intermittently drops @opentabs-dev packages.
+  test.beforeAll(() => {
+    initNpmChecks();
+  });
+
   test.describe('search-dependent tests', () => {
-    test.skip(!searchAvailable, 'npm search index does not include opentabs-plugin packages');
+    test.beforeEach(() => {
+      test.skip(!searchAvailable, 'npm search index does not include opentabs-plugin packages');
+    });
 
     test('searches for plugins and shows results under Available section', async () => {
       test.slow();
@@ -336,7 +349,9 @@ test.describe('Side panel npm search', () => {
   });
 
   test.describe('stress', () => {
-    test.skip(!searchAvailable, 'npm search index does not include opentabs-plugin packages');
+    test.beforeEach(() => {
+      test.skip(!searchAvailable, 'npm search index does not include opentabs-plugin packages');
+    });
 
     test('rapid search query spam settles to final query without crash', async () => {
       test.slow();
