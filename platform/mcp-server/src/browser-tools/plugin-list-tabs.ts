@@ -24,6 +24,16 @@ const hostnameFromPattern = (pattern: string): string | undefined => {
   return match?.[1];
 };
 
+/** Normalize localhost variants (localhost, 127.0.0.1, [::1]) to a canonical form. */
+const normalizeHost = (host: string): string => {
+  const colonIdx = host.lastIndexOf(':');
+  const hasPort = colonIdx > 0 && !host.endsWith(']');
+  const hostname = hasPort ? host.slice(0, colonIdx) : host;
+  const port = hasPort ? host.slice(colonIdx + 1) : undefined;
+  const norm = hostname === '127.0.0.1' || hostname === '[::1]' ? 'localhost' : hostname;
+  return port ? `${norm}:${port}` : norm;
+};
+
 /** Annotate tabs with the instance name derived from the plugin's instanceMap. */
 const annotateTabsWithInstance = (
   tabs: AnnotatedTab[],
@@ -33,9 +43,10 @@ const annotateTabsWithInstance = (
   return tabs.map(tab => {
     let instance: string | undefined;
     try {
-      const tabHost = new URL(tab.url).host;
+      const tabHost = normalizeHost(new URL(tab.url).host);
       for (const [name, pattern] of Object.entries(instanceMap)) {
-        if (hostnameFromPattern(pattern) === tabHost) {
+        const patternHost = hostnameFromPattern(pattern);
+        if (patternHost && normalizeHost(patternHost) === tabHost) {
           instance = name;
           break;
         }

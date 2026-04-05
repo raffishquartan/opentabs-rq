@@ -44,6 +44,16 @@ const hostnameFromPattern = (pattern: string): string | undefined => {
   return match?.[1];
 };
 
+/** Normalize localhost variants (localhost, 127.0.0.1, [::1]) to a canonical form. */
+const normalizeHost = (host: string): string => {
+  const colonIdx = host.lastIndexOf(':');
+  const hasPort = colonIdx > 0 && !host.endsWith(']');
+  const hostname = hasPort ? host.slice(0, colonIdx) : host;
+  const port = hasPort ? host.slice(colonIdx + 1) : undefined;
+  const norm = hostname === '127.0.0.1' || hostname === '[::1]' ? 'localhost' : hostname;
+  return port ? `${norm}:${port}` : norm;
+};
+
 /**
  * Find a tab matching a specific instance's Chrome match pattern within a plugin's
  * tab mapping. Scans all extension connections' tab mappings for the plugin and
@@ -62,7 +72,7 @@ const findTabForInstance = (state: ServerState, pluginName: string, pattern: str
   for (const tab of mapping.tabs) {
     try {
       const tabHost = new URL(tab.url).host;
-      if (tabHost === patternHost) {
+      if (normalizeHost(tabHost) === normalizeHost(patternHost)) {
         if (tab.ready) return tab.tabId;
         fallback ??= tab.tabId;
       }
