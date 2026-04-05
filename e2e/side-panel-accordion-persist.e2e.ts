@@ -60,13 +60,11 @@ test.describe('Side panel accordion state persistence', () => {
       await browserCard.click();
       await expect(browserCard).toHaveAttribute('aria-expanded', 'true');
 
-      // 6. Close the side panel
+      // 6. Ensure storage writes are flushed, then close and reopen the side panel
+      await sidePanelPage.evaluate(() => new Promise<void>(r => chrome.storage.session.get(null, () => r())));
       await sidePanelPage.close();
 
-      // 7. Small delay to ensure chrome.storage.session writes complete
-      await new Promise(r => setTimeout(r, 500));
-
-      // 8. Reopen the side panel
+      // 7. Reopen the side panel
       const sidePanelPage2 = await openSidePanel(context);
 
       // 9. Verify the cards are still expanded after the fresh page load
@@ -79,8 +77,8 @@ test.describe('Side panel accordion state persistence', () => {
       // 10. Collapse the plugin card and verify it persists as collapsed
       await pluginCard2.click();
       await expect(pluginCard2).toHaveAttribute('aria-expanded', 'false');
+      await sidePanelPage2.evaluate(() => new Promise<void>(r => chrome.storage.session.get(null, () => r())));
       await sidePanelPage2.close();
-      await new Promise(r => setTimeout(r, 500));
 
       const sidePanelPage3 = await openSidePanel(context);
       await expect(sidePanelPage3.getByText('E2E Test')).toBeVisible({ timeout: 30_000 });
