@@ -55,7 +55,7 @@ test.describe('Auth bootstrap', () => {
         await expect
           .poll(
             async () => {
-              const h = await server!.health();
+              const h = await server?.health();
               return h?.extensionConnected;
             },
             { timeout: 10_000, message: 'extension should not connect without auth.json' },

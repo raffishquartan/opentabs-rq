@@ -772,10 +772,18 @@ fixtureTest.describe('IIFE injection — tab opened after sync.full', () => {
       await waitForLog(mcpServer, 'plugin(s) mapped');
       await testServer.reset();
 
-      // Wait 3 seconds after sync.full to ensure all initial processing is done.
+      // Verify sync.full processing is complete by polling the health endpoint.
       // This proves the subsequent injection comes from tabs.onUpdated, not from
       // the initial sync.full batch.
-      await new Promise(r => setTimeout(r, 3_000));
+      await expect
+        .poll(
+          async () => {
+            const h = await mcpServer.health();
+            return h?.pluginDetails?.find(p => p.name === 'e2e-test') !== undefined;
+          },
+          { timeout: 10_000, message: 'e2e-test plugin should be registered after sync.full' },
+        )
+        .toBe(true);
 
       // Open a NEW tab to the test server — this tab was not open during sync.full
       const page = await openTestAppTab(extensionContext, testServer.url, mcpServer, testServer);
