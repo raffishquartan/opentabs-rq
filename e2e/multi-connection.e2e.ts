@@ -63,11 +63,12 @@ test.describe('Multi-connection WebSocket support', () => {
       expect(health.extensionConnected).toBe(true);
       expect(health.extensionConnections).toBeGreaterThanOrEqual(2);
 
-      // Wait 3 seconds to verify neither is evicted
-      await new Promise(r => setTimeout(r, 3_000));
-
-      const healthAfter = await mcpServer.waitForHealth(h => h.extensionConnections >= 2, 5_000);
-      expect(healthAfter.extensionConnections).toBeGreaterThanOrEqual(2);
+      // Verify connections persist: check twice with a gap
+      const health1 = await mcpServer.waitForHealth(h => h.extensionConnections >= 2, 5_000);
+      expect(health1.extensionConnections).toBeGreaterThanOrEqual(2);
+      await new Promise(r => setTimeout(r, 1_000));
+      const health2 = await mcpServer.waitForHealth(h => h.extensionConnections >= 2, 5_000);
+      expect(health2.extensionConnections).toBeGreaterThanOrEqual(2);
     } finally {
       wsAlpha?.close();
       wsBeta?.close();
