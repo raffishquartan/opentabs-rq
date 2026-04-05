@@ -80,7 +80,12 @@ const executeInTab = async (state: ServerState, tabId: number, code: string): Pr
     if (inner?.error) {
       throw new Error(`Script execution error: ${inner.error}`);
     }
-    return inner?.value ?? null;
+    const value = inner?.value;
+    if (typeof value === 'string' && value.length > 0 && (value[0] === '{' || value[0] === '[')) {
+      // Chrome truncated a large JSON payload to a string — return null so callers fall back to defaults
+      return null;
+    }
+    return value ?? null;
   } finally {
     try {
       await deleteExecFile(filename);
