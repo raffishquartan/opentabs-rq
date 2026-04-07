@@ -778,7 +778,10 @@ const handleMcp = async (
   }
 
   if (req.method === 'GET') {
-    const getTransport = sessionId ? transports.get(sessionId) : undefined;
+    if (!sessionId) {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    const getTransport = transports.get(sessionId);
     if (getTransport) {
       return getTransport.handleRequest(req);
     }
@@ -786,7 +789,10 @@ const handleMcp = async (
   }
 
   if (req.method === 'DELETE') {
-    const delTransport = sessionId ? transports.get(sessionId) : undefined;
+    if (!sessionId) {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    const delTransport = transports.get(sessionId);
     if (delTransport) {
       return delTransport.handleRequest(req);
     }
@@ -882,7 +888,10 @@ const handleGatewayMcp = async (
   }
 
   if (req.method === 'GET') {
-    const getTransport = sessionId ? transports.get(sessionId) : undefined;
+    if (!sessionId) {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    const getTransport = transports.get(sessionId);
     if (getTransport) {
       return getTransport.handleRequest(req);
     }
@@ -890,7 +899,10 @@ const handleGatewayMcp = async (
   }
 
   if (req.method === 'DELETE') {
-    const delTransport = sessionId ? transports.get(sessionId) : undefined;
+    if (!sessionId) {
+      return new Response('Method Not Allowed', { status: 405 });
+    }
+    const delTransport = transports.get(sessionId);
     if (delTransport) {
       return delTransport.handleRequest(req);
     }
