@@ -1008,7 +1008,16 @@ const createHandleFetch =
       return handleGatewayMcp(req, server, state, gatewayTransports, gatewaySessionServers);
     if (url.pathname === '/mcp') return handleMcp(req, server, state, transports, sessionServers);
 
-    return new Response('Not Found', { status: 404 });
+    // OAuth discovery probes: the MCP SDK's parseErrorResponse() expects JSON
+    // responses from well-known endpoints. Return RFC 8414-compatible 404 JSON.
+    if (url.pathname.startsWith('/.well-known/')) {
+      return Response.json(
+        { error: 'not_found', error_description: 'This server does not implement OAuth 2.0' },
+        { status: 404 },
+      );
+    }
+
+    return Response.json({ error: 'not_found', error_description: 'Not Found' }, { status: 404 });
   };
 
 const createHandleWsOpen =
