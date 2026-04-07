@@ -89,6 +89,13 @@ describe('checkBearerAuth', () => {
     expect(res).toBeInstanceOf(Response);
     expect((res as Response).status).toBe(401);
   });
+
+  test('includes WWW-Authenticate: Bearer header on 401 response', () => {
+    const req = new Request('http://localhost/mcp', { method: 'POST' });
+    const res = checkBearerAuth(req, 'my-secret');
+    expect(res).toBeInstanceOf(Response);
+    expect((res as Response).headers.get('WWW-Authenticate')).toBe('Bearer');
+  });
 });
 
 describe('isLocalhostHost', () => {
