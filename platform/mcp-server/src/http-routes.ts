@@ -133,7 +133,7 @@ const checkBearerAuth = (req: Request, wsSecret: string | null): Response | null
   const authHeader = req.headers.get('Authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token || !constantTimeEqual(token, wsSecret)) {
-    return new Response('Unauthorized', { status: 401 });
+    return new Response('Unauthorized', { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } });
   }
   return null;
 };
