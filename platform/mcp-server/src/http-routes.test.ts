@@ -1176,8 +1176,8 @@ describe('/mcp session creation rate limiting', () => {
       headers: { Host: 'localhost:9876' },
     });
     const res = (await handlers.fetch(req, mockServer)) as Response;
-    // GET without session ID returns 400, not 429
-    expect(res.status).toBe(400);
+    // GET without session ID returns 405, not 429
+    expect(res.status).toBe(405);
   });
 });
 
