@@ -19,7 +19,7 @@ npm install -g @opentabs-dev/opentabs-plugin-outlook
 1. Open [outlook.cloud.microsoft](https://outlook.cloud.microsoft) in Chrome and log in
 2. Open the OpenTabs side panel — the Microsoft Outlook plugin should appear as **ready**
 
-## Tools (14)
+## Tools (15)
 
 ### Account (1)
 
@@ -27,22 +27,23 @@ npm install -g @opentabs-dev/opentabs-plugin-outlook
 |---|---|---|
 | `get_current_user` | Get the current user profile | Read |
 
-### Messages (11)
+### Messages (13)
 
 | Tool | Description | Type |
 |---|---|---|
-| `list_messages` | List messages in a mail folder | Read |
-| `get_message` | Get full message details | Read |
-| `search_messages` | Search emails using KQL | Read |
-| `send_message` | Send a new email | Write |
-| `reply_to_message` | Reply or reply-all to a message | Write |
-| `forward_message` | Forward a message | Write |
+| `list_messages` | List emails in a folder | Read |
+| `get_message` | Get full email content | Read |
+| `search_messages` | Search emails by keyword | Read |
+| `send_message` | Send an email | Write |
+| `reply_to_message` | Reply to an email | Write |
+| `forward_message` | Forward an email | Write |
 | `create_draft` | Create a draft email | Write |
-| `update_message` | Update message properties (read, flag, importance, categories) | Write |
-| `move_message` | Move a message to another folder | Write |
-| `delete_message` | Delete a message | Write |
-| `list_attachments` | List attachments on a message | Read |
-| `get_attachment_content` | Download and read attachment content | Read |
+| `update_message` | Update email properties | Write |
+| `move_message` | Move email to folder | Write |
+| `delete_message` | Delete an email | Write |
+| `list_attachments` | List email attachments | Read |
+| `get_attachment_content` | Get attachment content | Read |
+| `download_attachment` | Save attachment to Downloads folder | Write |
 
 ### Folders (1)
 
