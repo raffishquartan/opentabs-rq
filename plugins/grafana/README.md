@@ -16,8 +16,17 @@ npm install -g @opentabs-dev/opentabs-plugin-grafana
 
 ## Setup
 
-1. Open [grafana.net](https://grafana.com) in Chrome and log in
-2. Open the OpenTabs side panel — the Grafana plugin should appear as **ready**
+1. Configure the plugin with `opentabs plugin configure grafana`
+2. Open your configured URL in Chrome and log in
+3. Open the OpenTabs side panel — the Grafana plugin should appear as **ready**
+
+## Configuration
+
+Configure settings via `opentabs plugin configure grafana` or the side panel.
+
+| Setting | Type | Required | Description |
+|---|---|---|---|
+| `instanceUrl` | url | Yes | The URL of your Grafana instance (e.g., https://myorg.grafana.net or https://grafana.internal) |
 
 ## Tools (29)
 
