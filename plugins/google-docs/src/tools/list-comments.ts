@@ -46,6 +46,35 @@ const fetchDocumentPlainText = async (documentId: string): Promise<string | null
   }
 };
 
+/**
+ * Fetch ALL comments from the Drive API, paginating through all pages internally.
+ * Client-side filtering (status, orphan detection) requires the full comment set
+ * to produce correct results — otherwise comments near the end of the list get
+ * missed when earlier pages are dominated by filtered-out comments.
+ */
+const fetchAllComments = async (documentId: string, includeDeleted: boolean): Promise<RawComment[]> => {
+  const allComments: RawComment[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const data = await driveApi<{ nextPageToken?: string; comments?: RawComment[] }>(
+      `/files/${encodeURIComponent(documentId)}/comments`,
+      {
+        params: {
+          fields: COMMENT_LIST_FIELDS,
+          pageSize: 100,
+          pageToken,
+          includeDeleted,
+        },
+      },
+    );
+    allComments.push(...(data.comments ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return allComments;
+};
+
 export const listComments = defineTool({
   name: 'list_comments',
   displayName: 'List Comments',
@@ -89,20 +118,14 @@ export const listComments = defineTool({
     const documentId = resolveDocumentId(params.document_id);
     const status = params.status ?? 'open';
     const includeOrphaned = params.include_orphaned ?? false;
+    const pageSize = params.page_size ?? 50;
 
-    const data = await driveApi<{ nextPageToken?: string; comments?: RawComment[] }>(
-      `/files/${encodeURIComponent(documentId)}/comments`,
-      {
-        params: {
-          fields: COMMENT_LIST_FIELDS,
-          pageSize: params.page_size ?? 50,
-          pageToken: params.page_token,
-          includeDeleted: params.include_deleted ?? false,
-        },
-      },
-    );
-
-    let comments = (data.comments ?? []).map(mapComment);
+    // Fetch all comments internally so client-side filtering produces correct results.
+    // Without this, pagination boundaries cause filtered results to be incomplete —
+    // e.g., page 1 returns 50 raw comments but only 17 survive filtering, while the
+    // remaining matching comments sit on page 2 and the consumer never sees them.
+    const rawComments = await fetchAllComments(documentId, params.include_deleted ?? false);
+    let comments = rawComments.map(mapComment);
 
     if (status === 'open') {
       comments = comments.filter(c => !c.resolved);
@@ -120,9 +143,15 @@ export const listComments = defineTool({
       // dropping all comments — graceful degradation.
     }
 
+    // Apply pagination on the filtered results.
+    const startIndex = params.page_token ? Number.parseInt(params.page_token, 10) : 0;
+    const page = comments.slice(startIndex, startIndex + pageSize);
+    const nextStart = startIndex + pageSize;
+    const hasMore = nextStart < comments.length;
+
     return {
-      comments,
-      next_page_token: data.nextPageToken ?? '',
+      comments: page,
+      next_page_token: hasMore ? String(nextStart) : '',
     };
   },
 });
