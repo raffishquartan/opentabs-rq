@@ -1,0 +1,31 @@
+language: "en-US"
+tone_instructions: "Be direct and technical. Focus on bugs, security, correctness, and TypeScript best practices. No fluff."
+reviews:
+  profile: "assertive"
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - "!plugins/*/package-lock.json"
+    - "!platform/shared/src/generated/**"
+    - "!**/*.lock"
+    - "!**/dist/**"
+  path_instructions:
+    - path: "platform/mcp-server/**"
+      instructions: "MCP server with plugin discovery and tool dispatch. Verify WebSocket message handling, error propagation, and multi-profile tab routing correctness."
+    - path: "platform/browser-extension/**"
+      instructions: "Chrome MV3 extension. Check for CSP compliance, proper Chrome API usage, message-router dispatch coverage, and adapter injection correctness."
+    - path: "platform/plugin-sdk/**"
+      instructions: "Plugin authoring SDK. Ensure backwards compatibility for plugin authors. Verify ToolError structured error handling and SDK utility contracts."
+    - path: "platform/plugin-tools/**"
+      instructions: "Plugin build tool. Verify IIFE bundling correctness, adapter key derivation, and tools.json manifest generation."
+    - path: "platform/shared/**"
+      instructions: "Shared types and utilities. Never import cross-platform.ts in browser contexts (CSP violation). Verify barrel exports are updated."
+    - path: "platform/cli/**"
+      instructions: "User-facing CLI. Check Commander.js usage patterns and config file handling."
+    - path: "plugins/**"
+      instructions: "Standalone plugins. Each has its own package.json. Verify tool definitions use defineTool() correctly and follow SDK patterns."
+    - path: "e2e/**"
+      instructions: "Playwright E2E tests. Verify test isolation (unique ports, auth secrets, extension copies per worker). Use expect.poll() for async assertions, not fixed waits."
+chat:
+  auto_reply: true
