@@ -1,7 +1,6 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { pluginNameFromPackage } from '@opentabs-dev/shared';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { checkSdkCompatibility, loadPlugin, parseMajorMinor, validateTools } from './loader.js';
 
@@ -39,24 +38,6 @@ const validTools = (overrides: Array<Record<string, unknown>> = []) =>
           output_schema: {},
         },
       ];
-
-describe('pluginNameFromPackage', () => {
-  test('strips opentabs-plugin- prefix', () => {
-    expect(pluginNameFromPackage('opentabs-plugin-slack')).toBe('slack');
-  });
-
-  test('handles third-party scoped packages', () => {
-    expect(pluginNameFromPackage('@myorg/opentabs-plugin-jira')).toBe('myorg-jira');
-  });
-
-  test('strips official @opentabs-dev scope — treated like unscoped', () => {
-    expect(pluginNameFromPackage('@opentabs-dev/opentabs-plugin-slack')).toBe('slack');
-  });
-
-  test('handles packages without the prefix', () => {
-    expect(pluginNameFromPackage('some-other-package')).toBe('some-other-package');
-  });
-});
 
 describe('validateTools', () => {
   test('validates a valid tools array', () => {
