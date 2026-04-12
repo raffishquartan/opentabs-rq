@@ -8,15 +8,15 @@
   </picture>
 </a>
 
-<br><br>
+<br>
 
 [![npm version](https://img.shields.io/npm/v/@opentabs-dev/cli?style=flat-square&color=FFDB33)](https://www.npmjs.com/package/@opentabs-dev/cli)
 [![License: MIT](https://img.shields.io/github/license/opentabs-dev/opentabs?style=flat-square&color=FFDB33)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/opentabs-dev/opentabs?style=flat-square&color=FFDB33)](https://github.com/opentabs-dev/opentabs/stargazers)
 
-<br>
-
 [Docs](https://opentabs.dev/docs) &nbsp;&middot;&nbsp; [Plugins](plugins/) &nbsp;&middot;&nbsp; [Discord](https://discord.gg/b8Hjpz4B)
+
+</div>
 
 <br>
 
@@ -26,17 +26,13 @@ Your AI calls real web APIs through your browser session — no screenshots, no 
 Works with any [MCP](https://modelcontextprotocol.io/) client — Claude Code, Cursor, Windsurf, and more.<br>
 Don't want MCP? Use [CLI mode](https://opentabs.dev/docs/reference/mcp-server#cli-mode) instead.
 
-</div>
-
-<br>
-
 <p align="center">
+  <br>
   <img src="assets/demo-hero.gif" alt="Demo: AI sends a Discord message and adds reactions through real API calls" />
   <br>
   <sub>AI sending a Discord message and adding reactions — real API calls, not browser automation</sub>
+  <br><br>
 </p>
-
-<br>
 
 ## How It Works
 
@@ -82,12 +78,12 @@ Scaffold a plugin in one command. Publish to npm. Anyone can install it.<br>
 Or point your AI at any website — it discovers the APIs and builds the plugin for you.<br>
 [Plugin Development guide](https://opentabs.dev/docs/guides/plugin-development)
 
-<br>
-
 <p align="center">
+  <br>
   <img src="assets/demo-install-plugin.gif" alt="Demo: installing a Reddit plugin and immediately using it to create a post" />
   <br>
   <sub>Install a plugin, use it immediately — no restart needed</sub>
+  <br><br>
 </p>
 
 ## Security
