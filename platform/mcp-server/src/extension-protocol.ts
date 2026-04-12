@@ -334,6 +334,11 @@ const dispatchToExtension = (
     };
     state.pendingDispatches.set(id, pending);
 
+    const currentSize = state.pendingDispatches.size;
+    if (currentSize > state.peakConcurrentDispatches) {
+      state.peakConcurrentDispatches = currentSize;
+    }
+
     log.debug('dispatch → extension:', method, 'id:', id, 'connection:', conn.connectionId);
 
     try {
