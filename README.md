@@ -27,7 +27,7 @@ Through your browser. Using your existing session.
 No screenshots. No DOM scraping. Just real API calls.
 
 Works with Claude Code, Cursor, Windsurf, and any [MCP](https://modelcontextprotocol.io/) client.
-Don't want MCP? Use [CLI mode](https://opentabs.dev/docs/reference/cli) — every tool becomes a shell command.
+Don't want MCP? Use [CLI mode](https://opentabs.dev/docs/reference/mcp-server#cli-mode) — every tool becomes a shell command.
 
 <figure>
   <img src="assets/demo-hero.gif" alt="Demo: AI sends a Discord message and adds reactions through real API calls" />
