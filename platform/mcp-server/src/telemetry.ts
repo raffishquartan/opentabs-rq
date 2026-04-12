@@ -100,6 +100,7 @@ const initTelemetry = async (): Promise<void> => {
       host: POSTHOG_HOST,
       flushAt: 1,
       flushInterval: 0,
+      disableGeoip: true,
     });
   } catch {
     // posthog-node not installed or other init failure — telemetry disabled
