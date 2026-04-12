@@ -25,6 +25,7 @@ let client:
     }
   | undefined;
 let anonymousId: string | undefined;
+let sessionId: string | undefined;
 let enabled = false;
 let debugMode = false;
 
@@ -91,6 +92,7 @@ const initTelemetry = async (): Promise<void> => {
     }
 
     anonymousId = await getOrCreateAnonymousId();
+    sessionId = crypto.randomUUID();
     enabled = true;
 
     if (debugMode) return;
@@ -127,6 +129,9 @@ const trackEvent = (event: string, properties?: Record<string, unknown>): void =
   }
 };
 
+/** Return the per-process session UUID, or empty string if telemetry is not yet initialized. */
+const getSessionId = (): string => sessionId ?? '';
+
 /**
  * Flush pending telemetry events. Call before process exit.
  * Has a 2-second timeout so it cannot prevent process exit.
@@ -141,4 +146,4 @@ const shutdownTelemetry = async (): Promise<void> => {
   }
 };
 
-export { getOrCreateAnonymousId, initTelemetry, isTelemetryEnabled, shutdownTelemetry, trackEvent };
+export { getOrCreateAnonymousId, getSessionId, initTelemetry, isTelemetryEnabled, shutdownTelemetry, trackEvent };
