@@ -174,7 +174,7 @@ jobs:
             grep -q '"opentabs"' "$PLUGIN_DIR/package.json" 2>/dev/null || continue
             echo ""
             echo "=== Rebuilding $PLUGIN_DIR ==="
-            (cd "$PLUGIN_DIR" && rm -f package-lock.json && npm install && npm run build)
+            (cd "$PLUGIN_DIR" && rm -rf node_modules package-lock.json && npm install && npm run build)
           done
 
       - name: Commit version bumps and create tag
