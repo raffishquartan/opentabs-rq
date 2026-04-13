@@ -34,6 +34,7 @@ import {
   handlePluginRemoveBySpecifier,
   handlePluginSearch,
   handlePluginUpdateFromRegistry,
+  handleServerSelfUpdate,
   handleTabStateChanged,
   handleTabSyncAll,
   handleToolProgress,
@@ -631,6 +632,11 @@ const handleExtensionMessage = (
 
   if (method === 'plugin.checkUpdates' && id !== undefined) {
     void handlePluginCheckUpdates(state, id);
+    return;
+  }
+
+  if (method === 'server.selfUpdate' && id !== undefined) {
+    void handleServerSelfUpdate(state, id);
     return;
   }
 

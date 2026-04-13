@@ -5,6 +5,7 @@
  * handleExtensionMessage router in extension-protocol.ts.
  */
 
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,8 +21,10 @@ import type {
   TabSyncAllParams,
   ToolPermission,
 } from '@opentabs-dev/shared';
+import { DEFAULT_PORT, isWindows } from '@opentabs-dev/shared';
 import open from 'open';
 import { getExtensionDir } from './config.js';
+import { isDev } from './dev-mode.js';
 import type { PluginLogEntry } from './log-buffer.js';
 import { appendLog } from './log-buffer.js';
 import { log } from './logger.js';
@@ -1064,6 +1067,60 @@ const handlePluginCheckUpdates = async (state: ServerState, id: string | number)
   }
 };
 
+// --- Server self-update handler ---
+
+const CLI_PACKAGE_NAME = '@opentabs-dev/cli';
+
+const handleServerSelfUpdate = async (state: ServerState, id: string | number): Promise<void> => {
+  if (!state.serverUpdate) {
+    sendToExtension(state, { jsonrpc: '2.0', error: { code: -32603, message: 'No server update available' }, id });
+    return;
+  }
+
+  if (!serverSourcePath.includes('node_modules')) {
+    sendToExtension(state, {
+      jsonrpc: '2.0',
+      error: { code: -32603, message: 'Cannot self-update a dev install — use git pull' },
+      id,
+    });
+    return;
+  }
+
+  const { latestVersion } = state.serverUpdate;
+
+  const result = spawnSync('npm', ['install', '-g', `${CLI_PACKAGE_NAME}@${latestVersion}`], {
+    stdio: isDev() ? 'inherit' : 'ignore',
+    shell: isWindows(),
+  });
+  if (result.error || (result.status ?? 1) !== 0) {
+    sendToExtension(state, {
+      jsonrpc: '2.0',
+      error: { code: -32603, message: `npm install failed (exit ${result.status ?? 'unknown'})` },
+      id,
+    });
+    return;
+  }
+
+  sendToExtension(state, {
+    jsonrpc: '2.0',
+    result: { ok: true, message: `Updated to v${latestVersion}. Restarting...` },
+    id,
+  });
+
+  if (process.stdout.isTTY) {
+    process.stdout.write(`Updated to v${latestVersion}. Server restarted in background mode.\n`);
+  }
+
+  const port = parseInt(process.env.PORT ?? String(DEFAULT_PORT), 10);
+  const startArgs = ['start', '--background'];
+  if (port !== DEFAULT_PORT) startArgs.push('--port', String(port));
+
+  const child = spawn('opentabs', startArgs, { detached: true, stdio: 'ignore', shell: isWindows() });
+  child.unref();
+
+  setTimeout(() => process.exit(0), 200);
+};
+
 export type { McpCallbacks, WirePluginTabInfo, WireTabMapping };
 export {
   buildConfigStatePayload,
@@ -1081,6 +1138,7 @@ export {
   handlePluginRemoveBySpecifier,
   handlePluginSearch,
   handlePluginUpdateFromRegistry,
+  handleServerSelfUpdate,
   handleTabStateChanged,
   handleTabSyncAll,
   handleToolProgress,
