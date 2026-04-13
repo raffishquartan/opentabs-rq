@@ -986,6 +986,11 @@ const handlePluginUpdateFromRegistry = async (
       params: { ...buildConfigStatePayload(state) },
     });
 
+    trackEvent('plugin_updated', {
+      session_id: getSessionId(),
+      source: 'side_panel',
+    });
+
     log.info(
       `Plugin "${result.plugin.name}" updated — MCP clients may need to reconnect (/mcp in Claude Code) to see updated tools`,
     );
