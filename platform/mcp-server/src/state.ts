@@ -294,6 +294,8 @@ export interface ServerState {
   pendingDispatches: Map<string | number, PendingDispatch>;
   /** Outdated npm plugins detected on startup */
   outdatedPlugins: OutdatedPlugin[];
+  /** Available CLI update detected by version check. Undefined when up-to-date or in dev mode. */
+  serverUpdate?: { latestVersion: string; updateCommand: string };
   /** Browser tools — updated on each hot reload so existing session handlers see fresh definitions */
   browserTools: BrowserToolDefinition[];
   /** Grouped state for file watching (plugin watchers, config watcher, mtime polling) */
