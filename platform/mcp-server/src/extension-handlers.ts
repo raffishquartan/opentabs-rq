@@ -915,6 +915,13 @@ const handlePluginSearch = async (
 
   try {
     const results = await searchNpmPlugins(query ?? undefined);
+    const resultCount = results.length;
+    const result_count_bucket = resultCount === 0 ? '0' : resultCount <= 5 ? '1-5' : '6+';
+    trackEvent('plugin_search', {
+      session_id: getSessionId(),
+      source: 'side_panel',
+      result_count_bucket,
+    });
     sendToExtension(state, {
       jsonrpc: '2.0',
       result: { results },
