@@ -182,6 +182,11 @@ export interface BgUpdatePluginMessage {
   name: string;
 }
 
+/** Side panel → Background: trigger server self-update (phoenix restart) */
+export interface BgSelfUpdateServerMessage {
+  type: 'bg:selfUpdateServer';
+}
+
 /** Side panel → Background: focus or open a tab for a plugin */
 export interface BgOpenPluginTabMessage {
   type: 'bg:openPluginTab';
@@ -225,6 +230,7 @@ export type InternalMessage =
   | BgRemovePluginMessage
   | BgRemoveFailedPluginMessage
   | BgUpdatePluginMessage
+  | BgSelfUpdateServerMessage
   | BgOpenPluginTabMessage
   | BgSetPluginSettingsMessage
   | BgOpenFolderMessage

@@ -475,6 +475,12 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
       ? rawBrowserPermission
       : undefined;
   const rawSkipPermissions = typeof params.skipPermissions === 'boolean' ? params.skipPermissions : undefined;
+  const rawServerUpdate =
+    params.serverUpdate &&
+    typeof params.serverUpdate === 'object' &&
+    typeof (params.serverUpdate as Record<string, unknown>).latestVersion === 'string'
+      ? (params.serverUpdate as { latestVersion: string; updateCommand: string })
+      : undefined;
 
   updateServerStateCache({
     plugins: cachePlugins,
@@ -485,6 +491,7 @@ const handleSyncFull = async (params: Record<string, unknown>): Promise<void> =>
     ...(rawServerSourcePath !== undefined ? { serverSourcePath: rawServerSourcePath } : {}),
     ...(rawSkipPermissions !== undefined ? { skipPermissions: rawSkipPermissions } : {}),
     ...(rawExtensionHash !== undefined ? { extensionHash: rawExtensionHash } : {}),
+    serverUpdate: rawServerUpdate,
   });
 
   // Mark caches as initialized so the bg:getFullState wake detection
@@ -740,6 +747,12 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
   // BEFORE forwarding to the side panel so the side panel reads fresh data.
   if (method === 'plugins.changed') {
     const payload = params as Partial<ConfigStateResult>;
+    const rawServerUpdate =
+      params.serverUpdate &&
+      typeof params.serverUpdate === 'object' &&
+      typeof (params.serverUpdate as Record<string, unknown>).latestVersion === 'string'
+        ? (params.serverUpdate as { latestVersion: string; updateCommand: string })
+        : undefined;
     updateServerStateCache({
       ...(payload.plugins ? { plugins: payload.plugins } : {}),
       ...(payload.failedPlugins ? { failedPlugins: payload.failedPlugins } : {}),
@@ -749,6 +762,7 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
       ...(payload.serverSourcePath !== undefined ? { serverSourcePath: payload.serverSourcePath } : {}),
       ...(payload.skipPermissions !== undefined ? { skipPermissions: payload.skipPermissions } : {}),
       ...(payload.extensionHash !== undefined ? { extensionHash: payload.extensionHash } : {}),
+      serverUpdate: rawServerUpdate,
     });
   }
 

@@ -68,6 +68,7 @@ interface FullStateResult {
   serverSourcePath?: string;
   skipPermissions?: boolean;
   extensionHash?: string;
+  serverUpdate?: { latestVersion: string; updateCommand: string };
   pendingConfirmations?: FullStateConfirmation[];
 }
 
@@ -155,6 +156,9 @@ const removeFailedPlugin = (specifier: string): Promise<{ ok: true }> =>
 const updatePlugin = (name: string): Promise<PluginInstallResult> =>
   sendBgMessage<PluginInstallResult>({ type: 'bg:updatePlugin', name });
 
+/** Trigger server self-update (phoenix restart) */
+const selfUpdateServer = (): Promise<unknown> => sendBgMessage({ type: 'bg:selfUpdateServer' });
+
 /** Set the skip-permissions runtime flag on the MCP server */
 const setSkipPermissions = (skipPermissions: boolean): Promise<unknown> =>
   sendBgMessage({ type: 'bg:setSkipPermissions', skipPermissions });
@@ -203,6 +207,7 @@ export {
   removeFailedPlugin,
   removePlugin,
   searchPlugins,
+  selfUpdateServer,
   sendConfirmationResponse,
   setAllToolsPermission,
   setPluginPermission,
