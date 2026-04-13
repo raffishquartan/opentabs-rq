@@ -1,5 +1,6 @@
 import { type ChildProcess, execFile as execFileCb, spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -127,11 +128,24 @@ describe('CLI smoke tests', () => {
   });
 
   describe('start command lifecycle', () => {
+    /** Get an ephemeral port by briefly binding to port 0 and releasing. */
+    const getFreePort = (): Promise<number> =>
+      new Promise((resolve, reject) => {
+        const srv = createServer();
+        srv.listen(0, () => {
+          const addr = srv.address();
+          const port = typeof addr === 'object' && addr ? addr.port : 0;
+          srv.close(err => (err ? reject(err) : resolve(port)));
+        });
+        srv.on('error', reject);
+      });
+
     it('starts the server and responds to health check', async () => {
-      const child: ChildProcess = spawn('node', [CLI, 'start'], {
+      const port = await getFreePort();
+
+      const child: ChildProcess = spawn('node', [CLI, 'start', '--port', String(port)], {
         env: {
           ...process.env,
-          PORT: '0',
           OPENTABS_CONFIG_DIR: tmpDir,
           OPENTABS_SKIP_NPM_DISCOVERY: '1',
           OPENTABS_TELEMETRY_DISABLED: '1',
@@ -141,31 +155,22 @@ describe('CLI smoke tests', () => {
       });
 
       try {
-        const port = await new Promise<number>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('Server did not start within 15s')), 15_000);
-          const onData = (chunk: Buffer) => {
-            const match = chunk.toString().match(/[Ll]istening on http:\/\/(?:127\.0\.0\.1|localhost):(\d+)/);
-            if (match) {
-              clearTimeout(timeout);
-              child.stdout?.off('data', onData);
-              child.stderr?.off('data', onData);
-              resolve(Number(match[1]));
+        // Wait for the server to be ready by polling /health
+        const deadline = Date.now() + 15_000;
+        let healthy = false;
+        while (Date.now() < deadline) {
+          try {
+            const res = await fetch(`http://127.0.0.1:${port}/health`);
+            if (res.ok) {
+              healthy = true;
+              break;
             }
-          };
-          child.stdout?.on('data', onData);
-          child.stderr?.on('data', onData);
-          child.on('error', err => {
-            clearTimeout(timeout);
-            reject(err);
-          });
-          child.on('exit', code => {
-            clearTimeout(timeout);
-            if (code !== null && code !== 0) reject(new Error(`Server exited with code ${code}`));
-          });
-        });
-
-        const res = await fetch(`http://127.0.0.1:${port}/health`);
-        expect(res.status).toBe(200);
+          } catch {
+            // Server not ready yet — retry after a short delay
+          }
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+        expect(healthy).toBe(true);
       } finally {
         child.kill('SIGTERM');
         await new Promise<void>(resolve => child.on('exit', () => resolve()));
