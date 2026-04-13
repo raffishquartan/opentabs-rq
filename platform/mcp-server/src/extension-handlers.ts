@@ -404,6 +404,7 @@ const buildConfigStatePayload = (state: ServerState): ConfigStateResult => {
     serverSourcePath,
     skipPermissions: state.skipPermissions,
     extensionHash,
+    ...(state.serverUpdate ? { serverUpdate: state.serverUpdate } : {}),
   };
 };
 

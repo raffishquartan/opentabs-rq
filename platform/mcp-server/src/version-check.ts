@@ -7,9 +7,12 @@
  */
 
 import { spawn } from 'node:child_process';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isWindows, toErrorMessage } from '@opentabs-dev/shared';
 import { log } from './logger.js';
 import type { OutdatedPlugin, ServerState } from './state.js';
+import { version } from './version.js';
 
 /** Result of checking a single plugin for updates */
 type CheckResult = { kind: 'outdated'; entry: OutdatedPlugin } | { kind: 'up-to-date' } | { kind: 'unreachable' };
@@ -100,6 +103,39 @@ export const isNewer = (current: string, latest: string): boolean => {
     if (latestSegment < currentSegment) return false;
   }
   return false;
+};
+
+/** Absolute path to the MCP server's package directory (parent of dist/) */
+const _serverDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** A production npm install has 'node_modules' in the resolved server directory path */
+const isProductionInstall = (): boolean => _serverDir.includes('node_modules');
+
+const CLI_PACKAGE_NAME = '@opentabs-dev/cli';
+
+/**
+ * Check if a newer version of @opentabs-dev/cli is available on npm.
+ * Only runs when the server is running from a production npm install
+ * (serverSourcePath contains 'node_modules'), not from source.
+ * Stores results in state.serverUpdate.
+ *
+ * @param state - Server state containing the serverUpdate target
+ */
+export const checkServerUpdate = async (state: ServerState): Promise<void> => {
+  if (!isProductionInstall()) {
+    state.serverUpdate = undefined;
+    return;
+  }
+
+  const latest = await fetchLatestVersion(CLI_PACKAGE_NAME);
+  if (!latest) return;
+
+  if (isNewer(version, latest)) {
+    state.serverUpdate = { latestVersion: latest, updateCommand: `npm install -g ${CLI_PACKAGE_NAME}` };
+    log.info(`${CLI_PACKAGE_NAME}: ${version} → ${latest}`);
+  } else {
+    state.serverUpdate = undefined;
+  }
 };
 
 /**
