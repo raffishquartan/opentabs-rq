@@ -1166,6 +1166,10 @@ const handleServerSelfUpdate = async (state: ServerState, id: string | number): 
     return;
   }
 
+  trackEvent('server_update_applied', {
+    session_id: getSessionId(),
+  });
+
   sendToExtension(state, {
     jsonrpc: '2.0',
     result: { ok: true, message: `Updated to v${latestVersion}. Restarting...` },
