@@ -59,22 +59,11 @@ Full walkthrough: [Quick Start guide](https://opentabs.dev/docs/quick-start)
 
 ## What You Get
 
-**100+ plugins, ~2,000 tools.**<br>
-Slack, Discord, GitHub, Jira, Notion, Figma, AWS, Stripe, and [a lot more](plugins/).<br>
-One command to install. Works immediately.
+- **100+ plugins, ~2,000 tools.** Slack, Discord, GitHub, Jira, Notion, Figma, AWS, Stripe, and [a lot more](plugins/). One command to install, works immediately.
 
-<br>
+- **Built-in browser tools.** Screenshots, clicking, typing, network capture — works on any tab, no plugin needed.
 
-**Built-in browser tools.**<br>
-Screenshots, clicking, typing, network capture.<br>
-Works on any tab, no plugin needed.
-
-<br>
-
-**Build your own.**<br>
-Scaffold a plugin in one command. Publish to npm. Anyone can install it.<br>
-Or point your AI at any website — it discovers the APIs and builds the plugin for you.<br>
-[Plugin Development guide](https://opentabs.dev/docs/guides/plugin-development)
+- **Build your own.** Scaffold a plugin in one command, publish to npm, anyone can install it. Or point your AI at any website — it discovers the APIs and builds the plugin for you. [Plugin Development guide](https://opentabs.dev/docs/guides/plugin-development)
 
 <p align="center">
   <br>
