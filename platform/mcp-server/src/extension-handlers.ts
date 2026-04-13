@@ -44,6 +44,7 @@ import {
   getMergedTabMapping,
   MAX_DISPATCH_TIMEOUT_MS,
 } from './state.js';
+import { getSessionId, trackEvent } from './telemetry.js';
 import { version } from './version.js';
 
 /** Absolute path to the MCP server's package directory (parent of dist/) */
@@ -927,6 +928,11 @@ const handlePluginInstall = async (
   try {
     const result = await installPlugin(params.name, state, callbacks.onReload);
 
+    trackEvent('plugin_installed', {
+      session_id: getSessionId(),
+      source: 'side_panel',
+    });
+
     // Notify the side panel so the UI refreshes with the new plugin
     sendToExtension(state, {
       jsonrpc: '2.0',
@@ -944,6 +950,17 @@ const handlePluginInstall = async (
       id,
     });
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message.toLowerCase() : '';
+    const error_category = errorMsg.includes('timed out')
+      ? 'timeout'
+      : errorMsg.includes('not a valid opentabs plugin')
+        ? 'invalid_plugin'
+        : 'npm_failure';
+    trackEvent('plugin_install_failed', {
+      session_id: getSessionId(),
+      source: 'side_panel',
+      error_category,
+    });
     sendPluginManagementError(state, id, err);
   }
 };
