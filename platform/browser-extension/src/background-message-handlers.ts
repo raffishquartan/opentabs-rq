@@ -259,6 +259,7 @@ const handleBgGetFullState: MessageHandler = (_message, sendResponse) => {
       serverSourcePath: serverCache.serverSourcePath,
       skipPermissions: serverCache.skipPermissions,
       extensionHash: serverCache.extensionHash,
+      serverUpdate: serverCache.serverUpdate,
       pendingConfirmations: getPendingConfirmations(),
     });
   })().catch(() => {
@@ -635,6 +636,17 @@ const handleBgUpdatePlugin: MessageHandler = (message, sendResponse) => {
     });
 };
 
+/** Handle bg:selfUpdateServer — trigger server self-update (phoenix restart) via the MCP server */
+const handleBgSelfUpdateServer: MessageHandler = (_message, sendResponse) => {
+  sendServerRequest('server.selfUpdate', {})
+    .then((result: unknown) => {
+      sendResponse(result);
+    })
+    .catch((err: unknown) => {
+      sendResponse({ error: err instanceof Error ? err.message : String(err) });
+    });
+};
+
 /** Handle bg:setPluginSettings — save plugin settings via the MCP server */
 const handleBgSetPluginSettings: MessageHandler = (message, sendResponse) => {
   const plugin = message.plugin as string;
@@ -755,6 +767,7 @@ const backgroundHandlers = new Map<InternalMessage['type'], MessageHandler>([
   ['bg:removePlugin', handleBgRemovePlugin],
   ['bg:removeFailedPlugin', handleBgRemoveFailedPlugin],
   ['bg:updatePlugin', handleBgUpdatePlugin],
+  ['bg:selfUpdateServer', handleBgSelfUpdateServer],
   ['bg:openPluginTab', handleBgOpenPluginTab],
   ['bg:setPluginSettings', handleBgSetPluginSettings],
   ['bg:openFolder', handleBgOpenFolder],
@@ -781,6 +794,7 @@ const EXTENSION_ONLY_TYPES: ReadonlySet<InternalMessage['type']> = new Set([
   'bg:removePlugin',
   'bg:removeFailedPlugin',
   'bg:updatePlugin',
+  'bg:selfUpdateServer',
   'bg:openPluginTab',
   'bg:setPluginSettings',
   'bg:openFolder',
@@ -827,6 +841,7 @@ export {
   handleBgRemoveFailedPlugin,
   handleBgRemovePlugin,
   handleBgSearchPlugins,
+  handleBgSelfUpdateServer,
   handleBgSetAllToolsPermission,
   handleBgSetPluginPermission,
   handleBgSetPluginSettings,
