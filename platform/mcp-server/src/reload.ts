@@ -36,7 +36,8 @@ import { buildRegistry } from './registry.js';
 import { resolveLocalPath, scanLocalPluginDir } from './resolver.js';
 import type { CachedBrowserTool, ServerState } from './state.js';
 import { isExtensionConnected } from './state.js';
-import { checkForUpdates } from './version-check.js';
+import { version } from './version.js';
+import { checkForUpdates, checkServerUpdate, isNewer } from './version-check.js';
 
 /** Metadata from a completed reload, stored on HotState for the /health endpoint */
 interface ReloadResult {
@@ -136,6 +137,11 @@ const pruneStaleState = (state: ServerState): void => {
   state.outdatedPlugins = state.outdatedPlugins.filter(
     o => npmPkgVersions.has(o.name) && npmPkgVersions.get(o.name) !== o.latestVersion,
   );
+
+  // Prune serverUpdate when the installed version now matches latestVersion
+  if (state.serverUpdate && !isNewer(version, state.serverUpdate.latestVersion)) {
+    state.serverUpdate = undefined;
+  }
 
   // Prune activeNetworkCaptures for tab IDs no longer present in tabMappings
   for (const conn of state.extensionConnections.values()) {
@@ -591,12 +597,24 @@ const performConfigReload = async (
  * periodic timer — NOT during reload, to keep the reload path fast.
  */
 const runVersionCheck = async (state: ServerState): Promise<void> => {
+  const prevOutdated = state.outdatedPlugins;
+  const prevServerUpdate = state.serverUpdate;
+
   try {
     await checkForUpdates(state);
   } catch {
     // best-effort
   }
-  if (state.outdatedPlugins.length > 0 && isExtensionConnected(state)) {
+  try {
+    await checkServerUpdate(state);
+  } catch {
+    // best-effort
+  }
+
+  const outdatedChanged = state.outdatedPlugins !== prevOutdated;
+  const serverUpdateChanged = state.serverUpdate !== prevServerUpdate;
+
+  if ((outdatedChanged || serverUpdateChanged) && isExtensionConnected(state)) {
     sendToExtension(state, {
       jsonrpc: '2.0',
       method: 'plugins.changed',
