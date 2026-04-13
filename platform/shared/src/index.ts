@@ -392,6 +392,8 @@ export interface ConfigStateResult {
   skipPermissions?: boolean;
   /** SHA-256 content hash of the extension bundle files, computed at build time */
   extensionHash?: string;
+  /** Available CLI update detected by the server. Omitted when up-to-date or running from source. */
+  serverUpdate?: { latestVersion: string; updateCommand: string };
 }
 
 /** config.setToolPermission request params */
