@@ -70,6 +70,18 @@ jobs:
               const fs = require('fs');
               const pkg = JSON.parse(fs.readFileSync('$PKG/package.json', 'utf8'));
               pkg.version = '$VERSION';
+              // Transform bare '*' cross-refs between platform packages to '^VERSION'.
+              // npm does not transform workspace:* on publish (unlike pnpm), so '*' lands
+              // in the published package.json and resolves to whatever is already in the
+              // consumer's node_modules — potentially a stale incompatible version.
+              for (const depMap of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies]) {
+                if (!depMap) continue;
+                for (const [name, ver] of Object.entries(depMap)) {
+                  if (name.startsWith('@opentabs-dev/') && ver === '*') {
+                    depMap[name] = '^$VERSION';
+                  }
+                }
+              }
               fs.writeFileSync('$PKG/package.json', JSON.stringify(pkg, null, 2) + '\n');
             "
             echo "Bumped $PKG → $VERSION"
