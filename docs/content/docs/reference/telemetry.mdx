@@ -1,7 +1,7 @@
 ---
 title: Telemetry
 description: What anonymous usage data OpenTabs collects, why, and how to opt out.
-lastUpdated: 2026-03-30
+lastUpdated: 2026-04-13
 ---
 
 OpenTabs collects **completely anonymous** telemetry data to help improve the platform. This page explains what is collected, why, and how to disable it.
@@ -16,7 +16,13 @@ We do not collect any personally identifiable information, plugin names, tool ca
 
 ## What is collected?
 
-A single event — `server_started` — is sent each time the MCP server starts. It includes:
+Events are grouped into categories. Each event includes only anonymous metadata — no plugin names, no search queries, no error messages, no version numbers beyond the server itself.
+
+### Server lifecycle
+
+#### `server_started`
+
+Sent each time the MCP server starts.
 
 <Table>
   <Table.Header>
@@ -60,7 +66,446 @@ A single event — `server_started` — is sent each time the MCP server starts.
   </Table.Body>
 </Table>
 
-That's it. No plugin names, no tool calls, no file paths, no environment variables, no error messages, no browsing data.
+#### `server_stopped`
+
+Sent when the MCP server shuts down.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`uptime_seconds`</Table.Cell>
+      <Table.Cell className="*:text-xs">`3621`</Table.Cell>
+      <Table.Cell>How long the server ran, in seconds.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`tool_calls_total`</Table.Cell>
+      <Table.Cell className="*:text-xs">`47`</Table.Cell>
+      <Table.Cell>Total number of tool calls during the session.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`tool_errors_total`</Table.Cell>
+      <Table.Cell className="*:text-xs">`2`</Table.Cell>
+      <Table.Cell>Total number of tool errors during the session.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`tool_error_rate_bucket`</Table.Cell>
+      <Table.Cell className="*:text-xs">`0-5%`</Table.Cell>
+      <Table.Cell>Error rate range (bucketed, not exact).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`extension_was_connected`</Table.Cell>
+      <Table.Cell className="*:text-xs">`true`</Table.Cell>
+      <Table.Cell>Whether the browser extension connected during the session.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`peak_concurrent_dispatches`</Table.Cell>
+      <Table.Cell className="*:text-xs">`3`</Table.Cell>
+      <Table.Cell>Maximum concurrent tool dispatches observed.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`plugin_load_failures`</Table.Cell>
+      <Table.Cell className="*:text-xs">`0`</Table.Cell>
+      <Table.Cell>Number of plugins that failed to load.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `extension_connected`
+
+Sent when the browser extension establishes a WebSocket connection.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`time_to_connect_bucket`</Table.Cell>
+      <Table.Cell className="*:text-xs">`1-5s`</Table.Cell>
+      <Table.Cell>Time from server start to extension connection (bucketed).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`profile_count`</Table.Cell>
+      <Table.Cell className="*:text-xs">`1`</Table.Cell>
+      <Table.Cell>Number of Chrome profiles connected.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `dispatch_timed_out`
+
+Sent when a tool dispatch exceeds the timeout threshold.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`had_progress_updates`</Table.Cell>
+      <Table.Cell className="*:text-xs">`true`</Table.Cell>
+      <Table.Cell>Whether the dispatch sent progress updates before timing out.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`duration_bucket`</Table.Cell>
+      <Table.Cell className="*:text-xs">`30-60s`</Table.Cell>
+      <Table.Cell>How long the dispatch ran before timeout (bucketed).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Plugin lifecycle
+
+#### `plugin_installed`
+
+Sent when a plugin is installed.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the action was triggered from.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `plugin_removed`
+
+Sent when a plugin is removed.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the action was triggered from.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`was_failed`</Table.Cell>
+      <Table.Cell className="*:text-xs">`false`</Table.Cell>
+      <Table.Cell>Whether the plugin was in a failed state when removed.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`plugin_source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`npm`</Table.Cell>
+      <Table.Cell>How the plugin was installed (`npm` or `local`).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `plugin_updated`
+
+Sent when a plugin is updated to a new version.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the action was triggered from.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `plugin_reviewed`
+
+Sent when a plugin passes the review process.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`permission_set`</Table.Cell>
+      <Table.Cell className="*:text-xs">`auto`</Table.Cell>
+      <Table.Cell>Permission level assigned after review.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`review_source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`agent`</Table.Cell>
+      <Table.Cell>Who performed the review (`agent` or `user`).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `plugin_install_failed`
+
+Sent when a plugin installation fails.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the action was triggered from.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`error_category`</Table.Cell>
+      <Table.Cell className="*:text-xs">`npm_failure`</Table.Cell>
+      <Table.Cell>Category of the failure (not the full error message).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Permissions
+
+#### `permission_changed`
+
+Sent when a plugin or tool permission is changed.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`target`</Table.Cell>
+      <Table.Cell className="*:text-xs">`plugin`</Table.Cell>
+      <Table.Cell>What was changed (`plugin` or `tool`).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`new_permission`</Table.Cell>
+      <Table.Cell className="*:text-xs">`auto`</Table.Cell>
+      <Table.Cell>The new permission level.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `skip_permissions_changed`
+
+Sent when the global skip-permissions setting is toggled.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`enabled`</Table.Cell>
+      <Table.Cell className="*:text-xs">`true`</Table.Cell>
+      <Table.Cell>Whether skip-permissions is now enabled.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Search
+
+#### `plugin_search`
+
+Sent when a plugin search is performed.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the search was triggered from.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`result_count_bucket`</Table.Cell>
+      <Table.Cell className="*:text-xs">`6+`</Table.Cell>
+      <Table.Cell>Number of results found (bucketed, not exact).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Settings
+
+#### `plugin_configured`
+
+Sent when plugin settings are saved.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`source`</Table.Cell>
+      <Table.Cell className="*:text-xs">`side_panel`</Table.Cell>
+      <Table.Cell>Where the settings were changed from.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`had_required_fields`</Table.Cell>
+      <Table.Cell className="*:text-xs">`true`</Table.Cell>
+      <Table.Cell>Whether the plugin had required configuration fields.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+### Updates
+
+#### `server_update_available`
+
+Sent when a newer version of OpenTabs is available.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+#### `server_update_applied`
+
+Sent when a server update is applied.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Property</Table.Head>
+      <Table.Head>Example</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`session_id`</Table.Cell>
+      <Table.Cell className="*:text-xs">`a1b2c3d4-e5f6-7890-abcd-ef1234567890`</Table.Cell>
+      <Table.Cell>Random session identifier (UUIDv4).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+That's everything. No plugin names, no tool calls, no file paths, no environment variables, no error messages, no browsing data. All counts and durations are bucketed into ranges to prevent fingerprinting individual sessions.
 
 ## How is identity handled?
 
