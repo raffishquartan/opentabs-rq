@@ -741,6 +741,14 @@ const handleConfigSetPluginSettings = async (
     log.warn('Reload after settings change failed:', err);
   }
 
+  const pluginEntry = state.registry.plugins.get(pluginName);
+  const hasRequired = pluginEntry?.configSchema ? Object.values(pluginEntry.configSchema).some(f => f.required) : false;
+  trackEvent('plugin_configured', {
+    session_id: getSessionId(),
+    source: 'side_panel',
+    had_required_fields: hasRequired,
+  });
+
   sendToExtension(state, {
     jsonrpc: '2.0',
     method: 'plugins.changed',
