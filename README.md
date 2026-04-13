@@ -20,11 +20,8 @@
 
 <br>
 
-**Browser automation clicks buttons. OpenTabs calls APIs.**
-
 Your AI calls real web APIs through your browser session — no screenshots, no DOM scraping.<br>
-Works with any [MCP](https://modelcontextprotocol.io/) client — Claude Code, Cursor, Windsurf, and more.<br>
-Don't want MCP? Use [CLI mode](https://opentabs.dev/docs/reference/mcp-server#cli-mode) instead.
+Works with any [MCP](https://modelcontextprotocol.io/) client. Don't want MCP? Use [CLI mode](https://opentabs.dev/docs/reference/mcp-server#cli-mode) instead.
 
 <p align="center">
   <br>
