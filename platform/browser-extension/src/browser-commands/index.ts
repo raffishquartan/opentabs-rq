@@ -6,6 +6,11 @@ export {
 } from './content-commands.js';
 export { handleBrowserDeleteCookies, handleBrowserGetCookies, handleBrowserSetCookie } from './cookie-commands.js';
 export {
+  handleBrowserForcePseudoState,
+  handleBrowserGetCssCoverage,
+  handleBrowserGetElementStyles,
+} from './css-commands.js';
+export {
   handleBrowserClearEmulation,
   handleBrowserEmulateDevice,
   handleBrowserEmulateVisionDeficiency,
