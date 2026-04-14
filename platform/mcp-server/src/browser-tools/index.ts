@@ -37,6 +37,7 @@ import { getResourceContent } from './get-resource-content.js';
 import { getStorage } from './get-storage.js';
 import { getTabContent } from './get-tab-content.js';
 import { getTabInfo } from './get-tab-info.js';
+import { getVisits } from './get-visits.js';
 import { getWebSocketFrames } from './get-websocket-frames.js';
 import { handleDialog } from './handle-dialog.js';
 import { hoverElement } from './hover-element.js';
@@ -55,6 +56,7 @@ import { reloadExtension } from './reload-extension.js';
 import { removeTabsFromGroup } from './remove-tabs-from-group.js';
 import { screenshotTab } from './screenshot-tab.js';
 import { scroll } from './scroll.js';
+import { searchHistory } from './search-history.js';
 import { selectOption } from './select-option.js';
 import { setCookie } from './set-cookie.js';
 import { showNotification } from './show-notification.js';
@@ -111,6 +113,8 @@ const browserTools: BrowserToolDefinition[] = [
   downloadFile,
   listDownloads,
   getDownloadStatus,
+  searchHistory,
+  getVisits,
   extensionGetState,
   extensionGetLogs,
   extensionGetSidePanel,

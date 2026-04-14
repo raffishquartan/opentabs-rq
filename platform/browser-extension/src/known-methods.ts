@@ -57,6 +57,8 @@ export const DISPATCH_METHODS = [
   'browser.downloadFile',
   'browser.listDownloads',
   'browser.getDownloadStatus',
+  'browser.searchHistory',
+  'browser.getVisits',
   'extension.reload',
   'extension.getState',
   'extension.getLogs',

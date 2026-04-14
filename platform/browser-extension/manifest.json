@@ -34,7 +34,8 @@
     "cookies",
     "debugger",
     "notifications",
-    "downloads"
+    "downloads",
+    "history"
   ],
   "host_permissions": ["<all_urls>"]
 }
