@@ -104,10 +104,8 @@ jobs:
           "
           echo "Bumped manifest.json → $VERSION"
 
-      - name: Install dependencies (fresh lockfile for workspace:* resolution)
-        run: |
-          rm -f package-lock.json
-          npm install
+      - name: Install dependencies (update lockfile for version changes)
+        run: npm install
 
       - name: Build all packages
         run: npm run build:force
