@@ -18,6 +18,7 @@ export {
   handleExtensionGetSidePanel,
   handleExtensionGetState,
 } from './extension-commands.js';
+export { handleBrowserGetVisits, handleBrowserSearchHistory } from './history-commands.js';
 export {
   handleBrowserClickElement,
   handleBrowserHandleDialog,
