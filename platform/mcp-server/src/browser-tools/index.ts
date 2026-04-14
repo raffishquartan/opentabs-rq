@@ -108,40 +108,44 @@ const browserTools: BrowserToolDefinition[] = [
 
 // Validate that every tool definition matches its entry in BROWSER_TOOLS_CATALOG.
 // Catches metadata drift (name, description, icon changes) and missing entries.
+// Skipped when the catalog generation script is running (it imports this module to
+// discover tools, but the catalog may be stale — the script itself is what updates it).
 const catalogByName = new Map(BROWSER_TOOLS_CATALOG.map(entry => [entry.name, entry]));
 
-for (const tool of browserTools) {
-  const catalogEntry = catalogByName.get(tool.name);
-  if (!catalogEntry) {
-    throw new Error(
-      `Browser tool "${tool.name}" is defined but missing from BROWSER_TOOLS_CATALOG — run \`npm run generate:browser-tools-catalog\` to update`,
-    );
+if (!process.env.OPENTABS_GENERATING_CATALOG) {
+  for (const tool of browserTools) {
+    const catalogEntry = catalogByName.get(tool.name);
+    if (!catalogEntry) {
+      throw new Error(
+        `Browser tool "${tool.name}" is defined but missing from BROWSER_TOOLS_CATALOG — run \`npm run generate:browser-tools-catalog\` to update`,
+      );
+    }
+    const actualIcon = tool.icon ?? 'globe';
+    if (tool.description !== catalogEntry.description) {
+      throw new Error(
+        `Browser tool "${tool.name}" description mismatch: definition has "${tool.description}" but catalog has "${catalogEntry.description}" — run \`npm run generate:browser-tools-catalog\` to update`,
+      );
+    }
+    if (actualIcon !== catalogEntry.icon) {
+      throw new Error(
+        `Browser tool "${tool.name}" icon mismatch: definition has "${actualIcon}" but catalog has "${catalogEntry.icon}" — run \`npm run generate:browser-tools-catalog\` to update`,
+      );
+    }
+    const actualGroup = tool.group ?? undefined;
+    const catalogGroup = catalogEntry.group ?? undefined;
+    if (actualGroup !== catalogGroup) {
+      throw new Error(
+        `Browser tool "${tool.name}" group mismatch: definition has "${actualGroup}" but catalog has "${catalogGroup}" — run \`npm run generate:browser-tools-catalog\` to update`,
+      );
+    }
   }
-  const actualIcon = tool.icon ?? 'globe';
-  if (tool.description !== catalogEntry.description) {
-    throw new Error(
-      `Browser tool "${tool.name}" description mismatch: definition has "${tool.description}" but catalog has "${catalogEntry.description}" — run \`npm run generate:browser-tools-catalog\` to update`,
-    );
-  }
-  if (actualIcon !== catalogEntry.icon) {
-    throw new Error(
-      `Browser tool "${tool.name}" icon mismatch: definition has "${actualIcon}" but catalog has "${catalogEntry.icon}" — run \`npm run generate:browser-tools-catalog\` to update`,
-    );
-  }
-  const actualGroup = tool.group ?? undefined;
-  const catalogGroup = catalogEntry.group ?? undefined;
-  if (actualGroup !== catalogGroup) {
-    throw new Error(
-      `Browser tool "${tool.name}" group mismatch: definition has "${actualGroup}" but catalog has "${catalogGroup}" — run \`npm run generate:browser-tools-catalog\` to update`,
-    );
-  }
-}
 
-for (const entry of BROWSER_TOOLS_CATALOG) {
-  if (!browserTools.some(t => t.name === entry.name)) {
-    throw new Error(
-      `BROWSER_TOOLS_CATALOG contains "${entry.name}" but no matching browser tool definition exists — run \`npm run generate:browser-tools-catalog\` to update`,
-    );
+  for (const entry of BROWSER_TOOLS_CATALOG) {
+    if (!browserTools.some(t => t.name === entry.name)) {
+      throw new Error(
+        `BROWSER_TOOLS_CATALOG contains "${entry.name}" but no matching browser tool definition exists — run \`npm run generate:browser-tools-catalog\` to update`,
+      );
+    }
   }
 }
 

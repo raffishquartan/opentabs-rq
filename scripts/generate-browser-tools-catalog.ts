@@ -17,6 +17,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+// Skip catalog validation in the barrel module — the catalog may be stale,
+// and this script is what updates it.
+process.env.OPENTABS_GENERATING_CATALOG = '1';
+
 const repoRoot = join(import.meta.dirname, '..');
 const barrelPath = join(repoRoot, 'platform', 'mcp-server', 'dist', 'browser-tools', 'index.js');
 const outDir = join(repoRoot, 'platform', 'shared', 'src', 'generated');
