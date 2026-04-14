@@ -1,4 +1,5 @@
 import { initBackgroundMessageHandlers, restoreWsConnectedState } from './background-message-handlers.js';
+import { initNotificationClickHandler } from './browser-commands/notification-commands.js';
 import { initConfirmationBadge } from './confirmation-badge.js';
 import {
   buildWsUrl,
@@ -159,6 +160,7 @@ ensureConnectionId()
 setupKeepaliveAlarm().catch((err: unknown) => console.warn('[opentabs] keepalive alarm failed:', err));
 reinjectStoredPlugins().catch((err: unknown) => console.warn('[opentabs] plugin reinjection failed:', err));
 initConfirmationBadge();
+initNotificationClickHandler();
 
 // Relay MCP server URL changes to the offscreen document, and invalidate
 // the plugin metadata cache when storage is modified from another context
