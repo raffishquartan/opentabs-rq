@@ -128,3 +128,68 @@ test.describe('browser_notify — dispatch', () => {
     expect(id1).not.toBe(id2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Edge cases — rapid fire, long strings, empty strings, missing fields
+// ---------------------------------------------------------------------------
+
+test.describe('browser_notify — edge cases', () => {
+  test('sends 5 notifications rapidly with unique IDs', async ({ mcpServer, extensionContext: _ext, mcpClient }) => {
+    await waitForExtensionConnected(mcpServer);
+    const results = await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        mcpClient.callTool('browser_notify', {
+          title: `Notification ${i}`,
+          message: `Message ${i}`,
+        }),
+      ),
+    );
+    const ids = results.map(r => {
+      expect(r.isError).toBe(false);
+      return parseToolResult(r.content).notificationId as string;
+    });
+    for (const id of ids) {
+      expect(id).toMatch(/^opentabs-notify-/);
+    }
+    expect(new Set(ids).size).toBe(5);
+  });
+
+  test('sends notification with very long title (500+ chars)', async ({
+    mcpServer,
+    extensionContext: _ext,
+    mcpClient,
+  }) => {
+    await waitForExtensionConnected(mcpServer);
+    const longTitle = 'A'.repeat(500);
+    const result = await mcpClient.callTool('browser_notify', {
+      title: longTitle,
+      message: 'test',
+    });
+    expect(result.isError).toBe(false);
+    const data = parseToolResult(result.content);
+    expect(data.notificationId).toMatch(/^opentabs-notify-/);
+  });
+
+  test('sends notification with empty message string', async ({ mcpServer, extensionContext: _ext, mcpClient }) => {
+    await waitForExtensionConnected(mcpServer);
+    const result = await mcpClient.callTool('browser_notify', {
+      title: 'Empty Message Test',
+      message: '',
+    });
+    expect(result.isError).toBe(false);
+    const data = parseToolResult(result.content);
+    expect(data.notificationId).toMatch(/^opentabs-notify-/);
+  });
+
+  test('returns error when title is missing', async ({ mcpServer, extensionContext: _ext, mcpClient }) => {
+    await waitForExtensionConnected(mcpServer);
+    const result = await mcpClient.callTool('browser_notify', { message: 'no title' });
+    expect(result.isError).toBe(true);
+  });
+
+  test('returns error when message is missing', async ({ mcpServer, extensionContext: _ext, mcpClient }) => {
+    await waitForExtensionConnected(mcpServer);
+    const result = await mcpClient.callTool('browser_notify', { title: 'no message' });
+    expect(result.isError).toBe(true);
+  });
+});
