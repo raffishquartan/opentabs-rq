@@ -57,3 +57,9 @@ export {
   handleBrowserRemoveTabsFromGroup,
   handleBrowserUpdateTabGroup,
 } from './tab-commands.js';
+export {
+  handleBrowserCloseWindow,
+  handleBrowserCreateWindow,
+  handleBrowserListWindows,
+  handleBrowserUpdateWindow,
+} from './window-commands.js';

@@ -46,12 +46,28 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     group: 'Tabs',
   },
   {
+    name: 'browser_close_window',
+    description:
+      'Close a browser window by its window ID. Use browser_list_windows to find window IDs. This closes all tabs in the window.',
+    summary: 'Close a browser window',
+    icon: 'app-window',
+    group: 'Windows',
+  },
+  {
     name: 'browser_create_tab_group',
     description:
       'Create a new Chrome tab group from one or more tab IDs. Optionally set a title and color. Use browser_list_tabs to find tab IDs. Returns the new groupId, title, color, collapsed state, and windowId.',
     summary: 'Create a new tab group',
     icon: 'folder-plus',
     group: 'Tabs',
+  },
+  {
+    name: 'browser_create_window',
+    description:
+      "Create a new browser window. Optionally specify a URL to open, size (width/height), position (left/top), window state (normal/minimized/maximized/fullscreen), and incognito mode. Returns the new window's id, state, bounds, and metadata. Note: Creating incognito windows requires the incognito permission in the extension manifest.",
+    summary: 'Create a new browser window',
+    icon: 'app-window',
+    group: 'Windows',
   },
   {
     name: 'browser_delete_cookies',
@@ -222,6 +238,14 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     group: 'Tabs',
   },
   {
+    name: 'browser_list_windows',
+    description:
+      "List all open browser windows. Returns each window's id, state (normal/minimized/maximized/fullscreen), bounds (left, top, width, height), tab count, focused status, incognito flag, and type. Use the returned window IDs with browser_update_window and browser_close_window.",
+    summary: 'List all open browser windows',
+    icon: 'app-window',
+    group: 'Windows',
+  },
+  {
     name: 'browser_navigate_tab',
     description: 'Navigate an existing browser tab to a new URL. Use browser_list_tabs to find tab IDs.',
     summary: 'Navigate a tab to a new URL',
@@ -315,6 +339,14 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     summary: 'Update a tab group',
     icon: 'folder-pen',
     group: 'Tabs',
+  },
+  {
+    name: 'browser_update_window',
+    description:
+      "Update a browser window's state, size, position, or focus. At least one property must be provided. Use browser_list_windows to find window IDs. Returns the updated window's id, state, bounds, and metadata.",
+    summary: 'Update a browser window',
+    icon: 'app-window',
+    group: 'Windows',
   },
   {
     name: 'browser_wait_for_element',
