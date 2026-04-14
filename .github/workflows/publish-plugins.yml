@@ -145,17 +145,27 @@ jobs:
           if git diff --cached --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore: auto-publish plugin version bumps [skip ci]
+            git commit --no-verify -m "chore: auto-publish plugin version bumps [skip ci]
 
           Published: $PUBLISHED"
 
             # Retry push with rebase to handle concurrent merges to main
-            for attempt in 1 2 3; do
-              if git push; then
+            # --no-verify skips pre-push hooks (build already verified above)
+            MAX_ATTEMPTS=5
+            PUSHED=false
+            for attempt in $(seq 1 $MAX_ATTEMPTS); do
+              if git push --no-verify; then
                 echo "Push succeeded on attempt $attempt"
+                PUSHED=true
                 break
               fi
-              echo "Push failed (attempt $attempt), rebasing and retrying..."
+              echo "Push failed (attempt $attempt/$MAX_ATTEMPTS), rebasing and retrying..."
+              sleep $((attempt * 5))
               git pull --rebase origin main
             done
+
+            if [ "$PUSHED" != "true" ]; then
+              echo "::error::Failed to push version bump commit after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
           fi
