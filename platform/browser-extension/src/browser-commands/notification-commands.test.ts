@@ -43,7 +43,9 @@ Object.assign(globalThis, {
 });
 
 // Import after mocking
-const { handleBrowserShowNotification, _notificationUrlsForTesting } = await import('./notification-commands.js');
+const { handleBrowserShowNotification, initNotificationClickHandler, _notificationUrlsForTesting } = await import(
+  './notification-commands.js'
+);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -140,5 +142,64 @@ describe('handleBrowserShowNotification', () => {
       error: expect.objectContaining({ message: expect.stringContaining('notifications disabled') }),
       id: 7,
     });
+  });
+});
+
+describe('initNotificationClickHandler', () => {
+  let clickListener: (notificationId: string) => void;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    _notificationUrlsForTesting.clear();
+
+    // Register the click handler and capture the listener callback
+    initNotificationClickHandler();
+    clickListener = mockOnClickedAddListener.mock.calls[0]?.[0] as (notificationId: string) => void;
+  });
+
+  test('registers a chrome.notifications.onClicked listener', () => {
+    expect(mockOnClickedAddListener).toHaveBeenCalledOnce();
+    expect(typeof clickListener).toBe('function');
+  });
+
+  test('opens URL in new tab when notification has a stored URL', async () => {
+    _notificationUrlsForTesting.set('opentabs-notify-test-1', 'https://example.com/page');
+
+    clickListener('opentabs-notify-test-1');
+
+    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'https://example.com/page' });
+    expect(mockSidePanelOpen).not.toHaveBeenCalled();
+  });
+
+  test('opens side panel when notification has no stored URL', async () => {
+    clickListener('opentabs-notify-test-2');
+
+    // Wait for the getCurrent().then() chain to resolve
+    await vi.waitFor(() => {
+      expect(mockSidePanelOpen).toHaveBeenCalledWith({ windowId: 1 });
+    });
+    expect(mockTabsCreate).not.toHaveBeenCalled();
+  });
+
+  test('clears the notification after click', () => {
+    clickListener('opentabs-notify-test-3');
+
+    expect(mockNotificationsClear).toHaveBeenCalledWith('opentabs-notify-test-3');
+  });
+
+  test('removes URL from map after click', () => {
+    _notificationUrlsForTesting.set('opentabs-notify-test-4', 'https://example.com');
+
+    clickListener('opentabs-notify-test-4');
+
+    expect(_notificationUrlsForTesting.has('opentabs-notify-test-4')).toBe(false);
+  });
+
+  test('ignores notifications without the opentabs-notify- prefix', () => {
+    clickListener('opentabs-confirmation');
+
+    expect(mockTabsCreate).not.toHaveBeenCalled();
+    expect(mockSidePanelOpen).not.toHaveBeenCalled();
+    expect(mockNotificationsClear).not.toHaveBeenCalled();
   });
 });
