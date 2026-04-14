@@ -11,7 +11,7 @@
     "plugin-sdk",
     "opentabs-plugin"
   ],
-  "version": "0.0.96",
+  "version": "0.0.98",
   "license": "MIT",
   "type": "module",
   "exports": {
