@@ -1,4 +1,5 @@
 import { toErrorMessage } from '@opentabs-dev/shared';
+import { cleanupEmulation } from './browser-commands/emulation-commands.js';
 import {
   cleanupInterception,
   handleFetchRequestPaused,
@@ -414,9 +415,10 @@ chrome.debugger.onEvent.addListener((source: chrome.debugger.Debuggee, method: s
   }
 });
 
-// Clean up capture and interception state when a tab is closed
+// Clean up capture, interception, and emulation state when a tab is closed
 chrome.tabs.onRemoved.addListener((tabId: number) => {
   cleanupInterception(tabId);
+  cleanupEmulation(tabId);
   const state = captures.get(tabId);
   if (state) {
     clearInterval(state.pruneIntervalId);
@@ -432,6 +434,7 @@ chrome.debugger.onDetach.addListener((source: chrome.debugger.Debuggee, _reason:
   const tabId = source.tabId;
   if (tabId !== undefined) {
     cleanupInterception(tabId);
+    cleanupEmulation(tabId);
     const state = captures.get(tabId);
     if (state) clearInterval(state.pruneIntervalId);
     captures.delete(tabId);

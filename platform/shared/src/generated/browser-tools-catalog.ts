@@ -31,6 +31,14 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     group: 'Page Inspection',
   },
   {
+    name: 'browser_clear_emulation',
+    description:
+      'Clear all emulation overrides for a tab — device metrics, user agent, geolocation, media features, and vision deficiency simulation. Resets the tab to its normal state.',
+    summary: 'Clear all emulation overrides',
+    icon: 'smartphone',
+    group: 'Emulation',
+  },
+  {
     name: 'browser_click_element',
     description:
       'Click an element on the page matching the given CSS selector. Dispatches trusted (isTrusted: true) mouse events (mousedown + mouseup) via Chrome DevTools Protocol Input.dispatchMouseEvent at the element center. Returns the tag name and trimmed text content of the clicked element. Useful for submitting forms, toggling buttons, and navigating.',
@@ -68,6 +76,22 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     summary: 'Stop capturing network traffic',
     icon: 'wifi-off',
     group: 'Network',
+  },
+  {
+    name: 'browser_emulate_device',
+    description:
+      'Emulate a device by overriding viewport dimensions, device scale factor, mobile flag, and user agent string using the Chrome DevTools Protocol Emulation domain. The emulation persists until cleared with browser_clear_emulation or the debugger is detached. Use browser_execute_script to verify changes (e.g., window.innerWidth).',
+    summary: 'Emulate a device (viewport, touch, user agent)',
+    icon: 'smartphone',
+    group: 'Emulation',
+  },
+  {
+    name: 'browser_emulate_vision_deficiency',
+    description:
+      'Simulate a vision deficiency for a tab using the Chrome DevTools Protocol Emulation domain. Useful for testing accessibility. Set type to "none" to remove the simulation. The override persists until cleared with browser_clear_emulation or the debugger is detached.',
+    summary: 'Simulate a vision deficiency',
+    icon: 'smartphone',
+    group: 'Emulation',
   },
   {
     name: 'browser_enable_network_capture',
@@ -323,6 +347,22 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     summary: 'Set or update a browser cookie',
     icon: 'cookie',
     group: 'Storage & Cookies',
+  },
+  {
+    name: 'browser_set_geolocation',
+    description:
+      'Override the geolocation reported by the browser for a tab using the Chrome DevTools Protocol Emulation domain. The override persists until cleared with browser_clear_emulation or the debugger is detached.',
+    summary: 'Override geolocation coordinates',
+    icon: 'smartphone',
+    group: 'Emulation',
+  },
+  {
+    name: 'browser_set_media_features',
+    description:
+      'Override CSS media features for a tab using the Chrome DevTools Protocol Emulation domain. Supports features like prefers-color-scheme (light/dark), prefers-reduced-motion (reduce/no-preference), prefers-contrast (more/less/no-preference), and color-gamut (srgb/p3/rec2020). The override persists until cleared with browser_clear_emulation or the debugger is detached.',
+    summary: 'Override CSS media features',
+    icon: 'smartphone',
+    group: 'Emulation',
   },
   {
     name: 'browser_stop_intercepting',
