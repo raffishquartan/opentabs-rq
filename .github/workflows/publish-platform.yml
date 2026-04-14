@@ -246,11 +246,11 @@ jobs:
           done
 
       - name: Commit version bumps and create tag
+        if: ${{ !inputs.dry-run }}
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           VERSION="${{ inputs.version }}"
-          DRY_RUN="${{ inputs.dry-run }}"
 
           git config user.name "${{ steps.app-token.outputs.app-slug }}[bot]"
           git config user.email "$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com"
@@ -275,13 +275,7 @@ jobs:
             exit 0
           fi
 
-          if [ "$DRY_RUN" = "true" ]; then
-            COMMIT_MSG="release: v${VERSION} (dry run)"
-          else
-            COMMIT_MSG="release: v${VERSION}"
-          fi
-
-          git commit --no-verify -m "$COMMIT_MSG"
+          git commit --no-verify -m "release: v${VERSION}"
 
           # Push with retry (handle concurrent pushes from ralph-consolidator)
           # --no-verify skips pre-push hooks (build already verified above)
@@ -304,11 +298,9 @@ jobs:
           fi
 
           # Create and push tag
-          if [ "$DRY_RUN" != "true" ]; then
-            git tag "v${VERSION}"
-            git push origin "v${VERSION}"
-            echo "Tagged and pushed v${VERSION}"
-          fi
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"
+          echo "Tagged and pushed v${VERSION}"
 
       - name: Summary
         run: |
