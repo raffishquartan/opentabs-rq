@@ -12,12 +12,17 @@ import { analyzeSiteTool } from './analyze-site.js';
 import { clearConsoleLogs } from './clear-console-logs.js';
 import { clearEmulation } from './clear-emulation.js';
 import { clearNetworkThrottle } from './clear-network-throttle.js';
+import { clearSiteData } from './clear-site-data.js';
 import { clickElement } from './click-element.js';
 import { closeTab } from './close-tab.js';
+import { closeWindow } from './close-window.js';
+import { createBookmark } from './create-bookmark.js';
 import { createTabGroup } from './create-tab-group.js';
+import { createWindow } from './create-window.js';
 import type { BrowserToolDefinition } from './definition.js';
 import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
+import { downloadFile } from './download-file.js';
 import { emulateDevice } from './emulate-device.js';
 import { emulateVisionDeficiency } from './emulate-vision-deficiency.js';
 import { enableNetworkCapture } from './enable-network-capture.js';
@@ -35,21 +40,27 @@ import { fulfillRequest } from './fulfill-request.js';
 import { getConsoleLogs } from './get-console-logs.js';
 import { getCookies } from './get-cookies.js';
 import { getCssCoverage } from './get-css-coverage.js';
+import { getDownloadStatus } from './get-download-status.js';
 import { getElementStyles } from './get-element-styles.js';
 import { getNetworkRequests } from './get-network-requests.js';
 import { getPageHtml } from './get-page-html.js';
+import { getRecentlyClosed } from './get-recently-closed.js';
 import { getResourceContent } from './get-resource-content.js';
 import { getStorage } from './get-storage.js';
 import { getTabContent } from './get-tab-content.js';
 import { getTabInfo } from './get-tab-info.js';
+import { getVisits } from './get-visits.js';
 import { getWebSocketFrames } from './get-websocket-frames.js';
 import { handleDialog } from './handle-dialog.js';
 import { hoverElement } from './hover-element.js';
 import { interceptRequests } from './intercept-requests.js';
+import { listBookmarkTree } from './list-bookmark-tree.js';
+import { listDownloads } from './list-downloads.js';
 import { listResources } from './list-resources.js';
 import { listTabGroups } from './list-tab-groups.js';
 import { listTabs } from './list-tabs.js';
 import { listTabsInGroup } from './list-tabs-in-group.js';
+import { listWindows } from './list-windows.js';
 import { navigateTab } from './navigate-tab.js';
 import { openTab } from './open-tab.js';
 import { pluginListTabs } from './plugin-list-tabs.js';
@@ -57,8 +68,11 @@ import { pressKey } from './press-key.js';
 import { queryElements } from './query-elements.js';
 import { reloadExtension } from './reload-extension.js';
 import { removeTabsFromGroup } from './remove-tabs-from-group.js';
+import { restoreSession } from './restore-session.js';
 import { screenshotTab } from './screenshot-tab.js';
 import { scroll } from './scroll.js';
+import { searchBookmarks } from './search-bookmarks.js';
+import { searchHistory } from './search-history.js';
 import { selectOption } from './select-option.js';
 import { setCookie } from './set-cookie.js';
 import { setGeolocation } from './set-geolocation.js';
@@ -68,6 +82,7 @@ import { stopIntercepting } from './stop-intercepting.js';
 import { throttleNetwork } from './throttle-network.js';
 import { typeText } from './type-text.js';
 import { updateTabGroup } from './update-tab-group.js';
+import { updateWindow } from './update-window.js';
 import { waitForElement } from './wait-for-element.js';
 
 const browserTools: BrowserToolDefinition[] = [
@@ -125,6 +140,21 @@ const browserTools: BrowserToolDefinition[] = [
   getCssCoverage,
   throttleNetwork,
   clearNetworkThrottle,
+  listWindows,
+  createWindow,
+  updateWindow,
+  closeWindow,
+  downloadFile,
+  listDownloads,
+  getDownloadStatus,
+  searchHistory,
+  getVisits,
+  searchBookmarks,
+  createBookmark,
+  listBookmarkTree,
+  getRecentlyClosed,
+  restoreSession,
+  clearSiteData,
   extensionGetState,
   extensionGetLogs,
   extensionGetSidePanel,

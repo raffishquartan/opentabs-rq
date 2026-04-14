@@ -33,7 +33,12 @@
     "sidePanel",
     "cookies",
     "debugger",
-    "notifications"
+    "notifications",
+    "downloads",
+    "history",
+    "bookmarks",
+    "sessions",
+    "browsingData"
   ],
   "host_permissions": ["<all_urls>"]
 }
