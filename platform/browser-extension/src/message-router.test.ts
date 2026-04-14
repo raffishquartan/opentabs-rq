@@ -60,6 +60,21 @@ const {
   mockHandleBrowserStopIntercepting,
   mockHandleBrowserThrottleNetwork,
   mockHandleBrowserClearNetworkThrottle,
+  mockHandleBrowserListWindows,
+  mockHandleBrowserCreateWindow,
+  mockHandleBrowserUpdateWindow,
+  mockHandleBrowserCloseWindow,
+  mockHandleBrowserDownloadFile,
+  mockHandleBrowserListDownloads,
+  mockHandleBrowserGetDownloadStatus,
+  mockHandleBrowserSearchHistory,
+  mockHandleBrowserGetVisits,
+  mockHandleBrowserSearchBookmarks,
+  mockHandleBrowserCreateBookmark,
+  mockHandleBrowserListBookmarkTree,
+  mockHandleBrowserGetRecentlyClosed,
+  mockHandleBrowserRestoreSession,
+  mockHandleBrowserClearSiteData,
   mockHandleExtensionGetState,
   mockHandleExtensionGetLogs,
   mockHandleExtensionGetSidePanel,
@@ -203,6 +218,51 @@ const {
     mockHandleBrowserClearNetworkThrottle: vi.fn(
       asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
     ),
+    mockHandleBrowserListWindows: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserCreateWindow: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserUpdateWindow: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserCloseWindow: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserDownloadFile: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserListDownloads: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserGetDownloadStatus: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserSearchHistory: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserGetVisits: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserSearchBookmarks: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserCreateBookmark: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserListBookmarkTree: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserGetRecentlyClosed: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserRestoreSession: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
+    mockHandleBrowserClearSiteData: vi.fn(
+      asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
+    ),
     mockHandleExtensionGetState: vi.fn(asyncNoop as (id: string | number) => Promise<void>),
     mockHandleExtensionGetLogs: vi.fn(
       asyncNoop as (params: Record<string, unknown>, id: string | number) => Promise<void>,
@@ -342,6 +402,21 @@ vi.mock('./browser-commands/index.js', () => ({
   handleBrowserGetCssCoverage: vi.fn(),
   handleBrowserThrottleNetwork: mockHandleBrowserThrottleNetwork,
   handleBrowserClearNetworkThrottle: mockHandleBrowserClearNetworkThrottle,
+  handleBrowserListWindows: mockHandleBrowserListWindows,
+  handleBrowserCreateWindow: mockHandleBrowserCreateWindow,
+  handleBrowserUpdateWindow: mockHandleBrowserUpdateWindow,
+  handleBrowserCloseWindow: mockHandleBrowserCloseWindow,
+  handleBrowserDownloadFile: mockHandleBrowserDownloadFile,
+  handleBrowserListDownloads: mockHandleBrowserListDownloads,
+  handleBrowserGetDownloadStatus: mockHandleBrowserGetDownloadStatus,
+  handleBrowserSearchHistory: mockHandleBrowserSearchHistory,
+  handleBrowserGetVisits: mockHandleBrowserGetVisits,
+  handleBrowserSearchBookmarks: mockHandleBrowserSearchBookmarks,
+  handleBrowserCreateBookmark: mockHandleBrowserCreateBookmark,
+  handleBrowserListBookmarkTree: mockHandleBrowserListBookmarkTree,
+  handleBrowserGetRecentlyClosed: mockHandleBrowserGetRecentlyClosed,
+  handleBrowserRestoreSession: mockHandleBrowserRestoreSession,
+  handleBrowserClearSiteData: mockHandleBrowserClearSiteData,
   initNotificationClickHandler: vi.fn(),
   handleExtensionCheckAdapter: mockHandleExtensionCheckAdapter,
   handleExtensionForceReconnect: mockHandleExtensionForceReconnect,

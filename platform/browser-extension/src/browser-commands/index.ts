@@ -1,4 +1,10 @@
 export {
+  handleBrowserCreateBookmark,
+  handleBrowserListBookmarkTree,
+  handleBrowserSearchBookmarks,
+} from './bookmark-commands.js';
+export { handleBrowserClearSiteData } from './browsing-data-commands.js';
+export {
   handleBrowserGetPageHtml,
   handleBrowserGetStorage,
   handleBrowserGetTabContent,
@@ -10,6 +16,11 @@ export {
   handleBrowserGetCssCoverage,
   handleBrowserGetElementStyles,
 } from './css-commands.js';
+export {
+  handleBrowserDownloadFile,
+  handleBrowserGetDownloadStatus,
+  handleBrowserListDownloads,
+} from './download-commands.js';
 export {
   handleBrowserClearEmulation,
   handleBrowserEmulateDevice,
@@ -25,6 +36,7 @@ export {
   handleExtensionGetSidePanel,
   handleExtensionGetState,
 } from './extension-commands.js';
+export { handleBrowserGetVisits, handleBrowserSearchHistory } from './history-commands.js';
 export {
   handleBrowserClickElement,
   handleBrowserHandleDialog,
@@ -61,6 +73,7 @@ export {
   withDebugger,
 } from './resource-commands.js';
 export { handleBrowserScroll } from './scroll-command.js';
+export { handleBrowserGetRecentlyClosed, handleBrowserRestoreSession } from './session-commands.js';
 export {
   handleBrowserAddTabsToGroup,
   handleBrowserCloseTab,
@@ -76,3 +89,9 @@ export {
   handleBrowserUpdateTabGroup,
 } from './tab-commands.js';
 export { handleBrowserClearNetworkThrottle, handleBrowserThrottleNetwork } from './throttle-commands.js';
+export {
+  handleBrowserCloseWindow,
+  handleBrowserCreateWindow,
+  handleBrowserListWindows,
+  handleBrowserUpdateWindow,
+} from './window-commands.js';
