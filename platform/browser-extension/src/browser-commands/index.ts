@@ -6,6 +6,13 @@ export {
 } from './content-commands.js';
 export { handleBrowserDeleteCookies, handleBrowserGetCookies, handleBrowserSetCookie } from './cookie-commands.js';
 export {
+  handleBrowserClearEmulation,
+  handleBrowserEmulateDevice,
+  handleBrowserEmulateVisionDeficiency,
+  handleBrowserSetGeolocation,
+  handleBrowserSetMediaFeatures,
+} from './emulation-commands.js';
+export {
   handleBrowserExecuteScript,
   handleExtensionCheckAdapter,
   handleExtensionForceReconnect,

@@ -10,12 +10,15 @@ import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared';
 import { addTabsToGroup } from './add-tabs-to-group.js';
 import { analyzeSiteTool } from './analyze-site.js';
 import { clearConsoleLogs } from './clear-console-logs.js';
+import { clearEmulation } from './clear-emulation.js';
 import { clickElement } from './click-element.js';
 import { closeTab } from './close-tab.js';
 import { createTabGroup } from './create-tab-group.js';
 import type { BrowserToolDefinition } from './definition.js';
 import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
+import { emulateDevice } from './emulate-device.js';
+import { emulateVisionDeficiency } from './emulate-vision-deficiency.js';
 import { enableNetworkCapture } from './enable-network-capture.js';
 import { executeScript } from './execute-script.js';
 import { exportHar } from './export-har.js';
@@ -54,6 +57,8 @@ import { screenshotTab } from './screenshot-tab.js';
 import { scroll } from './scroll.js';
 import { selectOption } from './select-option.js';
 import { setCookie } from './set-cookie.js';
+import { setGeolocation } from './set-geolocation.js';
+import { setMediaFeatures } from './set-media-features.js';
 import { showNotification } from './show-notification.js';
 import { stopIntercepting } from './stop-intercepting.js';
 import { typeText } from './type-text.js';
@@ -105,6 +110,11 @@ const browserTools: BrowserToolDefinition[] = [
   fulfillRequest,
   failRequest,
   stopIntercepting,
+  emulateDevice,
+  setGeolocation,
+  setMediaFeatures,
+  emulateVisionDeficiency,
+  clearEmulation,
   extensionGetState,
   extensionGetLogs,
   extensionGetSidePanel,
