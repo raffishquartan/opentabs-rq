@@ -613,9 +613,12 @@ test.describe('browser_execute_script', () => {
     await initAndListTools(mcpServer, mcpClient);
     const tabId = await openTestServerTab(mcpClient, testServer);
 
+    // Use an immediately-rejecting Promise to avoid timing issues where
+    // setTimeout-based Promises may not settle before the CDP evaluation
+    // completes in headless CI environments (same pattern as the resolve test).
     const result = await mcpClient.callTool('browser_execute_script', {
       tabId,
-      code: 'return new Promise((_, reject) => setTimeout(() => reject(new Error("async-fail")), 100))',
+      code: 'return await Promise.reject(new Error("async-fail"))',
     });
     expect(result.isError).toBe(false);
 

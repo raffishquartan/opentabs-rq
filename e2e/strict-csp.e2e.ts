@@ -560,9 +560,12 @@ fixtureTest.describe('Strict CSP — browser_execute_script', () => {
     async ({ mcpServer, strictCspServer, extensionContext: _extensionContext, mcpClient }) => {
       const tabId = await openStrictCspTab(mcpClient, mcpServer, strictCspServer);
 
+      // Use Promise.resolve instead of setTimeout-based Promise to avoid
+      // timing issues where the timer may not fire before CDP evaluation
+      // completes in headless CI environments.
       const result = await mcpClient.callTool('browser_execute_script', {
         tabId,
-        code: 'return new Promise(resolve => setTimeout(() => resolve("csp-async"), 100))',
+        code: 'return await Promise.resolve("csp-async")',
       });
       expect(result.isError).toBe(false);
 

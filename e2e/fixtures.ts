@@ -964,7 +964,8 @@ const launchExtensionContext = async (
         ? ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--disable-software-rasterizer']
         : []),
     ],
-    timeout: 60_000,
+    // macOS CI runners can be slow to launch — allow extra time
+    timeout: 90_000,
   });
 
   return { context, cleanupDir: path.dirname(extensionDir), extensionDir, mcpPort };
