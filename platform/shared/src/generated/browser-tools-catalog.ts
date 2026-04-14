@@ -134,6 +134,14 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     group: 'Tabs',
   },
   {
+    name: 'browser_force_pseudo_state',
+    description:
+      'Force CSS pseudo-class states (:hover, :focus, :active, :visited, :focus-within, :focus-visible) on a DOM element identified by a CSS selector. The forced state persists until cleared by calling with an empty pseudoClasses array, or until the debugger session ends. Useful for inspecting hover/focus styles without manual interaction.',
+    summary: 'Force CSS pseudo-states on an element',
+    icon: 'paintbrush',
+    group: 'Inspection',
+  },
+  {
     name: 'browser_fulfill_request',
     description:
       'Fulfill a paused HTTP request with a custom response. The request must have been paused by browser_intercept_requests. Provide the requestId from the paused request, an HTTP status code, optional response headers, and optional body.',
@@ -156,6 +164,22 @@ export const BROWSER_TOOLS_CATALOG: readonly BrowserToolMeta[] = [
     summary: 'Get cookies for a URL',
     icon: 'cookie',
     group: 'Storage & Cookies',
+  },
+  {
+    name: 'browser_get_css_coverage',
+    description:
+      'Start CSS rule usage tracking, wait for page activity, then report which CSS rules are used versus unused. Returns per-stylesheet usage percentages and total page-wide coverage. Useful for identifying dead CSS and optimizing stylesheets.',
+    summary: 'Get CSS coverage (used vs unused rules)',
+    icon: 'paintbrush',
+    group: 'Inspection',
+  },
+  {
+    name: 'browser_get_element_styles',
+    description:
+      'Get computed CSS styles and matched CSS rules for a DOM element identified by a CSS selector. Returns the full set of computed style properties and the matched CSS rules with selectors, property values, source stylesheet URLs, and line numbers. Requires the Chrome DevTools Protocol DOM and CSS domains.',
+    summary: 'Get computed and matched CSS styles for an element',
+    icon: 'paintbrush',
+    group: 'Inspection',
   },
   {
     name: 'browser_get_network_requests',

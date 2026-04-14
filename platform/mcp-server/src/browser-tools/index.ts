@@ -29,9 +29,12 @@ import { extensionGetSidePanel } from './extension-get-side-panel.js';
 import { extensionGetState } from './extension-get-state.js';
 import { failRequest } from './fail-request.js';
 import { focusTab } from './focus-tab.js';
+import { forcePseudoState } from './force-pseudo-state.js';
 import { fulfillRequest } from './fulfill-request.js';
 import { getConsoleLogs } from './get-console-logs.js';
 import { getCookies } from './get-cookies.js';
+import { getCssCoverage } from './get-css-coverage.js';
+import { getElementStyles } from './get-element-styles.js';
 import { getNetworkRequests } from './get-network-requests.js';
 import { getPageHtml } from './get-page-html.js';
 import { getResourceContent } from './get-resource-content.js';
@@ -115,6 +118,9 @@ const browserTools: BrowserToolDefinition[] = [
   setMediaFeatures,
   emulateVisionDeficiency,
   clearEmulation,
+  getElementStyles,
+  forcePseudoState,
+  getCssCoverage,
   extensionGetState,
   extensionGetLogs,
   extensionGetSidePanel,
