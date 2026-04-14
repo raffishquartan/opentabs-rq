@@ -12,7 +12,9 @@ import { analyzeSiteTool } from './analyze-site.js';
 import { clearConsoleLogs } from './clear-console-logs.js';
 import { clickElement } from './click-element.js';
 import { closeTab } from './close-tab.js';
+import { closeWindow } from './close-window.js';
 import { createTabGroup } from './create-tab-group.js';
+import { createWindow } from './create-window.js';
 import type { BrowserToolDefinition } from './definition.js';
 import { deleteCookies } from './delete-cookies.js';
 import { disableNetworkCapture } from './disable-network-capture.js';
@@ -40,6 +42,7 @@ import { listResources } from './list-resources.js';
 import { listTabGroups } from './list-tab-groups.js';
 import { listTabs } from './list-tabs.js';
 import { listTabsInGroup } from './list-tabs-in-group.js';
+import { listWindows } from './list-windows.js';
 import { navigateTab } from './navigate-tab.js';
 import { openTab } from './open-tab.js';
 import { pluginListTabs } from './plugin-list-tabs.js';
@@ -54,6 +57,7 @@ import { setCookie } from './set-cookie.js';
 import { showNotification } from './show-notification.js';
 import { typeText } from './type-text.js';
 import { updateTabGroup } from './update-tab-group.js';
+import { updateWindow } from './update-window.js';
 import { waitForElement } from './wait-for-element.js';
 
 const browserTools: BrowserToolDefinition[] = [
@@ -97,6 +101,10 @@ const browserTools: BrowserToolDefinition[] = [
   hoverElement,
   handleDialog,
   showNotification,
+  listWindows,
+  createWindow,
+  updateWindow,
+  closeWindow,
   extensionGetState,
   extensionGetLogs,
   extensionGetSidePanel,
