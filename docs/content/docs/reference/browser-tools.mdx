@@ -254,6 +254,73 @@ These are all the browser tools your AI agent gets automatically when OpenTabs i
   </Table.Body>
 </Table>
 
+## History
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_search_history`</Table.Cell>
+      <Table.Cell>Search browser history by text query. Matches against page URLs and titles. Returns history entries with url, title, visitCount, and lastVisitTime. Optionally filter by date range.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_get_visits`</Table.Cell>
+      <Table.Cell>Get detailed visit information for a specific URL. Returns an array of visits with visitId, visitTime, referringVisitId, and transition type (link, typed, form_submit, reload, etc.).</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Bookmarks
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_search_bookmarks`</Table.Cell>
+      <Table.Cell>Search bookmarks by query string. Matches against bookmark titles and URLs. Returns matching bookmarks with id, title, url, parentId, and dateAdded.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_create_bookmark`</Table.Cell>
+      <Table.Cell>Create a new bookmark. Optionally specify a parentId to place it in a specific folder. Returns the created bookmark node with id, title, url, and dateAdded.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_list_bookmark_tree`</Table.Cell>
+      <Table.Cell>List the bookmark tree structure up to 3 levels deep. Returns bookmark folders and their children with id, title, url (for bookmarks), and children (for folders). Useful for finding folder IDs for `browser_create_bookmark`.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Session
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_get_recently_closed`</Table.Cell>
+      <Table.Cell>Get recently closed tabs and windows (up to 25). Returns sessions with type (tab or window), sessionId, closedAt, and details. Use the sessionId with `browser_restore_session`.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_restore_session`</Table.Cell>
+      <Table.Cell>Restore a recently closed tab or window by its session ID. Use `browser_get_recently_closed` to find session IDs.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
 ## Network Capture
 
 Network capture uses the Chrome DevTools Protocol (`chrome.debugger`) to intercept requests and responses.
@@ -389,6 +456,23 @@ These tools control and diagnose the OpenTabs Chrome extension itself. They use 
     <Table.Row>
       <Table.Cell className="font-medium">`plugin_list_tabs`</Table.Cell>
       <Table.Cell>List open browser tabs that match a plugin's URL patterns, with per-tab readiness status. Returns tab IDs, URLs, titles, and readiness for each matching tab. Use this to discover available tabs before targeting a specific one with the tabId parameter on plugin tools. When called without a plugin argument, returns tabs for all plugins.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Notifications
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_notify`</Table.Cell>
+      <Table.Cell>Show a Chrome desktop notification. Use to alert the user about completed tasks, errors, or important events. The notification appears even when Chrome is in the background. If a URL is provided, clicking the notification opens that URL in a new tab.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
