@@ -1,10 +1,10 @@
 ---
 title: Browser Tools
 description: Built-in browser tools that give AI agents direct control over Chrome tabs, DOM, network, cookies, and more — independent of any plugin.
-lastUpdated: 2026-03-10
+lastUpdated: 2026-04-15
 ---
 
-These are all the browser tools your AI agent gets automatically when OpenTabs is running — no plugins required. Tab control, DOM interaction, screenshots, network capture, cookies, console logs: forty tools that give Claude hands-on access to whatever's open in your browser, using your existing sessions.
+These are all the browser tools your AI agent gets automatically when OpenTabs is running — no plugins required. Tab control, DOM interaction, screenshots, network capture, cookies, console logs: seventy-six tools that give Claude hands-on access to whatever's open in your browser, using your existing sessions.
 
 ## Tab Management
 
@@ -39,6 +39,97 @@ These are all the browser tools your AI agent gets automatically when OpenTabs i
     <Table.Row>
       <Table.Cell className="font-medium">`browser_get_tab_info`</Table.Cell>
       <Table.Cell>Get detailed information about a tab: loading status, URL, title, favicon, active/incognito status.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Tab Groups
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_list_tab_groups`</Table.Cell>
+      <Table.Cell>List all Chrome tab groups across all connected browser profiles. Returns groupId, title, color, collapsed state, windowId, and connectionId for each group.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_create_tab_group`</Table.Cell>
+      <Table.Cell>Create a new Chrome tab group from one or more tab IDs. Optionally set a title and color. Returns the new groupId, title, color, and windowId.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_add_tabs_to_group`</Table.Cell>
+      <Table.Cell>Add one or more tabs to an existing Chrome tab group. Use `browser_list_tab_groups` to find group IDs.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_remove_tabs_from_group`</Table.Cell>
+      <Table.Cell>Remove one or more tabs from their current Chrome tab group (ungroup them). Tabs not in any group are silently ignored.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_update_tab_group`</Table.Cell>
+      <Table.Cell>Update a Chrome tab group's title, color, or collapsed state. At least one of title, color, or collapsed must be provided.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_list_tabs_in_group`</Table.Cell>
+      <Table.Cell>List all tabs in a specific Chrome tab group. Returns tab ID, title, URL, active status, and window ID for each tab.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Windows
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_list_windows`</Table.Cell>
+      <Table.Cell>List all open browser windows. Returns each window's id, state (normal/minimized/maximized/fullscreen), bounds, tab count, focused status, and incognito flag.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_create_window`</Table.Cell>
+      <Table.Cell>Create a new browser window. Optionally specify a URL, size, position, window state, and incognito mode.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_update_window`</Table.Cell>
+      <Table.Cell>Update a browser window's state, size, position, or focus. At least one property must be provided.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_close_window`</Table.Cell>
+      <Table.Cell>Close a browser window by its window ID. This closes all tabs in the window.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Downloads
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_download_file`</Table.Cell>
+      <Table.Cell>Download a file from a URL. Optionally specify a filename and whether to prompt the user with a Save As dialog. Returns a download ID for status tracking.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_list_downloads`</Table.Cell>
+      <Table.Cell>List recent downloads with optional filtering by filename, URL, or state. Returns entries with id, filename, url, state (in_progress/interrupted/complete), bytes received, and start time.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_get_download_status`</Table.Cell>
+      <Table.Cell>Get the current status of a download by its ID. Returns state, filename, url, bytes received, total bytes, start time, end time, and file path.</Table.Cell>
     </Table.Row>
   </Table.Body>
 </Table>
