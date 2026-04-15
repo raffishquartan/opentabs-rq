@@ -53,6 +53,8 @@ interface OpentabsConfig {
   additionalAllowedDirectories?: string[];
   /** Config schema version for migration tracking */
   version: number;
+  /** Minutes between npm update checks (0 = disabled, default 30) */
+  updateCheckIntervalMinutes: number;
 }
 
 /** Version marker file for the managed extension install */
@@ -165,6 +167,7 @@ const KNOWN_CONFIG_KEYS = new Set([
   'permissions',
   'settings',
   'additionalAllowedDirectories',
+  'updateCheckIntervalMinutes',
 ]);
 
 /** Compute Levenshtein edit distance between two strings */
@@ -238,7 +241,22 @@ const parseConfigRecord = (record: Record<string, unknown>): OpentabsConfig => {
   const version =
     typeof record.version === 'number' && Number.isInteger(record.version) && record.version >= 1 ? record.version : 1;
 
-  return { localPlugins, localPluginDirs, permissions, settings, additionalAllowedDirectories, version };
+  const updateCheckIntervalMinutes =
+    typeof record.updateCheckIntervalMinutes === 'number' &&
+    Number.isInteger(record.updateCheckIntervalMinutes) &&
+    record.updateCheckIntervalMinutes >= 0
+      ? record.updateCheckIntervalMinutes
+      : 30;
+
+  return {
+    localPlugins,
+    localPluginDirs,
+    permissions,
+    settings,
+    additionalAllowedDirectories,
+    version,
+    updateCheckIntervalMinutes,
+  };
 };
 
 /**
@@ -269,6 +287,7 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
       settings: {},
       additionalAllowedDirectories: [],
       version: CURRENT_CONFIG_VERSION,
+      updateCheckIntervalMinutes: 30,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
     log.info(`Created default config at ${configPath}`);
@@ -341,6 +360,7 @@ const savePluginPermissions = async (
       settings: current.settings,
       additionalAllowedDirectories: current.additionalAllowedDirectories,
       version: current.version,
+      updateCheckIntervalMinutes: current.updateCheckIntervalMinutes,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(updated, null, 2)}\n`);
   })();
@@ -383,6 +403,7 @@ const savePluginSettings = async (
       settings,
       additionalAllowedDirectories: current.additionalAllowedDirectories,
       version: current.version,
+      updateCheckIntervalMinutes: current.updateCheckIntervalMinutes,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(updated, null, 2)}\n`);
   })();
