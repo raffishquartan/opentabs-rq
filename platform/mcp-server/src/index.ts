@@ -161,7 +161,12 @@ if (state.versionCheckTimerId !== null) {
   state.versionCheckTimerId = null;
 }
 void runVersionCheck(state);
-state.versionCheckTimerId = setInterval(() => void runVersionCheck(state), 6 * 60 * 60 * 1000);
+if (state.updateCheckIntervalMinutes > 0) {
+  state.versionCheckTimerId = setInterval(
+    () => void runVersionCheck(state),
+    state.updateCheckIntervalMinutes * 60 * 1000,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Handler functions — created fresh on every module evaluation
