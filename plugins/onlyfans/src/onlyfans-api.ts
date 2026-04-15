@@ -213,22 +213,6 @@ export const api = async <T>(
 
   const response = await fetchFromPage(url, init);
 
-  if (!response.ok) {
-    const status = response.status;
-    const body = await response.text().catch(() => '');
-    const msg = `OnlyFans API ${method} ${endpoint} returned ${status}: ${body.substring(0, 512)}`;
-
-    if (status === 429) {
-      const retryAfter = response.headers.get('retry-after');
-      const retryMs = retryAfter ? Number(retryAfter) * 1000 : undefined;
-      throw ToolError.rateLimited(msg, retryMs && !Number.isNaN(retryMs) ? retryMs : undefined);
-    }
-    if (status === 401 || status === 403) throw ToolError.auth(msg);
-    if (status === 404) throw ToolError.notFound(msg);
-    if (status === 400) throw ToolError.validation(msg);
-    throw ToolError.internal(msg);
-  }
-
   if (response.status === 204) return {} as T;
 
   return (await response.json()) as T;
