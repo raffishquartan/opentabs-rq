@@ -118,8 +118,8 @@ export const api = async <T>(
   };
 
   if (method !== 'GET') {
-    const freshCsrf = await refreshCsrf(auth.apiToken);
-    headers['X-Csrf'] = freshCsrf;
+    const csrf = auth.csrfToken || (await refreshCsrf(auth.apiToken));
+    headers['X-Csrf'] = csrf;
   }
 
   const init: FetchFromPageOptions = { method, headers };
