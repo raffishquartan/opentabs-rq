@@ -25,7 +25,8 @@ const fetchProjectInfo = async (): Promise<TwilioAuth | null> => {
       return { accountSid: data.projectSid, authToken: data.authToken };
     }
     return null;
-  } catch {
+  } catch (e: unknown) {
+    if (e instanceof ToolError) throw e;
     return null;
   }
 };
