@@ -11,7 +11,7 @@
     "chrome-extension",
     "cli"
   ],
-  "version": "0.0.100",
+  "version": "0.0.101",
   "license": "MIT",
   "engines": {
     "node": ">= 22.0.0"
