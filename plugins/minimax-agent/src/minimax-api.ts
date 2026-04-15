@@ -25,8 +25,16 @@ interface MinimaxAuth {
   token: string;
 }
 
+/** Cached webpack require function — set once on first successful probe. */
+let cachedRequire: ((id: string | number) => unknown) | null = null;
+
+/** Cached Axios instance — set once on first successful module scan. */
+let cachedAxios: AxiosInstance | null = null;
+
 /** Probe the webpack chunk to get the app's Axios require function. */
 const getWebpackRequire = (): ((id: string | number) => unknown) | null => {
+  if (cachedRequire) return cachedRequire;
+
   const cached = getAuthCache<{ hasAxios: true }>(CACHE_NS);
   const chunk =
     // biome-ignore lint/suspicious/noExplicitAny: webpack runtime global
@@ -46,19 +54,58 @@ const getWebpackRequire = (): ((id: string | number) => unknown) | null => {
     },
   ]);
   if (!req && cached) clearAuthCache(CACHE_NS);
+  if (req) cachedRequire = req;
   return req;
 };
 
-/** Get the app's pre-configured Axios instance (module 33993, export ZP). */
+/** Reset the cached webpack require function and Axios instance (called on adapter teardown). */
+export const resetWebpackCache = (): void => {
+  cachedRequire = null;
+  cachedAxios = null;
+};
+
+/** Check if a value looks like an Axios instance (has HTTP methods and interceptors). */
+const isAxiosLike = (val: unknown): val is AxiosInstance =>
+  val != null &&
+  typeof val === 'object' &&
+  typeof (val as Record<string, unknown>).get === 'function' &&
+  typeof (val as Record<string, unknown>).post === 'function' &&
+  (val as Record<string, unknown>).interceptors != null &&
+  typeof (val as Record<string, unknown>).interceptors === 'object';
+
+/**
+ * Get the app's pre-configured Axios instance by scanning the webpack module cache.
+ *
+ * The Axios module ID changes on every MiniMax deploy (it's assigned at build time),
+ * so we scan all loaded modules for one whose export matches the Axios interface
+ * (HTTP methods + interceptors). The result is cached for subsequent calls.
+ */
 const getAxios = (): AxiosInstance | null => {
+  if (cachedAxios) return cachedAxios;
+
   const req = getWebpackRequire();
   if (!req) return null;
-  try {
-    const mod = req(33993) as { ZP?: AxiosInstance } | undefined;
-    return mod?.ZP ?? null;
-  } catch {
-    return null;
+
+  // biome-ignore lint/suspicious/noExplicitAny: webpack internal module cache
+  const cache = (req as any).c as Record<string, { exports?: Record<string, unknown> }> | undefined;
+  if (!cache) return null;
+
+  for (const id of Object.keys(cache)) {
+    try {
+      const exports = cache[id]?.exports;
+      if (!exports) continue;
+      for (const key of Object.keys(exports)) {
+        if (isAxiosLike(exports[key])) {
+          cachedAxios = exports[key];
+          return cachedAxios;
+        }
+      }
+    } catch {
+      // Module access threw — skip it
+    }
   }
+
+  return null;
 };
 
 /** Check if the user is authenticated (JWT token present in localStorage). */
