@@ -1,7 +1,7 @@
 ---
 title: Publishing
 description: How to publish platform packages to npm, manage versions, and update plugin dependencies.
-lastUpdated: 2026-03-10
+lastUpdated: 2026-04-15
 ---
 
 I publish the platform packages as restricted-access packages to the npm registry under the `@opentabs-dev` org. The process is mostly automated, but there are enough moving parts that I wrote it all down. Here's the full workflow.
@@ -81,17 +81,21 @@ npm whoami
 
 ## Publishing a Release
 
-I automated the entire publish workflow in a single script. It handles everything in one shot:
+Releases are published via the **Publish Platform Packages** GitHub Actions workflow at `.github/workflows/publish-platform.yml`.
 
-```bash
-npx tsx scripts/publish.ts 0.0.17
-```
+To publish a release:
 
-The script:
+1. Go to the repository on GitHub
+2. Navigate to **Actions** → **Publish Platform Packages**
+3. Click **Run workflow**
+4. Enter the version number (e.g., `0.0.102`)
+5. Click **Run workflow** to confirm
 
-1. Verifies npm authentication via `npm whoami`
+The workflow:
+
+1. Verifies npm authentication
 2. Bumps `"version"` in all seven `platform/*/package.json` files
-3. Deletes the lockfile, runs `npm install`, and runs `npm run build:force` to sync lockfile and rebuild with the new versions
+3. Deletes the lockfile, runs `npm install`, and runs `npm run build:force` to sync the lockfile and rebuild with the new versions
 4. Publishes in dependency order: `shared` → `browser-extension` → `mcp-server` → `plugin-sdk` → `plugin-tools` → `cli` → `create-plugin`
 5. Updates plugin `@opentabs-dev/*` dependencies to `^version` and rebuilds each plugin
 6. Generates a changelog from `git log` since the previous tag
