@@ -8,8 +8,9 @@
  */
 
 import { deleteExecFile, dispatchToExtension, writeExecFile } from '../../extension-protocol.js';
-import type { ServerState } from '../../state.js';
-import { getAnyConnection } from '../../state.js';
+import { log } from '../../logger.js';
+import type { ExtensionConnection, ServerState } from '../../state.js';
+import { getAnyConnection, getConnectionForTab } from '../../state.js';
 import { validateDispatchResult } from '../dispatch-utils.js';
 import type { ApiAnalysis, ApiEndpoint, WsFrame } from './detect-apis.js';
 import { detectApis } from './detect-apis.js';
@@ -82,8 +83,14 @@ const executeInTab = async (state: ServerState, tabId: number, code: string): Pr
     }
     const value = inner?.value;
     if (typeof value === 'string' && value.length > 0 && (value[0] === '{' || value[0] === '[')) {
-      // Chrome truncated a large JSON payload to a string — return null so callers fall back to defaults
-      return null;
+      // Chrome sometimes truncates large JSON payloads to a string. If the
+      // string is valid JSON, return the parsed value; otherwise it's a
+      // truncation artifact and we return null so callers fall back to defaults.
+      try {
+        return JSON.parse(value);
+      } catch {
+        return null;
+      }
     }
     return value ?? null;
   } finally {
@@ -811,6 +818,8 @@ const analyzeSite = async (
   waitSeconds: number = DEFAULT_WAIT_SECONDS,
 ): Promise<SiteAnalysis> => {
   let tabId: number | null = null;
+  let cancelSleep: (() => void) | undefined;
+  let captureConn: ExtensionConnection | undefined;
 
   try {
     // Step 1: Open a new tab to about:blank so network capture can be enabled
@@ -833,13 +842,26 @@ const analyzeSite = async (
       tabId,
       maxRequests: 200,
     });
-    getAnyConnection(state)?.activeNetworkCaptures.add(tabId);
+    const owningConn = getConnectionForTab(state, tabId);
+    if (!owningConn) {
+      log.debug(`No owning connection for tab ${tabId}, falling back to any connection for network capture tracking`);
+    }
+    captureConn = owningConn ?? getAnyConnection(state);
+    captureConn?.activeNetworkCaptures.add(tabId);
 
     // Step 3: Navigate to the target URL — network capture is already active
     await dispatchToExtension(state, 'browser.navigateTab', { tabId, url });
 
-    // Step 4: Wait for page load and API calls
-    await new Promise(resolve => setTimeout(resolve, waitSeconds * 1000));
+    // Step 4: Wait for page load and API calls (cancellable so the finally
+    // block can clean up immediately when the outer dispatch times out)
+    const sleepPromise = new Promise<void>(resolve => {
+      const timer = setTimeout(resolve, waitSeconds * 1_000);
+      cancelSleep = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+    });
+    await sleepPromise;
 
     // Step 5: Run detection scripts in the page context sequentially.
     // Sequential execution avoids the extension's per-method rate limit
@@ -1054,6 +1076,10 @@ const analyzeSite = async (
       suggestions,
     };
   } finally {
+    // Cancel the observation sleep immediately so cleanup proceeds without delay
+    // when the outer MCP dispatch times out
+    cancelSleep?.();
+
     // Clean up: disable network capture then close the tab (only if a tab was successfully opened)
     if (tabId !== null) {
       try {
@@ -1061,7 +1087,7 @@ const analyzeSite = async (
       } catch {
         // Best-effort cleanup — ignore errors
       }
-      getAnyConnection(state)?.activeNetworkCaptures.delete(tabId);
+      captureConn?.activeNetworkCaptures.delete(tabId);
       try {
         await dispatchToExtension(state, 'browser.closeTab', { tabId });
       } catch {
