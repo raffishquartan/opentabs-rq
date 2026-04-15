@@ -79,9 +79,8 @@ test.describe('Side panel — server update indicator', () => {
       const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
       await expect(menuButton).toBeVisible();
 
-      // The update dot is inside the accordion trigger's relative wrapper around PluginIcon
-      const browserToolsTrigger = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'Browser' });
-      const updateDot = browserToolsTrigger.locator('div.rounded-full');
+      // The update dot is inside the BrowserToolsMenu trigger button
+      const updateDot = menuButton.locator('div.rounded-full');
 
       // --- Verify: no update dot when no update is available ---
       await expect(updateDot).not.toBeVisible();
@@ -141,12 +140,11 @@ test.describe('Side panel — server update indicator', () => {
       const sidePanelPage = await openSidePanel(context);
       await expect(sidePanelPage.locator('text=Browser')).toBeVisible({ timeout: 30_000 });
 
-      const browserToolsTrigger = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'Browser' });
-      const updateDot = browserToolsTrigger.locator('div.rounded-full');
+      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
       await expect(updateDot).not.toBeVisible();
 
       // Open menu and verify no Update menu item
-      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
       await menuButton.click();
       const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
       await expect(updateMenuItem).not.toBeVisible();
@@ -184,13 +182,12 @@ test.describe('Side panel — server update click behavior', () => {
         updateCommand: 'npm install -g @opentabs-dev/cli',
       });
 
-      // Wait for update dot to appear
-      const browserToolsTrigger = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'Browser' });
-      const updateDot = browserToolsTrigger.locator('div.rounded-full');
+      // Wait for update dot to appear on the menu trigger button
+      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
       await expect(updateDot).toBeVisible({ timeout: 10_000 });
 
       // Open menu and click Update
-      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
       await menuButton.click();
       const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
       await expect(updateMenuItem).toBeVisible({ timeout: 5_000 });
@@ -238,9 +235,9 @@ test.describe('Side panel — server disconnect clears update indicator', () => 
         updateCommand: 'npm install -g @opentabs-dev/cli',
       });
 
-      // Verify update dot is visible
-      const browserToolsTrigger = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'Browser' });
-      const updateDot = browserToolsTrigger.locator('div.rounded-full');
+      // Verify update dot is visible on the menu trigger button
+      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
       await expect(updateDot).toBeVisible({ timeout: 10_000 });
 
       // Kill the server
@@ -299,13 +296,12 @@ test.describe('stress — server update double-click protection', () => {
         updateCommand: 'npm install -g @opentabs-dev/cli',
       });
 
-      // Wait for update dot
-      const browserToolsTrigger = sidePanelPage.locator('button[data-radix-collection-item]', { hasText: 'Browser' });
-      const updateDot = browserToolsTrigger.locator('div.rounded-full');
+      // Wait for update dot on the menu trigger button
+      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
+      const updateDot = menuButton.locator('div.rounded-full');
       await expect(updateDot).toBeVisible({ timeout: 10_000 });
 
       // Open menu and click Update
-      const menuButton = sidePanelPage.locator('[aria-label="Browser tools options"]');
       await menuButton.click();
       const updateMenuItem = sidePanelPage.locator('[role="menuitem"]', { hasText: /^Update to v/ });
       await expect(updateMenuItem).toBeVisible({ timeout: 5_000 });
