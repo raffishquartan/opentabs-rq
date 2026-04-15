@@ -356,6 +356,135 @@ Network capture uses the Chrome DevTools Protocol (`chrome.debugger`) to interce
   </Table.Body>
 </Table>
 
+## Network Interception
+
+Network interception uses the Chrome DevTools Protocol Fetch domain to pause and modify HTTP requests before they are sent.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_intercept_requests`</Table.Cell>
+      <Table.Cell>Start intercepting HTTP requests for a tab. Paused requests can be fulfilled with custom responses (`browser_fulfill_request`), failed with an error (`browser_fail_request`), or released by stopping interception. Use `urlPatterns` to filter which requests to intercept. Paused requests block the page — handle them promptly.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_fulfill_request`</Table.Cell>
+      <Table.Cell>Fulfill a paused HTTP request with a custom response. The request must have been paused by `browser_intercept_requests`. Provide the requestId, HTTP status code, optional response headers, and optional body.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_fail_request`</Table.Cell>
+      <Table.Cell>Fail a paused HTTP request with a network error. Use to simulate network failures, blocked requests, or connection errors.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_stop_intercepting`</Table.Cell>
+      <Table.Cell>Stop intercepting HTTP requests for a tab. Any still-paused requests are automatically continued.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Emulation
+
+Emulation tools override the browser environment using the Chrome DevTools Protocol Emulation domain. Overrides persist until cleared with `browser_clear_emulation`.
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_emulate_device`</Table.Cell>
+      <Table.Cell>Emulate a device by overriding viewport dimensions, device scale factor, mobile flag, and user agent string.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_set_geolocation`</Table.Cell>
+      <Table.Cell>Override the geolocation reported by the browser for a tab.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_set_media_features`</Table.Cell>
+      <Table.Cell>Override CSS media features for a tab. Supports prefers-color-scheme, prefers-reduced-motion, prefers-contrast, and color-gamut.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_emulate_vision_deficiency`</Table.Cell>
+      <Table.Cell>Simulate a vision deficiency for a tab. Useful for accessibility testing. Set type to "none" to remove the simulation.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_clear_emulation`</Table.Cell>
+      <Table.Cell>Clear all emulation overrides for a tab — device metrics, user agent, geolocation, media features, and vision deficiency simulation.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## CSS & Styles
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_get_element_styles`</Table.Cell>
+      <Table.Cell>Get computed CSS styles and matched CSS rules for a DOM element. Returns computed style properties and matched rules with selectors, values, source URLs, and line numbers.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_force_pseudo_state`</Table.Cell>
+      <Table.Cell>Force CSS pseudo-class states (:hover, :focus, :active, :visited, :focus-within, :focus-visible) on a DOM element. Useful for inspecting hover and focus styles without manual interaction. Pass an empty array to clear forced states.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_get_css_coverage`</Table.Cell>
+      <Table.Cell>Start CSS rule usage tracking, wait for page activity, then report which CSS rules are used vs. unused. Returns per-stylesheet usage percentages and total page-wide coverage.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Network Throttling
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_throttle_network`</Table.Cell>
+      <Table.Cell>Simulate slow network conditions using the Chrome DevTools Protocol. Choose a preset (offline, slow-3g, 3g, 4g, wifi) or provide custom latency and throughput values.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_clear_network_throttle`</Table.Cell>
+      <Table.Cell>Remove network throttling for a tab, restoring normal network conditions.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
+## Site Data
+
+<Table>
+  <Table.Header>
+    <Table.Row>
+      <Table.Head>Tool</Table.Head>
+      <Table.Head>Description</Table.Head>
+    </Table.Row>
+  </Table.Header>
+  <Table.Body>
+    <Table.Row>
+      <Table.Cell className="font-medium">`browser_clear_site_data`</Table.Cell>
+      <Table.Cell>Clear browsing data for a specific origin. Selectively clear cookies, localStorage, cache, IndexedDB, and/or service workers. Useful for resetting site state or debugging authentication issues.</Table.Cell>
+    </Table.Row>
+  </Table.Body>
+</Table>
+
 ## Console Logs
 
 Console log capture is enabled alongside network capture via `browser_enable_network_capture`.
@@ -539,8 +668,68 @@ These tools control and diagnose the OpenTabs Chrome extension itself. They use 
       <Table.Cell>`extension_`</Table.Cell>
     </Table.Row>
     <Table.Row>
+      <Table.Cell>Tab Groups</Table.Cell>
+      <Table.Cell>6</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Windows</Table.Cell>
+      <Table.Cell>4</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Downloads</Table.Cell>
+      <Table.Cell>3</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>History</Table.Cell>
+      <Table.Cell>2</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Bookmarks</Table.Cell>
+      <Table.Cell>3</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Session</Table.Cell>
+      <Table.Cell>2</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Network Interception</Table.Cell>
+      <Table.Cell>4</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Emulation</Table.Cell>
+      <Table.Cell>5</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>CSS & Styles</Table.Cell>
+      <Table.Cell>3</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Network Throttling</Table.Cell>
+      <Table.Cell>2</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Site Data</Table.Cell>
+      <Table.Cell>1</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell>Notifications</Table.Cell>
+      <Table.Cell>1</Table.Cell>
+      <Table.Cell>`browser_`</Table.Cell>
+    </Table.Row>
+    <Table.Row>
       <Table.Cell className="font-medium">Total</Table.Cell>
-      <Table.Cell className="font-medium">40</Table.Cell>
+      <Table.Cell className="font-medium">76</Table.Cell>
       <Table.Cell></Table.Cell>
     </Table.Row>
   </Table.Body>
