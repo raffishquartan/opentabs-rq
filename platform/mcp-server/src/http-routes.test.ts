@@ -1,5 +1,5 @@
 import type { WsHandle } from '@opentabs-dev/shared';
-import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
+import { beforeAll, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import type { HotHandlers } from './http-routes.js';
 import {
@@ -26,9 +26,10 @@ beforeAll(() => {
   vi.spyOn(console, 'debug').mockImplementation(() => {});
 });
 
-afterAll(() => {
-  vi.restoreAllMocks();
-});
+// Mocks are intentionally NOT restored — fire-and-forget promises from
+// wsOpen → sendSyncFull may settle during worker teardown. Restoring the
+// real console functions before then causes onUserConsoleLog RPC to race
+// with the worker exit. The mocks are cleaned up when the worker dies.
 
 /** Create a minimal mock McpServerInstance */
 const createMockSession = (): McpServerInstance => ({
