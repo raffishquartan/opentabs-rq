@@ -102,7 +102,7 @@ Here's what each field does:
 - **`tools`** — array of tool definitions (covered below).
 - **`isReady()`** — return `true` when the user is authenticated. The extension calls this to determine whether the plugin's tab is ready for tool dispatch.
 
-Lifecycle hooks (`onActivate`, `onDeactivate`, `onNavigate`, `onToolInvocationStart`, `onToolInvocationEnd`) require `override` because they are optional methods defined on the base class (TypeScript's `noImplicitOverride` rule enforces this). See [Lifecycle Hooks](/docs/sdk/lifecycle-hooks) for usage examples.
+The scaffolded `tsconfig.json` enables `noImplicitOverride`, which means any optional property or method defined on `OpenTabsPlugin` must use the `override` keyword — omitting it causes a TS4114 type error. This applies to lifecycle hooks (`onActivate`, `onDeactivate`, `onNavigate`, `onToolInvocationStart`, `onToolInvocationEnd`), the optional method `teardown()`, and optional properties (`configSchema`, `excludePatterns`, `homepage`). See [Lifecycle Hooks](/docs/sdk/lifecycle-hooks) for usage examples.
 
 ### Implementing isReady()
 
