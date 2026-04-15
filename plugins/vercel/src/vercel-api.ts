@@ -64,7 +64,12 @@ export const updateCachedTeamSlug = (url: string): void => {
   const cached = getAuthCache<VercelAuth>('vercel');
   if (!cached) return;
 
-  const pathname = new URL(url).pathname;
+  let pathname: string;
+  try {
+    pathname = new URL(url).pathname;
+  } catch {
+    return; // invalid URL — skip cache update
+  }
   const teamSlug = extractTeamSlugFromPath(pathname);
   if (teamSlug !== cached.teamSlug) {
     setAuthCache('vercel', { ...cached, teamSlug });
