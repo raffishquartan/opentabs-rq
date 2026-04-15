@@ -80,6 +80,7 @@ describe('loadConfig / saveConfig round-trip', () => {
         sqlpad: { instanceUrl: 'https://sqlpad.example.com' },
       },
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(custom);
 
@@ -213,6 +214,7 @@ describe('savePluginPermissions round-trip', () => {
       permissions: {},
       settings: {},
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(initial);
 
@@ -238,6 +240,7 @@ describe('savePluginPermissions round-trip', () => {
       permissions: { slack: { permission: 'auto' } },
       settings: {},
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(initial);
 
@@ -261,6 +264,7 @@ describe('savePluginPermissions round-trip', () => {
         sqlpad: { instanceUrl: 'https://sqlpad.example.com' },
       },
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(initial);
 
@@ -287,6 +291,7 @@ describe('savePluginSettings round-trip', () => {
       permissions: { slack: { permission: 'auto' } },
       settings: {},
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(initial);
 
@@ -309,6 +314,7 @@ describe('savePluginSettings round-trip', () => {
       permissions: {},
       settings: { old_plugin: { key: 'old-value' } },
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
     await saveConfigWrapped(initial);
 
@@ -350,6 +356,7 @@ describe('saveConfig error propagation', () => {
       permissions: {},
       settings: {},
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
 
     await expect(saveConfig(state, config)).rejects.toThrow();
@@ -368,6 +375,7 @@ describe('saveConfig error propagation', () => {
       permissions: {},
       settings: {},
       version: 3,
+      updateCheckIntervalMinutes: 30,
     };
 
     // First write fails
@@ -491,7 +499,8 @@ describe('KNOWN_CONFIG_KEYS', () => {
     expect(KNOWN_CONFIG_KEYS).toContain('permissions');
     expect(KNOWN_CONFIG_KEYS).toContain('settings');
     expect(KNOWN_CONFIG_KEYS).toContain('additionalAllowedDirectories');
-    expect(KNOWN_CONFIG_KEYS.size).toBe(6);
+    expect(KNOWN_CONFIG_KEYS).toContain('updateCheckIntervalMinutes');
+    expect(KNOWN_CONFIG_KEYS.size).toBe(7);
   });
 });
 
