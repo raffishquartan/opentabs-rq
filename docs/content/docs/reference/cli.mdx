@@ -1,6 +1,6 @@
 ---
 title: CLI Commands
-description: Complete reference for the opentabs CLI — start the server, manage plugins, view logs, run diagnostics, and configure settings.
+description: Complete reference for the opentabs CLI — start the server, manage plugins, view logs, run diagnostics, configure settings, and manage telemetry.
 lastUpdated: 2026-04-15
 ---
 
@@ -975,6 +975,44 @@ opentabs update
 # Then restart the MCP server if it was running
 opentabs start
 ```
+
+---
+
+## opentabs telemetry
+
+Manage anonymous usage telemetry. Running `opentabs telemetry` with no subcommand shows current status.
+
+```bash
+opentabs telemetry [subcommand]
+```
+
+Has three subcommands: `status`, `enable`, `disable`.
+
+### opentabs telemetry status
+
+Show whether telemetry is currently enabled and display the anonymous installation ID.
+
+```bash
+opentabs telemetry status
+```
+
+### opentabs telemetry enable
+
+Enable anonymous telemetry by removing the `telemetry: false` flag from `config.json`.
+
+```bash
+opentabs telemetry enable
+```
+
+### opentabs telemetry disable
+
+Disable anonymous telemetry by setting `telemetry: false` in `config.json`.
+
+```bash
+opentabs telemetry disable
+```
+
+See [Telemetry](/docs/reference/telemetry) for details on what is collected and how to opt out via environment variables.
 
 ---
 
