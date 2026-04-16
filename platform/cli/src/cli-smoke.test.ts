@@ -129,12 +129,12 @@ describe('CLI smoke tests', () => {
 
     it('opentabs plugin list exits 0', async () => {
       // Plugin list runs npm discovery which can be slow on Windows CI
-      const result = await run('plugin', 'list', { timeout: 30_000 });
+      const result = await run('plugin', 'list', { timeout: 60_000 });
       expect(
         result.code,
         `plugin list failed (code=${result.code}):\nstdout: ${result.stdout}\nstderr: ${result.stderr}`,
       ).toBe(0);
-    });
+    }, 60_000);
   });
 
   describe('start command lifecycle', () => {
