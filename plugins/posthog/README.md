@@ -19,7 +19,15 @@ npm install -g @opentabs-dev/opentabs-plugin-posthog
 1. Open [us.posthog.com](https://us.posthog.com) in Chrome and log in
 2. Open the OpenTabs side panel — the PostHog plugin should appear as **ready**
 
-## Tools (32)
+## Configuration
+
+Configure settings via `opentabs plugin configure posthog` or the side panel.
+
+| Setting | Type | Required | Description |
+|---|---|---|---|
+| `instanceUrl` | url | No | The URL of your self-hosted PostHog instance (e.g., https://posthog.example.com). Leave empty to use PostHog Cloud. |
+
+## Tools (38)
 
 ### Users (1)
 
@@ -50,12 +58,13 @@ npm install -g @opentabs-dev/opentabs-plugin-posthog
 | `update_dashboard` | Update a dashboard | Write |
 | `delete_dashboard` | Delete a dashboard | Write |
 
-### Insights (4)
+### Insights (5)
 
 | Tool | Description | Type |
 |---|---|---|
 | `list_insights` | List insights in the project | Read |
 | `get_insight` | Get insight details | Read |
+| `create_insight` | Create a new saved insight | Write |
 | `update_insight` | Update an insight | Write |
 | `delete_insight` | Delete an insight | Write |
 
@@ -112,6 +121,26 @@ npm install -g @opentabs-dev/opentabs-plugin-posthog
 |---|---|---|
 | `list_actions` | List actions | Read |
 | `get_action` | Get action details | Read |
+
+### Query (2)
+
+| Tool | Description | Type |
+|---|---|---|
+| `run_query` | Run a HogQL analytics query | Write |
+| `run_trends_query` | Run a time series trends query | Write |
+
+### Events (1)
+
+| Tool | Description | Type |
+|---|---|---|
+| `list_events` | List raw analytics events | Read |
+
+### Data Management (2)
+
+| Tool | Description | Type |
+|---|---|---|
+| `list_event_definitions` | List tracked event types | Read |
+| `list_property_definitions` | List tracked property definitions | Read |
 
 ## How It Works
 

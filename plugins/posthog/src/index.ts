@@ -20,6 +20,7 @@ import { deleteDashboard } from './tools/delete-dashboard.js';
 // Insights
 import { listInsights } from './tools/list-insights.js';
 import { getInsight } from './tools/get-insight.js';
+import { createInsight } from './tools/create-insight.js';
 import { updateInsight } from './tools/update-insight.js';
 import { deleteInsight } from './tools/delete-insight.js';
 
@@ -55,6 +56,15 @@ import { getSurvey } from './tools/get-survey.js';
 // Actions
 import { listActions } from './tools/list-actions.js';
 import { getAction } from './tools/get-action.js';
+
+// Query & Events
+import { runQuery } from './tools/run-query.js';
+import { runTrendsQuery } from './tools/run-trends-query.js';
+import { listEvents } from './tools/list-events.js';
+
+// Data Management
+import { listEventDefinitions } from './tools/list-event-definitions.js';
+import { listPropertyDefinitions } from './tools/list-property-definitions.js';
 
 class PostHogPlugin extends OpenTabsPlugin {
   readonly name = 'posthog';
@@ -93,6 +103,7 @@ class PostHogPlugin extends OpenTabsPlugin {
     // Insights
     listInsights,
     getInsight,
+    createInsight,
     updateInsight,
     deleteInsight,
 
@@ -128,6 +139,15 @@ class PostHogPlugin extends OpenTabsPlugin {
     // Actions
     listActions,
     getAction,
+
+    // Query & Events
+    runQuery,
+    runTrendsQuery,
+    listEvents,
+
+    // Data Management
+    listEventDefinitions,
+    listPropertyDefinitions,
   ];
 
   async isReady(): Promise<boolean> {
