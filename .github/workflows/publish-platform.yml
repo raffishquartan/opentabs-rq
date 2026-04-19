@@ -78,14 +78,15 @@ jobs:
               const fs = require('fs');
               const pkg = JSON.parse(fs.readFileSync('$PKG/package.json', 'utf8'));
               pkg.version = '$VERSION';
-              // Transform bare '*' cross-refs between platform packages to '^VERSION'.
-              // npm does not transform workspace:* on publish (unlike pnpm), so '*' lands
-              // in the published package.json and resolves to whatever is already in the
-              // consumer's node_modules — potentially a stale incompatible version.
+              // Pin all @opentabs-dev/* cross-refs to ^VERSION at publish time.
+              // npm does not transform workspace:* on publish (unlike pnpm), and
+              // '^0.0.x' is interpreted as '>=0.0.x <0.0.(x+1)' — an exact pin — so
+              // stale ranges like '^0.0.100' would cause consumers to resolve old
+              // versions even after a newer publish.
               for (const depMap of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies]) {
                 if (!depMap) continue;
-                for (const [name, ver] of Object.entries(depMap)) {
-                  if (name.startsWith('@opentabs-dev/') && ver === '*') {
+                for (const name of Object.keys(depMap)) {
+                  if (name.startsWith('@opentabs-dev/')) {
                     depMap[name] = '^$VERSION';
                   }
                 }
@@ -114,6 +115,7 @@ jobs:
         run: |
           npm run type-check
           npm run lint
+          npm run check:platform-versions
           npm run test
 
       - name: CLI smoke test (packed tarball)
