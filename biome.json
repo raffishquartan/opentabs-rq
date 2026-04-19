@@ -16,6 +16,9 @@
       "!.claude/worktrees",
       "!.tmp",
       "!.playwright-browsers",
+      "!marketing/state.json",
+      "!marketing/logs",
+      "!.opencode",
       "!platform/browser-extension/side-panel/**/*.js",
       "!platform/browser-extension/side-panel/**/*.css",
       "!**/*.css"
