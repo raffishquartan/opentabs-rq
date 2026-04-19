@@ -451,6 +451,84 @@ export const mapAction = (a: RawAction) => ({
   is_calculating: a.is_calculating ?? false,
 });
 
+// --- Event ---
+
+export const eventSchema = z.object({
+  id: z.string().describe('Event UUID'),
+  event: z.string().describe('Event name (e.g., "$pageview", "user_signed_up")'),
+  distinct_id: z.string().describe('Distinct ID of the person who triggered the event'),
+  timestamp: z.string().describe('ISO 8601 event timestamp'),
+  properties: z.record(z.string(), z.unknown()).describe('Event properties as key-value pairs'),
+});
+
+export interface RawEvent {
+  id?: string;
+  event?: string;
+  distinct_id?: string;
+  timestamp?: string;
+  properties?: Record<string, unknown>;
+}
+
+export const mapEvent = (e: RawEvent) => ({
+  id: e.id ?? '',
+  event: e.event ?? '',
+  distinct_id: e.distinct_id ?? '',
+  timestamp: e.timestamp ?? '',
+  properties: e.properties ?? {},
+});
+
+// --- Event Definition ---
+
+export const eventDefinitionSchema = z.object({
+  id: z.string().describe('Event definition UUID'),
+  name: z.string().describe('Event name'),
+  volume_30_day: z.number().nullable().describe('Event count in the last 30 days'),
+  query_usage_30_day: z.number().nullable().describe('Number of queries using this event in the last 30 days'),
+  last_seen_at: z.string().nullable().describe('ISO 8601 timestamp of the last time this event was seen'),
+  created_at: z.string().describe('ISO 8601 creation timestamp'),
+});
+
+export interface RawEventDefinition {
+  id?: string;
+  name?: string;
+  volume_30_day?: number | null;
+  query_usage_30_day?: number | null;
+  last_seen_at?: string | null;
+  created_at?: string;
+}
+
+export const mapEventDefinition = (d: RawEventDefinition) => ({
+  id: d.id ?? '',
+  name: d.name ?? '',
+  volume_30_day: d.volume_30_day ?? null,
+  query_usage_30_day: d.query_usage_30_day ?? null,
+  last_seen_at: d.last_seen_at ?? null,
+  created_at: d.created_at ?? '',
+});
+
+// --- Property Definition ---
+
+export const propertyDefinitionSchema = z.object({
+  id: z.string().describe('Property definition UUID'),
+  name: z.string().describe('Property name (e.g., "$browser", "plan_name")'),
+  property_type: z.string().nullable().describe('Property type: String, Numeric, Boolean, DateTime'),
+  is_numerical: z.boolean().describe('Whether the property holds numeric values'),
+});
+
+export interface RawPropertyDefinition {
+  id?: string;
+  name?: string;
+  property_type?: string | null;
+  is_numerical?: boolean;
+}
+
+export const mapPropertyDefinition = (d: RawPropertyDefinition) => ({
+  id: d.id ?? '',
+  name: d.name ?? '',
+  property_type: d.property_type ?? null,
+  is_numerical: d.is_numerical ?? false,
+});
+
 // --- Paginated API response envelope ---
 
 export interface PaginatedResponse<T> {
