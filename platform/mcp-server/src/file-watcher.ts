@@ -24,7 +24,13 @@ import type { FSWatcher } from 'node:fs';
 import { readdirSync, statSync, watch } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { ADAPTER_FILENAME, ADAPTER_SOURCE_MAP_FILENAME, isOk, TOOLS_FILENAME } from '@opentabs-dev/shared';
+import {
+  ADAPTER_FILENAME,
+  ADAPTER_SOURCE_MAP_FILENAME,
+  isOk,
+  PRE_SCRIPT_FILENAME,
+  TOOLS_FILENAME,
+} from '@opentabs-dev/shared';
 import { getConfigDir } from './config.js';
 import { extractToolsArray, loadPlugin, validateTools } from './loader.js';
 import { log } from './logger.js';
@@ -309,6 +315,34 @@ const handleToolsJsonChange = async (
       } catch {
         // Source map read failed — proceed without it
       }
+    }
+
+    // Re-read pre-script IIFE from disk if the manifest declares one.
+    // When a build tool run updates tools.json, it also updates pre-script.iife.js.
+    // Re-reading here ensures the updated preScriptHash reaches the extension via
+    // plugin.update, enabling the extension to detect hash changes and reload tabs.
+    const manifestObj =
+      typeof parsedManifest === 'object' && parsedManifest !== null
+        ? (parsedManifest as Record<string, unknown>)
+        : null;
+    const declaredPreScriptFile =
+      typeof manifestObj?.preScriptFile === 'string' ? manifestObj.preScriptFile : undefined;
+    const declaredPreScriptHash =
+      typeof manifestObj?.preScriptHash === 'string' ? manifestObj.preScriptHash : undefined;
+    if (declaredPreScriptFile) {
+      const preScriptPath = join(pluginDir, 'dist', PRE_SCRIPT_FILENAME);
+      if (await fileExists(preScriptPath)) {
+        try {
+          updatedFields.preScript = await readFileWithRetry(preScriptPath);
+          updatedFields.preScriptHash = declaredPreScriptHash;
+        } catch {
+          // Pre-script read failed — keep existing state
+        }
+      }
+    } else if (plugin.preScript !== undefined) {
+      // Plugin no longer declares a pre-script — clear it from state
+      updatedFields.preScript = undefined;
+      updatedFields.preScriptHash = undefined;
     }
 
     // Atomically swap the registry with the updated plugin
