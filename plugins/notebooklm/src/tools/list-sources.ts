@@ -22,8 +22,7 @@ const sourceSchema = z.object({
 export const listSources = defineTool({
   name: 'list_sources',
   displayName: 'List Sources',
-  description:
-    'List all sources in a notebook. Returns source IDs, titles, types, and word counts.',
+  description: 'List all sources in a notebook. Returns source IDs, titles, types, and word counts.',
   summary: 'List sources in a notebook',
   icon: 'library',
   group: 'Sources',
