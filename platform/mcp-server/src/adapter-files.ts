@@ -6,6 +6,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readdir, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
+import { Script } from 'node:vm';
 import { atomicWrite } from '@opentabs-dev/shared';
 import { getAdaptersDir } from './config.js';
 import { log } from './logger.js';
@@ -183,6 +184,22 @@ const cleanupStaleAdapterFiles = async (currentPluginNames: Set<string>): Promis
 // ---------------------------------------------------------------------------
 
 /**
+ * Returns true if `code` is syntactically valid as a JavaScript expression —
+ * i.e., it can be placed in `(async () => (CODE))()` without a SyntaxError.
+ * Detection runs in Node.js via vm.Script so no browser eval is needed.
+ */
+const isExpression = (code: string): boolean => {
+  try {
+    // eslint-disable-next-line no-new
+    new Script(`(async () => (${code}))()`);
+    return true;
+  } catch (e) {
+    if (e instanceof SyntaxError) return false;
+    throw e;
+  }
+};
+
+/**
  * Write a dynamic exec script to the adapters/ directory.
  * Wraps the user's code in an IIFE that evaluates it expression-first
  * (Chrome DevTools console / Node REPL semantics) and captures the result
@@ -190,24 +207,22 @@ const cleanupStaleAdapterFiles = async (currentPluginNames: Set<string>): Promis
  * Each execution uses keys derived from its UUID (`__execResult_<uuid>` and
  * `__execAsync_<uuid>`) so concurrent executions on the same tab do not collide.
  *
- * Two-path evaluation:
- * 1. Expression path — user code is wrapped in `(async () => (CODE))()` and
- *    evaluated via indirect `(0, eval)`. This returns the value of any
- *    expression directly: bare values, IIFEs, `await EXPR`, object literals.
- *    Indirect eval runs in global scope so wrapper-local vars are not visible.
- * 2. Statement fallback — triggered only on SyntaxError from path 1 (e.g.,
- *    multi-statement bodies, `return` at the top level). User code is wrapped
- *    in `(async () => { CODE })()` via `new Function` and invoked. Any other
- *    error (ReferenceError, TypeError, user-thrown) propagates from path 1
- *    without retrying, to avoid double-executing side effects.
+ * Two-path evaluation (detection is server-side via vm.Script, not browser eval):
+ * 1. Expression path — user code is syntactically valid as an expression (no
+ *    `return`, no multi-statement body). Inlined as `(async () => (CODE))()`.
+ *    Returns bare values, IIFEs, `await EXPR`, object literals directly.
+ * 2. Statement path — code contains statements (`return`, multi-statement
+ *    bodies, `throw`, etc.). Inlined as `(async function() { CODE })()`.
+ *    Top-level `return` and `await` both work.
+ *
+ * Neither path uses eval or new Function in the generated browser code, so
+ * both paths work on pages with a strict Content-Security-Policy that blocks
+ * `unsafe-eval`. The file itself is injected via chrome.scripting.executeScript
+ * ({ files, world: 'MAIN' }), which bypasses page CSP for the file injection.
  *
  * The __startedKey sentinel is set synchronously before the try block so the
  * extension-side poller can distinguish "IIFE hasn't executed yet" from
  * "async result pending".
- *
- * The file is injected via chrome.scripting.executeScript({ files }), which
- * runs as extension-origin code and bypasses page CSP entirely — both eval
- * and new Function work even on pages with a strict CSP.
  *
  * Returns the filename (relative to adapters/) for the extension to inject.
  */
@@ -220,6 +235,11 @@ const writeExecFile = async (state: ServerState, execId: string, code: string): 
   const asyncKey = `__execAsync_${execId}`;
   const startedKey = `__execStarted_${execId}`;
 
+  // Choose the wrapper shape based on server-side syntax detection.
+  // Expression path: (async () => (CODE))()  — returns the expression value.
+  // Statement path:  (async function() { CODE })()  — supports return/await.
+  const useExpression = isExpression(code);
+
   const wrapped = [
     '(function() {',
     '  var __ot = globalThis.__openTabs = globalThis.__openTabs || {};',
@@ -227,17 +247,10 @@ const writeExecFile = async (state: ServerState, execId: string, code: string): 
     `  var __asyncKey = ${JSON.stringify(asyncKey)};`,
     `  var __startedKey = ${JSON.stringify(startedKey)};`,
     '  __ot[__startedKey] = true;',
-    `  var __src = ${JSON.stringify(code)};`,
-    '  var __run = (async function() {',
-    '    try {',
-    '      return await (0, eval)("(async () => (" + __src + "))()");',
-    '    } catch (e) {',
-    '      if (!(e instanceof SyntaxError)) throw e;',
-    '      return await (new Function("return (async () => { " + __src + " })()"))();',
-    '    }',
-    '  });',
     '  try {',
-    '    __run().then(',
+    useExpression ? '    (async () => (' : '    (async function() {',
+    code,
+    useExpression ? '    ))().then(' : '    })().then(',
     '      function(v) { __ot[__resultKey] = { value: v }; },',
     '      function(e) { __ot[__resultKey] = { error: e instanceof Error ? e.message : String(e) }; }',
     '    );',

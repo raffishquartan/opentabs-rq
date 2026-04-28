@@ -64,41 +64,51 @@ describe('writeExecFile', () => {
     await ensureAdaptersDir(state);
   });
 
-  test('emits an expression-first wrapper with SyntaxError-only fallback', async () => {
+  test('uses expression path for syntactically valid expression code', async () => {
     const state = createState();
-    const filename = await writeExecFile(state, 'test-1', 'return 42');
+    const filename = await writeExecFile(state, 'expr-test', '42');
 
-    expect(filename).toBe(`${EXEC_FILE_PREFIX}test-1.js`);
+    expect(filename).toBe(`${EXEC_FILE_PREFIX}expr-test.js`);
 
     const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
     // Outer IIFE structure is intact
     expect(content.startsWith('(function() {')).toBe(true);
     expect(content.endsWith('})();')).toBe(true);
-    // User code is stored as a JSON string in __src (not placed inline)
-    expect(content).toContain('var __src = ');
-    expect(content).toContain('"return 42"');
-    // Expression path uses indirect eval (global scope, no wrapper lexicals exposed)
-    expect(content).toContain('(0, eval)');
-    // Statement fallback uses new Function (to permit top-level `return`)
-    expect(content).toContain('new Function(');
-    // Fallback is guarded by SyntaxError check only
-    expect(content).toContain('e instanceof SyntaxError');
+    // Expression path uses arrow async IIFE — no eval or new Function in browser
+    expect(content).toContain('(async () => (');
+    expect(content).not.toContain('eval(');
+    expect(content).not.toContain('new Function(');
     // Contains the namespaced result capture mechanism
-    expect(content).toContain('__execResult_test-1');
+    expect(content).toContain('__execResult_expr-test');
     expect(content).toContain('__openTabs');
   });
 
-  test('stores user code JSON-encoded in __src, safely escaping quotes', async () => {
+  test('uses statement path for code with return statement', async () => {
     const state = createState();
-    const code = 'return "hello\\nworld"';
-    const filename = await writeExecFile(state, 'escape-test', code);
+    const filename = await writeExecFile(state, 'stmt-test', 'return 42');
 
     const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
-    // User code is stored as a JSON string in __src — quotes and backslashes are escaped
-    expect(content).toContain(`var __src = ${JSON.stringify(code)};`);
-    // Expression and fallback paths are present
-    expect(content).toContain('(0, eval)');
-    expect(content).toContain('new Function(');
+    // Statement path uses async function body — no eval or new Function in browser
+    expect(content).toContain('(async function() {');
+    expect(content).not.toContain('eval(');
+    expect(content).not.toContain('new Function(');
+    // Contains the namespaced result capture mechanism
+    expect(content).toContain('__execResult_stmt-test');
+  });
+
+  test('inlines user code directly in the wrapper (not JSON-encoded)', async () => {
+    const state = createState();
+    const code = 'return "hello\\nworld"';
+    const filename = await writeExecFile(state, 'inline-test', code);
+
+    const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
+    // User code is inlined directly — not stored as a JSON string in __src
+    expect(content).not.toContain('var __src =');
+    expect(content).toContain(code);
+    // Statement path (code has return), no eval or new Function
+    expect(content).toContain('(async function() {');
+    expect(content).not.toContain('eval(');
+    expect(content).not.toContain('new Function(');
   });
 
   test('handles async code with promise support in wrapper', async () => {
@@ -110,26 +120,27 @@ describe('writeExecFile', () => {
     // asyncKey variable is declared (for cleanup reference) but not set on __ot
     expect(content).toContain('__execAsync_async-test');
     expect(content).not.toContain('__ot[__asyncKey] = true');
-    // Uses __run().then(onFulfilled, onRejected) for direct rejection handling
-    expect(content).toContain('__run().then(');
+    // Statement path — uses async function IIFE with .then() for result capture
+    expect(content).toContain('})().then(');
     expect(content).toContain('function(v) { __ot[__resultKey] = { value: v }; }');
     expect(content).toContain('function(e) { __ot[__resultKey] = { error:');
   });
 
-  test('injection-like user code is safely contained inside the JSON __src string', async () => {
+  test('outer IIFE wrapper is intact for any user code shape', async () => {
     const state = createState();
+    // Code whose characters could, if mishandled, break the surrounding wrapper
     const code = '});alert(1);//';
-    const filename = await writeExecFile(state, 'inline-test', code);
+    const filename = await writeExecFile(state, 'wrapper-test', code);
 
     const content = await readFile(join(getAdaptersDir(), filename), 'utf-8');
-    // User code is stored JSON-encoded in __src — cannot break out of the string
-    expect(content).toContain(`var __src = ${JSON.stringify(code)};`);
-    // The outer IIFE wrapper is intact
+    // The outer IIFE always starts and ends with the correct structure
     expect(content.startsWith('(function() {')).toBe(true);
     expect(content.endsWith('})();')).toBe(true);
-    // Expression and fallback paths are present
-    expect(content).toContain('(0, eval)');
-    expect(content).toContain('new Function(');
+    // The user code is present in the output
+    expect(content).toContain(code);
+    // No eval or new Function in generated browser code
+    expect(content).not.toContain('eval(');
+    expect(content).not.toContain('new Function(');
   });
 
   test('__startedKey sentinel is set synchronously before any try block', async () => {
