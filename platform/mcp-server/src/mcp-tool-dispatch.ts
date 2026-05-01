@@ -30,7 +30,7 @@ import {
   getToolPermission,
   validateReviewToken,
 } from './state.js';
-import { getSessionId, trackEvent } from './telemetry.js';
+import { getSessionId, trackEvent, trackPluginToolUsage } from './telemetry.js';
 
 /** Maximum concurrent tool dispatches per plugin to prevent tab performance degradation */
 const MAX_CONCURRENT_DISPATCHES_PER_PLUGIN = 25;
@@ -578,6 +578,14 @@ const handlePluginToolCall = async (
       durationMs,
       error: errorInfo,
     });
+    const plugin = state.registry.plugins.get(pluginName);
+    if (plugin !== undefined) {
+      trackPluginToolUsage(plugin, toolBaseName, {
+        success,
+        errorCategory: errorInfo?.category,
+        durationMs,
+      });
+    }
   }
 };
 
