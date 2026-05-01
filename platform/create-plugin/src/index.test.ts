@@ -246,7 +246,7 @@ describe('create-opentabs-plugin CLI', () => {
     };
 
     test('scaffolded plugin can be installed and built, producing valid manifest and adapter', {
-      timeout: 60_000,
+      timeout: 180_000,
     }, async () => {
       const { exitCode: scaffoldExit } = runCli(['build-test', '--domain', 'example.com'], {
         cwd: tmpDir,
@@ -261,7 +261,15 @@ describe('create-opentabs-plugin CLI', () => {
 
       // Use isolated config so the build doesn't register in the user's
       // real ~/.opentabs/config.json or notify a running MCP server.
-      const buildEnv = { ...process.env, OPENTABS_CONFIG_DIR: configDir };
+      // Raise Node heap for build subprocesses — `tsc --build` plus esbuild
+      // bundling can exceed the default ~1.5GB heap on memory-constrained
+      // CI runners, producing an OOM abort (exit 134). NODE_OPTIONS is
+      // inherited by all node processes spawned through npm.
+      const buildEnv = {
+        ...process.env,
+        OPENTABS_CONFIG_DIR: configDir,
+        NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --max-old-space-size=6144`.trim(),
+      };
 
       // shell: true is required on Windows where npm is a .cmd script
       const spawnOpts = { cwd: projectDir, env: buildEnv, shell: true } as const;
