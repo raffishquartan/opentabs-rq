@@ -15,6 +15,9 @@ vi.mock('../extension-protocol.js', () => ({
 const { screenshotTab } = await import('./screenshot-tab.js');
 const { createState } = await import('../state.js');
 
+// A 1x1 transparent PNG.
+const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
 describe('screenshotTab.formatResult', () => {
   test('emits a single MCP image content part with mimeType image/png', () => {
     expect(screenshotTab.formatResult).toBeDefined();
@@ -22,14 +25,17 @@ describe('screenshotTab.formatResult', () => {
     expect(formatted).toEqual([{ type: 'image', data: 'iVBORw0KGgoAAAANSUhEUg==', mimeType: 'image/png' }]);
   });
 
-  test('renders a {savedTo, bytes} summary as a text part', () => {
-    const formatted = screenshotTab.formatResult?.({ savedTo: '/tmp/shot.png', bytes: 1234 });
-    expect(formatted).toHaveLength(1);
-    const part = formatted?.[0];
-    expect(part?.type).toBe('text');
-    const text = part?.type === 'text' ? part.text : '';
-    expect(text).toContain('/tmp/shot.png');
-    expect(text).toContain('1234');
+  test('renders a {savedTo, bytes} summary as a compact JSON text part', () => {
+    const summary = { savedTo: '/abs/path/shot.png', bytes: 1234 };
+    expect(screenshotTab.formatResult?.(summary)).toEqual([{ type: 'text', text: JSON.stringify(summary) }]);
+  });
+
+  test('short-circuits on savedTo before any image-shape validation', () => {
+    // A file-write result never reaches image extraction, so a stray `image`
+    // field cannot trigger the malformed-payload error path.
+    expect(() =>
+      screenshotTab.formatResult?.({ savedTo: '/abs/path/shot.png', bytes: 1234, image: 'shouldNotBeRead' }),
+    ).not.toThrow();
   });
 
   test('throws a metadata-only error when the payload is not {image: string}', () => {
@@ -67,9 +73,6 @@ describe('screenshotTab.handler — filePath', () => {
     mockDispatchToExtension.mockReset();
   });
 
-  // A 1x1 transparent PNG.
-  const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-
   test('without filePath the handler returns the raw {image} payload for formatResult', async () => {
     mockDispatchToExtension.mockResolvedValue({ image: PNG_BASE64 });
     const result = await screenshotTab.handler({ tabId: 1 }, createState());
@@ -104,5 +107,44 @@ describe('screenshotTab.handler — filePath', () => {
     const filePath = join(dir, 'missing-parent', 'capture.png');
 
     await expect(screenshotTab.handler({ tabId: 1, filePath }, createState())).rejects.toThrow(/ENOENT/);
+  });
+
+  test('with filePath and a malformed extension payload throws without writing', async () => {
+    mockDispatchToExtension.mockResolvedValue({ unexpected: 'shape' });
+    const path = join(dir, 'should-not-exist.png');
+    await expect(screenshotTab.handler({ tabId: 1, filePath: path }, createState())).rejects.toThrow(
+      /extension returned unexpected payload/,
+    );
+    await expect(readFile(path)).rejects.toThrow(/ENOENT/);
+  });
+});
+
+describe('screenshotTab handler + formatResult round trip', () => {
+  let dir: string;
+  beforeAll(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'opentabs-screenshot-roundtrip-'));
+  });
+  afterAll(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+  beforeEach(() => {
+    mockDispatchToExtension.mockReset();
+  });
+
+  test('filePath: the handler writes the file and formatResult emits a text part with savedTo', async () => {
+    mockDispatchToExtension.mockResolvedValue({ image: PNG_BASE64 });
+    const path = join(dir, 'roundtrip.png');
+    const formatted = screenshotTab.formatResult?.(
+      await screenshotTab.handler({ tabId: 1, filePath: path }, createState()),
+    );
+    expect(formatted).toEqual([
+      { type: 'text', text: JSON.stringify({ savedTo: path, bytes: Buffer.from(PNG_BASE64, 'base64').byteLength }) },
+    ]);
+  });
+
+  test('inline: the handler returns {image} and formatResult emits an image part', async () => {
+    mockDispatchToExtension.mockResolvedValue({ image: PNG_BASE64 });
+    const formatted = screenshotTab.formatResult?.(await screenshotTab.handler({ tabId: 1 }, createState()));
+    expect(formatted).toEqual([{ type: 'image', data: PNG_BASE64, mimeType: 'image/png' }]);
   });
 });

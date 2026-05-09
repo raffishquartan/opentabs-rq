@@ -14,6 +14,20 @@ import { z } from 'zod';
 import { dispatchToExtension } from '../extension-protocol.js';
 import { defineBrowserTool } from './definition.js';
 
+const formatUnexpectedPayload = (result: unknown): string => {
+  const payloadType = result === null ? 'null' : Array.isArray(result) ? 'array' : typeof result;
+  const keys = result !== null && typeof result === 'object' && !Array.isArray(result) ? Object.keys(result) : [];
+  return `browser_screenshot_tab: extension returned unexpected payload (expected {image: non-empty string}, got type=${payloadType}${keys.length > 0 ? `, keys=[${keys.join(',')}]` : ''})`;
+};
+
+const extractImageData = (result: unknown): string => {
+  const data = (result as { image?: unknown } | null)?.image;
+  if (typeof data !== 'string' || data.length === 0) {
+    throw new Error(formatUnexpectedPayload(result));
+  }
+  return data;
+};
+
 const screenshotTab = defineBrowserTool({
   name: 'browser_screenshot_tab',
   description:
@@ -51,14 +65,7 @@ const screenshotTab = defineBrowserTool({
         `browser_screenshot_tab: filePath must be an absolute path (got ${JSON.stringify(args.filePath)})`,
       );
     }
-    const data = (result as { image?: unknown } | null)?.image;
-    if (typeof data !== 'string' || data.length === 0) {
-      const payloadType = result === null ? 'null' : Array.isArray(result) ? 'array' : typeof result;
-      const keys = result !== null && typeof result === 'object' && !Array.isArray(result) ? Object.keys(result) : [];
-      throw new Error(
-        `browser_screenshot_tab: extension returned unexpected payload (expected {image: non-empty string}, got type=${payloadType}${keys.length > 0 ? `, keys=[${keys.join(',')}]` : ''})`,
-      );
-    }
+    const data = extractImageData(result);
     const bytes = Buffer.from(data, 'base64');
     await writeFile(args.filePath, bytes);
     return { savedTo: args.filePath, bytes: bytes.byteLength };
@@ -66,17 +73,10 @@ const screenshotTab = defineBrowserTool({
   formatResult: result => {
     // The on-disk path: handler returned a {savedTo, bytes} summary — render as text.
     if (result !== null && typeof result === 'object' && 'savedTo' in result) {
-      return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+      return [{ type: 'text', text: JSON.stringify(result) }];
     }
     // The default path: handler returned {image} — emit a native MCP image part.
-    const data = (result as { image?: unknown } | null)?.image;
-    if (typeof data !== 'string' || data.length === 0) {
-      const payloadType = result === null ? 'null' : Array.isArray(result) ? 'array' : typeof result;
-      const keys = result !== null && typeof result === 'object' && !Array.isArray(result) ? Object.keys(result) : [];
-      throw new Error(
-        `browser_screenshot_tab: extension returned unexpected payload (expected {image: non-empty string}, got type=${payloadType}${keys.length > 0 ? `, keys=[${keys.join(',')}]` : ''})`,
-      );
-    }
+    const data = extractImageData(result);
     return [{ type: 'image', data, mimeType: 'image/png' }];
   },
 });
