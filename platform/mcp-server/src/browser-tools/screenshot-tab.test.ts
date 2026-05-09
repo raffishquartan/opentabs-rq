@@ -98,4 +98,16 @@ describe('browser_screenshot_tab handler', () => {
     await expect(promise).rejects.toThrow(/extension returned unexpected payload/);
     expect(() => readFileSync(filePath)).toThrow(/ENOENT/);
   });
+
+  test('with filePath pointing to a non-writable directory rejects with an I/O error', async () => {
+    const state = createState();
+    installExtensionConnection(state);
+    // /root is not writable by non-root processes on Linux
+    const filePath = '/root/opentabs-screenshot-test.png';
+
+    const promise = screenshotTab.handler({ tabId: 1, filePath }, state);
+    settleDispatchWith(state, { image: SAMPLE_PNG_BASE64 });
+
+    await expect(promise).rejects.toThrow(/EACCES|ENOENT|permission denied/i);
+  });
 });
