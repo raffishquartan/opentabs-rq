@@ -27,9 +27,13 @@ upstream/main (tagged releases: v0.0.106, ...)
        |
        +-----> f/fork-readme
        |
-       +-----> f/screenshot-image-content-part-v2
-       |
-       +-----> f/restore-screenshot-tab-filepath
+       +-----> f/screenshot-image-content-part-v2 ─┐
+       |                                            │
+       +-----> f/restore-screenshot-tab-filepath ───┤
+       |                                            │
+       |                                            └──> f/screenshot-tab-integrated
+       |                                                  (local-only meta-branch — combines
+       |                                                   the two above + integration commit)
        |
        +-----> f/fork-strategy-doc
        |
@@ -66,8 +70,9 @@ previous exec-branch state.
 |--------|-------------|---------|
 | `f/gitignore-superpowers` | Adds `docs/superpowers/` to `.gitignore` | 1 |
 | `f/fork-readme` | Adds `README-HOWTO-UPDATEFORK-TO-MYSTREAM.md` | 1 |
-| `f/screenshot-image-content-part-v2` | `browser_screenshot_tab` returns MCP image content parts instead of file paths | 10 |
-| `f/restore-screenshot-tab-filepath` | Sibling work in flight: restores the optional `filePath` parameter dropped during the v0.0.106 rebase | in progress |
+| `f/screenshot-image-content-part-v2` | `browser_screenshot_tab` returns MCP image content parts | 10 |
+| `f/restore-screenshot-tab-filepath` | Restores the optional `filePath` parameter — vacuously v0.0.106 + 1 new test commit (the parameter was never actually removed in v0.0.106; it was only dropped on the image-content-part branch during the original rebase resolution) | 1 |
+| `f/screenshot-tab-integrated` | **Local-only meta-branch.** Merges the two screenshot branches above and adds a hand-integration commit so they coexist in `exec-branch` (filePath provided → write to disk + return `{savedTo, bytes}`; filePath omitted → return image content part). Not for upstream PR — the two underlying branches are. | 12 commits + 1 merge + 1 integration |
 | `f/fork-strategy-doc` | This file | 1 |
 
 ---
@@ -112,6 +117,26 @@ git push origin f/<feature> --force-with-lease
 
 Work through them in dependency order if any branch builds on another (currently none do).
 
+### 4a. Recreate `f/screenshot-tab-integrated`
+
+`f/screenshot-tab-integrated` is a merge of `f/screenshot-image-content-part-v2` and
+`f/restore-screenshot-tab-filepath` plus a hand-integration commit. After the two
+underlying branches have been rebased onto the new `main`, recreate it from scratch
+rather than trying to rebase the merge:
+
+```bash
+git checkout f/screenshot-image-content-part-v2
+git checkout -B f/screenshot-tab-integrated
+git merge --no-ff f/restore-screenshot-tab-filepath
+# Re-apply the integration commit. If the underlying screenshot-tab.ts shape is
+# unchanged upstream, cherry-pick the previous integration commit by hash:
+git cherry-pick <previous-integration-commit-hash>
+# Otherwise hand-port the integration: combine filePath + image-content-part dispatch
+# (see the integration commit message for the design). Verify with the screenshot-tab
+# test file (12 tests covering both branches + the round-trip).
+git push origin f/screenshot-tab-integrated --force-with-lease
+```
+
 ### 5. Rebuild `exec-branch` from scratch
 
 ```bash
@@ -119,11 +144,15 @@ git checkout exec-branch
 git reset --hard main
 git merge --no-ff f/gitignore-superpowers
 git merge --no-ff f/fork-readme
-git merge --no-ff f/screenshot-image-content-part-v2
-git merge --no-ff f/restore-screenshot-tab-filepath
+git merge --no-ff f/screenshot-tab-integrated   # transitively contains both screenshot f/ branches + integration
 git merge --no-ff f/fork-strategy-doc
 # add any new f/* branches here in a stable, agreed order
 ```
+
+Do NOT also merge `f/screenshot-image-content-part-v2` and `f/restore-screenshot-tab-filepath`
+directly into `exec-branch` — they are already pulled in transitively by
+`f/screenshot-tab-integrated`. Merging them directly would trigger the silent semantic
+regression in `screenshot-tab.ts` that the integration branch exists to prevent.
 
 ### 6. Push `exec-branch`
 
@@ -160,25 +189,65 @@ npm run build
 
 ---
 
-## Worktree layout
+## Worktrees
+
+This fork uses git worktrees so multiple branches can be checked out simultaneously
+without disturbing the live MCP server's checkout. Worktrees are a **local-only**
+concept — they live under `.git/worktrees/<name>/` in the primary repo's git
+directory, and are never pushed to or tracked on `origin`/`upstream`. Each
+contributor sets up their own worktree layout.
+
+### Standing worktrees
 
 | Path | Branch | Purpose |
 |------|--------|---------|
-| `/home/chris/repos/opentabs-rq` | `exec-branch` | Primary checkout. Live MCP server reads from here. |
-| `/home/chris/repos/opentabs-rq-rebase` | varies | Branch-admin worktree. Used for reset/merge work without disturbing the live checkout. |
-| `/home/chris/repos/opentabs-rq-clauderfork` | `f/fork-strategy-doc` | Per-feature worktree (example). |
+| `/home/chris/repos/opentabs-rq` | `exec-branch` | **Primary checkout.** The live MCP server reads `dist/index.js` from here, so this directory must always be on the branch you want running. Build artefacts (`dist/`, generated icons, `~/.opentabs/extension`) are produced from this tree. |
+| `/home/chris/repos/opentabs-rq-rebase` | `main` (typically) | **Admin worktree.** Used for upstream-sync work — `git fetch upstream && git reset --hard upstream/<tag>`, the `f/*` rebase loop, force-push of `main` — without disturbing the live primary checkout. May be deleted and recreated on demand: nothing depends on its persistence. |
 
-Per-feature worktrees can be added ad hoc:
+### Practical rule of thumb
+
+- **Keep the primary on `exec-branch` always.** That's what runs.
+- **For each new feature, spin up an ad-hoc worktree** off `main`:
+  ```bash
+  git worktree add /home/chris/repos/opentabs-rq-<short> -b f/<feature> main
+  ```
+  Remove it when the feature has landed on `exec-branch`:
+  ```bash
+  git worktree remove /home/chris/repos/opentabs-rq-<short>
+  ```
+- **The admin worktree is the one exception** — it's permanent because upstream-sync
+  work is recurring. Don't repurpose it for feature work.
+
+### Fork docs in the admin worktree
+
+The admin worktree sits on `main`, which by design equals upstream and therefore
+**lacks the fork-specific docs** (`CLAUDE.fork.md`, `README-HOWTO-UPDATEFORK-TO-MYSTREAM.md`).
+Cherry-picking those onto `main` would break the "main = upstream" invariant. To make
+the docs available in the admin worktree without polluting `main`, the admin worktree
+carries them as **untracked symlinks** into the primary worktree's tracked copies:
 
 ```bash
-git worktree add /home/chris/repos/opentabs-rq-<short> f/<feature>
+ln -s ../opentabs-rq/CLAUDE.fork.md \
+      /home/chris/repos/opentabs-rq-rebase/CLAUDE.fork.md
+ln -s ../opentabs-rq/README-HOWTO-UPDATEFORK-TO-MYSTREAM.md \
+      /home/chris/repos/opentabs-rq-rebase/README-HOWTO-UPDATEFORK-TO-MYSTREAM.md
+
+# Hide the symlinks from `git status` in the admin worktree.
+# These exclude entries are local-only and never committed.
+{
+  echo "/CLAUDE.fork.md"
+  echo "/README-HOWTO-UPDATEFORK-TO-MYSTREAM.md"
+} >> /home/chris/repos/opentabs-rq/.git/info/exclude
 ```
 
-Remove them when done:
+The `.git/info/exclude` file is shared across all worktrees of the same git
+repository, so the entries hide the symlinks in the admin worktree without
+affecting the primary worktree (where the same filenames are tracked on
+`exec-branch` and exist as real files).
 
-```bash
-git worktree remove /home/chris/repos/opentabs-rq-<short>
-```
+If the admin worktree is ever recreated from scratch, re-run the symlink commands
+above. The exclude entries persist across worktree recreation because they live in
+the shared `.git/` directory.
 
 ---
 
