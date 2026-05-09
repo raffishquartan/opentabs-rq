@@ -50,7 +50,7 @@ describe('browser_screenshot_tab handler', () => {
     rmSync(workDir, { recursive: true, force: true });
   });
 
-  test('without filePath returns the dispatch result unchanged', async () => {
+  test('without filePath returns the dispatch result unchanged for formatResult to convert', async () => {
     const state = createState();
     installExtensionConnection(state);
 
@@ -97,5 +97,106 @@ describe('browser_screenshot_tab handler', () => {
 
     await expect(promise).rejects.toThrow(/extension returned unexpected payload/);
     expect(() => readFileSync(filePath)).toThrow(/ENOENT/);
+  });
+
+  test('with filePath pointing to a non-writable directory rejects with an I/O error', async () => {
+    const state = createState();
+    installExtensionConnection(state);
+    // /root is not writable by non-root processes on Linux
+    const filePath = '/root/opentabs-screenshot-test.png';
+
+    const promise = screenshotTab.handler({ tabId: 1, filePath }, state);
+    settleDispatchWith(state, { image: SAMPLE_PNG_BASE64 });
+
+    await expect(promise).rejects.toThrow(/EACCES|ENOENT|permission denied/i);
+  });
+});
+
+describe('screenshotTab.formatResult — image-content-part path (filePath omitted)', () => {
+  test('emits a single MCP image content part with mimeType image/png', () => {
+    expect(screenshotTab.formatResult).toBeDefined();
+    const formatted = screenshotTab.formatResult?.({ image: 'iVBORw0KGgoAAAANSUhEUg==' });
+    expect(formatted).toEqual([{ type: 'image', data: 'iVBORw0KGgoAAAANSUhEUg==', mimeType: 'image/png' }]);
+  });
+
+  test('throws a metadata-only error when the payload is not {image: string}', () => {
+    // Contract: the error describes the malformed payload by type and keys,
+    // never by serialising the payload itself — screenshots can carry PII
+    // (tokens, DOM content) if something has gone very wrong upstream.
+    expect(() => screenshotTab.formatResult?.({ image: 12345, secret: 'leakme' })).toThrow(
+      /browser_screenshot_tab: extension returned unexpected payload/,
+    );
+    expect(() => screenshotTab.formatResult?.({ image: 12345, secret: 'leakme' })).toThrow(
+      /type=object.*keys=\[image,secret\]/,
+    );
+    expect(() => screenshotTab.formatResult?.({ image: 12345, secret: 'leakme' })).not.toThrow(/leakme/);
+  });
+
+  test('rejects an empty-string image payload as a malformed capture', () => {
+    // An empty `image` field would otherwise pass the `typeof === 'string'` check
+    // and emit a zero-byte image content part — handing clients a "successful"
+    // response that decodes to nothing. Fail fast instead.
+    expect(() => screenshotTab.formatResult?.({ image: '' })).toThrow(
+      /browser_screenshot_tab: extension returned unexpected payload \(expected \{image: non-empty string\}/,
+    );
+  });
+});
+
+describe('screenshotTab.formatResult — file-write path (filePath provided)', () => {
+  test('emits a text content part containing the {savedTo, bytes} JSON', () => {
+    const handlerResult = { savedTo: '/abs/path/shot.png', bytes: 1234 };
+    const formatted = screenshotTab.formatResult?.(handlerResult);
+    expect(formatted).toEqual([{ type: 'text', text: JSON.stringify(handlerResult) }]);
+  });
+
+  test('does not attempt image extraction when savedTo is present (no PII leak via error)', () => {
+    // Even if the file-write result happens to also carry an `image` field somehow,
+    // the savedTo branch must short-circuit before we touch image-shape validation.
+    expect(() =>
+      screenshotTab.formatResult?.({ savedTo: '/abs/path/shot.png', bytes: 1234, image: 'shouldNotBeRead' }),
+    ).not.toThrow();
+  });
+});
+
+describe('screenshotTab handler + formatResult — end-to-end behaviour', () => {
+  let workDir: string;
+
+  beforeEach(() => {
+    workDir = mkdtempSync(join(tmpdir(), 'screenshot-tab-e2e-'));
+  });
+
+  afterEach(() => {
+    rmSync(workDir, { recursive: true, force: true });
+  });
+
+  test('filePath path: handler writes file, formatResult emits text content part with savedTo', async () => {
+    const state = createState();
+    installExtensionConnection(state);
+    const filePath = join(workDir, 'e2e-saved.png');
+
+    const promise = screenshotTab.handler({ tabId: 1, filePath }, state);
+    settleDispatchWith(state, { image: SAMPLE_PNG_BASE64 });
+    const handlerResult = await promise;
+
+    const formatted = screenshotTab.formatResult?.(handlerResult);
+    expect(formatted).toHaveLength(1);
+    expect(formatted?.[0]?.type).toBe('text');
+    if (formatted?.[0]?.type === 'text') {
+      const parsed = JSON.parse(formatted[0].text) as { savedTo: string; bytes: number };
+      expect(parsed.savedTo).toBe(filePath);
+      expect(parsed.bytes).toBe(Buffer.from(SAMPLE_PNG_BASE64, 'base64').byteLength);
+    }
+  });
+
+  test('inline path: handler returns {image}, formatResult emits image content part', async () => {
+    const state = createState();
+    installExtensionConnection(state);
+
+    const promise = screenshotTab.handler({ tabId: 1 }, state);
+    settleDispatchWith(state, { image: SAMPLE_PNG_BASE64 });
+    const handlerResult = await promise;
+
+    const formatted = screenshotTab.formatResult?.(handlerResult);
+    expect(formatted).toEqual([{ type: 'image', data: SAMPLE_PNG_BASE64, mimeType: 'image/png' }]);
   });
 });
