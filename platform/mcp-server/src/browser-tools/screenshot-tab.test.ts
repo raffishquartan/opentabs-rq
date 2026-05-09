@@ -96,4 +96,13 @@ describe('screenshotTab.handler — filePath', () => {
       /filePath must be an absolute path/,
     );
   });
+
+  test('with filePath in a directory that cannot be written rejects with the I/O error', async () => {
+    mockDispatchToExtension.mockResolvedValue({ image: PNG_BASE64 });
+    // A path under a missing parent directory fails on every platform and user
+    // (including root), so the handler's natural writeFile error must propagate.
+    const filePath = join(dir, 'missing-parent', 'capture.png');
+
+    await expect(screenshotTab.handler({ tabId: 1, filePath }, createState())).rejects.toThrow(/ENOENT/);
+  });
 });
