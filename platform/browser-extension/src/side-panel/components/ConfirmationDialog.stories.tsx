@@ -60,6 +60,34 @@ const BrowserTool: Story = {
   },
 };
 
+const EXAMPLE_SCRIPT = `const base = 'http://127.0.0.1:56345/health';
+const response = await fetch(base);
+const data = await response.json();
+return { status: response.status, ok: response.ok, body: data };`;
+
+const ExecuteScriptTool: Story = {
+  name: 'Execute Script (long code param)',
+  args: {
+    confirmations: [
+      mockConfirmation({
+        id: 'conf-script',
+        tool: 'browser_execute_script',
+        plugin: 'browser',
+        params: { tabId: 1043350523, code: EXAMPLE_SCRIPT },
+      }),
+    ],
+  },
+  play: async () => {
+    const dialog = await screen.findByRole('dialog');
+    const canvas = within(dialog);
+    // The full script must be visible without needing to click anything to reveal it.
+    await expect(canvas.getByText(/const base = 'http:\/\/127\.0\.0\.1:56345\/health'/)).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /allow/i })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /deny/i })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /copy as prompt/i })).toBeVisible();
+  },
+};
+
 const MultipleConfirmations: Story = {
   args: {
     confirmations: [
@@ -139,6 +167,7 @@ export {
   BrowserTool,
   DarkMode,
   DenyInteraction,
+  ExecuteScriptTool,
   MultipleConfirmations,
   NavigateConfirmations,
   SingleConfirmation,
