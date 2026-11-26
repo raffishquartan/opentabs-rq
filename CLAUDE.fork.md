@@ -17,23 +17,25 @@ across diverged histories.
 ## Branch architecture
 
 ```
-upstream/main (tagged releases: v0.0.106, ...)
+upstream/main (tagged releases: v0.0.115, ...)
        |
        v
     main  <-- always identical to upstream/main at a tagged release
-    (currently v0.0.106)
+    (currently v0.0.115)
        |
        +-----> f/gitignore-superpowers
        |
        +-----> f/fork-readme
        |
-       +-----> f/screenshot-image-content-part-v2 ─┐
-       |                                            │
-       +-----> f/restore-screenshot-tab-filepath ───┤
-       |                                            │
-       |                                            └──> f/screenshot-tab-integrated
-       |                                                  (local-only meta-branch — combines
-       |                                                   the two above + integration commit)
+       +-----> f/improve-approval-ui
+       |
+       +-----> f/openspec  (openspec/ scaffold + the sync change folder)
+       |
+       +-----> one f/<feature> branch per OpenSpec change, each carrying its own
+       |       change folder as its first commit
+       |
+       +- - -> f/screenshot-* (set aside; recreated by the rebase-screenshot-tab-branches
+               change on the then-current main, and merged only if it adds functionality)
        |
        +-----> f/fork-strategy-doc
        |
@@ -44,8 +46,8 @@ upstream/main (tagged releases: v0.0.106, ...)
 
 ### `main`
 
-Always identical to `upstream/main` at a tagged release. Currently at `v0.0.106`.
-Never carries fork-specific commits. `origin/main` is force-pushed to match each new
+Always identical to `upstream/main` at a tagged release. Currently at `v0.0.115`.
+Never carries fork-specific commits, and fork changes are never committed to it (even the OpenSpec scaffold lives on `f/openspec`). `origin/main` is force-pushed to match each new
 upstream tag. This is the rebase base for every feature branch.
 
 ### `f/<feature>` branches
@@ -64,16 +66,22 @@ previous exec-branch state.
 
 ---
 
-## Current `f/` branches (snapshot as of 2026-05-09)
+## Current `f/` branches (snapshot as of 2026-11-26)
 
 | Branch | Description | Commits |
 |--------|-------------|---------|
 | `f/gitignore-superpowers` | Adds `docs/superpowers/` to `.gitignore` | 1 |
 | `f/fork-readme` | Adds `README-HOWTO-UPDATEFORK-TO-MYSTREAM.md` | 1 |
-| `f/screenshot-image-content-part-v2` | `browser_screenshot_tab` returns MCP image content parts | 10 |
-| `f/restore-screenshot-tab-filepath` | Restores the optional `filePath` parameter — vacuously v0.0.106 + 1 new test commit (the parameter was never actually removed in v0.0.106; it was only dropped on the image-content-part branch during the original rebase resolution) | 1 |
-| `f/screenshot-tab-integrated` | **Local-only meta-branch.** Merges the two screenshot branches above and adds a hand-integration commit so they coexist in `exec-branch` (filePath provided → write to disk + return `{savedTo, bytes}`; filePath omitted → return image content part). Not for upstream PR — the two underlying branches are. | 12 commits + 1 merge + 1 integration |
-| `f/fork-strategy-doc` | This file | 1 |
+| `f/fork-strategy-doc` | This file | 2 |
+| `f/improve-approval-ui` | Tool approval dialog usable for long parameters | 1 |
+| `f/openspec` | `openspec/` scaffold and the `sync-fork-with-upstream` change folder | 1 |
+| `f/screenshot-tab-integrated`, `f/screenshot-image-content-part-v2`, `f/restore-screenshot-tab-filepath` | **Set aside.** Still on the pre-sync base and not rebased. The `rebase-screenshot-tab-branches` change recreates the integrated branch on the then-current `main` after checking upstream, and merges it into `exec-branch` only if it adds functionality upstream lacks. | - |
+
+Each further OpenSpec change gets its own `f/<change>` branch whose first commit adds
+that change's folder under `openspec/changes/`; the spec and its implementation travel
+together. `f/openspec` is merged into `exec-branch`.
+
+---
 
 ---
 
@@ -90,15 +98,16 @@ git fetch upstream --tags
 ### 2. Reset `main` to the new tag
 
 ```bash
-git checkout main
-git reset --hard upstream/<new-tag>
-# e.g. git reset --hard upstream/v0.0.107
+# main cannot be reset while it is checked out. Detach the primary checkout first
+# (git -C <primary-checkout> switch --detach) and run the reset from the admin worktree.
+git branch -f main upstream/<new-tag>
+# e.g. git branch -f main upstream/v0.0.116
 ```
 
 ### 3. Push `main` to origin
 
 ```bash
-git push origin main --force-with-lease
+git push origin main --force-with-lease=main:<old-tip>
 ```
 
 `origin/main` always equals the upstream tag commit. The force-push is intentional and
@@ -115,9 +124,16 @@ git rebase main
 git push origin f/<feature> --force-with-lease
 ```
 
-Work through them in dependency order if any branch builds on another (currently none do).
+Work through them in dependency order if any branch builds on another (currently none
+do). A branch stacked on another, or sitting on a base that is no longer an ancestor of
+the new tag, is rebased with `git rebase --onto <new-base> <old-base> <branch>`, merging
+the base branch first; a plain `git rebase main` would replay the old history.
 
-### 4a. Recreate `f/screenshot-tab-integrated`
+Before any history rewrite, tag the old tips with local-only backup tags (for example
+`backup-<date>-<branch>`). Never push them (`git push --tags` and `push.followTags` are
+off): they would keep scrubbed content public.
+
+### 4a. Recreate `f/screenshot-tab-integrated` (set aside until `rebase-screenshot-tab-branches` runs)
 
 `f/screenshot-tab-integrated` is a merge of `f/screenshot-image-content-part-v2` and
 `f/restore-screenshot-tab-filepath` plus a hand-integration commit. After the two
@@ -144,12 +160,14 @@ git checkout exec-branch
 git reset --hard main
 git merge --no-ff f/gitignore-superpowers
 git merge --no-ff f/fork-readme
-git merge --no-ff f/screenshot-tab-integrated   # transitively contains both screenshot f/ branches + integration
 git merge --no-ff f/fork-strategy-doc
+git merge --no-ff f/improve-approval-ui
+git merge --no-ff f/openspec
 # add any new f/* branches here in a stable, agreed order
+# (f/screenshot-tab-integrated joins only after the rebase-screenshot-tab-branches gate)
 ```
 
-Do NOT also merge `f/screenshot-image-content-part-v2` and `f/restore-screenshot-tab-filepath`
+When `f/screenshot-tab-integrated` is part of the build, do NOT also merge `f/screenshot-image-content-part-v2` and `f/restore-screenshot-tab-filepath`
 directly into `exec-branch` — they are already pulled in transitively by
 `f/screenshot-tab-integrated`. Merging them directly would trigger the silent semantic
 regression in `screenshot-tab.ts` that the integration branch exists to prevent.
@@ -177,8 +195,8 @@ The running MCP server is launched from:
 ```
 
 The primary checkout at `<primary-checkout>` tracks `exec-branch`. After
-rebuilding, restart the server by killing the server PID. The parent CLI launcher
-(`opentabs start`) respawns it automatically.
+rebuilding, restart the server manually: `node <primary-checkout>/platform/cli/dist/cli.js stop`,
+then `start --background`. The background daemon is not respawned automatically.
 
 Build after any change:
 
