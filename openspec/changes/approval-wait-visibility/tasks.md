@@ -1,6 +1,6 @@
 ## 1. Branch and baseline
 
-- [ ] 1.1 Create `f/approval-wait-visibility` from the synced `main` (v0.0.115), copy `openspec/changes/approval-wait-visibility/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base f/approval-wait-visibility main` equals `main`; `openspec validate approval-wait-visibility` passes on the branch; the privacy grep over the folder has no hits.
+- [x] 1.1 Create `f/approval-wait-visibility` from the synced `main` (v0.0.115), copy `openspec/changes/approval-wait-visibility/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base f/approval-wait-visibility main` equals `main`; `openspec validate approval-wait-visibility` passes on the branch; the privacy grep over the folder has no hits.
 - [ ] 1.2 Set an `e2e-test` or other test plugin tool to `ask`, call it from Claude Code without answering, and record: whether the client gives up and after how long, its `MCP_TOOL_TIMEOUT` value, and whether progress notifications reset its request timeout. Verify: findings recorded in the PR description (no personal data).
 
 ## 2. Server
