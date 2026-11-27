@@ -280,7 +280,10 @@ Multiple tabs may match a plugin. Use plugin_list_tabs to discover tabs and IDs.
 ## Error Handling
 
 - "Extension not connected" → Chrome extension needs to be running
-- "Tab closed" / "Tab unavailable" → Open or log into the web application
+- "Tab closed" / "Tab unavailable" → Open or log into the web application. When the user enabled pluginTabAutoOpen, a permitted call without tabId or instance opens the plugin's homepage in a background tab itself; "Tab closed" then means auto-open was off, skipped (permissions skipped, no homepage) or blocked (the error says why, or a tab was auto-opened in the last 60s)
+- "was opened at ... but plugin ... is not ready" → An auto-opened tab exists but the plugin is not ready in it; ask the user to sign in there, then retry (no second tab is opened)
+- "several browser profiles are connected" → Ask the user to set pluginTabAutoOpenProfile to one of the listed connectionIds
+- Progress notice "Opening ... in a background tab" → The call is waiting for an auto-opened plugin tab to load
 - "has not been reviewed yet" → Follow the plugin review flow above
 - "was denied by the user" → Do not retry without asking
 - "was not approved within" → The user did not respond in time and the tool did not run; retry to prompt again, or ask the user

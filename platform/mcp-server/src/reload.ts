@@ -346,6 +346,9 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     state.cachedBrowserTools = newCachedBrowserTools;
     state.updateCheckIntervalMinutes = config.updateCheckIntervalMinutes;
     state.approvalTimeoutSeconds = config.approvalTimeoutSeconds;
+    state.pluginTabAutoOpen = config.pluginTabAutoOpen;
+    state.pluginTabAutoOpenProfile = config.pluginTabAutoOpenProfile;
+    state.pluginTabAutoOpenWaitSeconds = config.pluginTabAutoOpenWaitSeconds;
 
     // Prune stale entries against the updated registry.
     pruneStaleState(state);

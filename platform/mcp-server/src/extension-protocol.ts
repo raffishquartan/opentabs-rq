@@ -46,6 +46,7 @@ import {
   settlePendingConfirmation,
 } from './extension-handlers.js';
 import { log } from './logger.js';
+import { notifyPluginTabsChanged } from './plugin-tab-readiness.js';
 import { resolvePluginSettings } from './settings-resolver.js';
 import type {
   ConfirmationDecision,
@@ -611,11 +612,13 @@ const handleExtensionMessage = (
 
   if (method === 'tab.syncAll') {
     handleTabSyncAll(params, senderConn);
+    if (senderConn) notifyPluginTabsChanged(state, senderConn);
     return;
   }
 
   if (method === 'tab.stateChanged') {
     handleTabStateChanged(state, params, id, senderConn);
+    if (senderConn) notifyPluginTabsChanged(state, senderConn);
     return;
   }
 

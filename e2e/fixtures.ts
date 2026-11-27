@@ -218,6 +218,12 @@ interface OpentabsConfig {
   additionalAllowedDirectories?: string[];
   /** Seconds a plugin tool call waits for 'ask' approval before failing (0 or absent = no timeout). */
   approvalTimeoutSeconds?: number;
+  /** Open a plugin's homepage in a background tab when a permitted call finds no matching tab. */
+  pluginTabAutoOpen?: boolean;
+  /** connectionId of the browser profile that receives auto-opened tabs when several are connected. */
+  pluginTabAutoOpenProfile?: string;
+  /** Seconds to wait for an auto-opened tab to become ready. */
+  pluginTabAutoOpenWaitSeconds?: number;
 }
 
 /**

@@ -22,7 +22,15 @@ import {
   REVIEW_GUIDANCE,
   sanitizeOutput,
 } from './mcp-tool-dispatch.js';
-import type { CachedBrowserTool, RegisteredPlugin, ServerState, ToolLookupEntry } from './state.js';
+import { PLUGIN_TAB_AUTO_OPEN_COOLDOWN_MS } from './plugin-tab-auto-open.js';
+import { notifyPluginTabsChanged } from './plugin-tab-readiness.js';
+import type {
+  CachedBrowserTool,
+  ExtensionConnection,
+  RegisteredPlugin,
+  ServerState,
+  ToolLookupEntry,
+} from './state.js';
 import {
   appendAuditEntry,
   consumeReviewToken,
@@ -278,6 +286,15 @@ const createMockState = (overrides: Partial<ServerState> = {}): ServerState =>
     pluginPermissions: {},
     pendingConfirmations: new Map(),
     approvalTimeoutSeconds: 0,
+    pluginTabAutoOpen: false,
+    pluginTabAutoOpenProfile: undefined,
+    pluginTabAutoOpenWaitSeconds: 15,
+    pluginTabAutoOpenRuntime: {
+      inFlight: new Map(),
+      openedTabs: new Map(),
+      lastOpenTs: new Map(),
+      readyWaiters: new Set(),
+    },
     registry: { plugins: new Map(), toolLookup: new Map(), failures: [] },
     ...overrides,
   }) as unknown as ServerState;
@@ -1643,6 +1660,32 @@ describe('handlePluginInspect', () => {
     expect(parsed.reviewGuidance).toBe(REVIEW_GUIDANCE);
   });
 
+  test('includes the homepage and URL patterns', async () => {
+    const plugin = createTestPlugin({ homepage: 'https://test.example.com/home' });
+    const state = createStateWithPlugins([plugin]);
+
+    const result = await handlePluginInspect(state, { plugin: 'test-plugin' });
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '') as Record<string, unknown>;
+    expect(parsed.homepage).toBe('https://test.example.com/home');
+    expect(parsed.urlPatterns).toEqual(['https://test.example.com/*']);
+  });
+
+  test('reports a null homepage when the plugin declares none', async () => {
+    const state = createStateWithPlugins([createTestPlugin()]);
+
+    const result = await handlePluginInspect(state, { plugin: 'test-plugin' });
+
+    const parsed = JSON.parse(result.content[0]?.text ?? '') as Record<string, unknown>;
+    expect(parsed.homepage).toBeNull();
+    expect(parsed.urlPatterns).toEqual(['https://test.example.com/*']);
+  });
+
+  test('review guidance says the homepage may be opened automatically', () => {
+    expect(REVIEW_GUIDANCE).toContain('pluginTabAutoOpen');
+    expect(REVIEW_GUIDANCE).toContain('homepage');
+  });
+
   test('returns error for unknown plugin', async () => {
     const state = createStateWithPlugins([createTestPlugin()]);
 
@@ -2808,5 +2851,535 @@ describe('approval wait visibility', () => {
     expect(progressParams(sendNotification)).toEqual([
       { progressToken: 'tok', progress: 0, total: 1, message: 'Waiting for user approval in the OpenTabs side panel' },
     ]);
+  });
+});
+
+describe('plugin tab auto-open', () => {
+  const HOMEPAGE = 'https://example.com/app';
+  const CLOSED_TEXT = 'Tab closed: No matching tab for plugin "testplugin" (state: closed)';
+
+  const noMatchingTabError = () =>
+    Object.assign(new Error('No matching tab for plugin "testplugin" (state: closed)'), {
+      name: 'DispatchError',
+      code: -32001,
+      data: { reason: 'no_matching_tab' },
+    });
+
+  const makeConnection = (connectionId: string): ExtensionConnection => ({
+    ws: { send: vi.fn(), close: vi.fn() },
+    connectionId,
+    profileLabel: connectionId,
+    tabMapping: new Map(),
+    activeNetworkCaptures: new Set(),
+  });
+
+  const makePlugin = (overrides: Partial<RegisteredPlugin> = {}): RegisteredPlugin =>
+    ({
+      name: 'testplugin',
+      version: '1.0.0',
+      displayName: 'Test Plugin',
+      urlPatterns: ['*://example.com/*'],
+      excludePatterns: [],
+      homepage: HOMEPAGE,
+      ...overrides,
+    }) as RegisteredPlugin;
+
+  /** Auto-open enabled, one plugin, and the given connection ids (default one profile) */
+  const createAutoOpenState = (
+    options: { plugin?: RegisteredPlugin; connectionIds?: string[]; overrides?: Partial<ServerState> } = {},
+  ): ServerState => {
+    const plugin = options.plugin ?? makePlugin();
+    const connectionIds = options.connectionIds ?? ['conn-a'];
+    return createMockState({
+      pluginTabAutoOpen: true,
+      extensionConnections: new Map(connectionIds.map(id => [id, makeConnection(id)])),
+      registry: {
+        plugins: new Map([[plugin.name, plugin]]),
+        toolLookup: new Map(),
+        failures: [],
+      } as unknown as ServerState['registry'],
+      ...options.overrides,
+    });
+  };
+
+  /**
+   * Simulated browser behind dispatchToExtension: tool.dispatch without a ready
+   * target tab fails with no_matching_tab; browser.openTab creates a tab that
+   * reports ready after `readyAfterMs` (never when null); browser.getTabInfo
+   * succeeds only for open tabs.
+   */
+  const createFakeBrowser = (state: ServerState, options: { readyAfterMs?: number | null } = {}) => {
+    const readyAfterMs = options.readyAfterMs === undefined ? 1_000 : options.readyAfterMs;
+    const openTabs = new Set<string>();
+    const readyTabs = new Set<string>();
+    let nextTabId = 100;
+    const tabKey = (connectionId: string, tabId: number) => `${connectionId}:${tabId}`;
+    const defaultConnectionId = () => [...state.extensionConnections.keys()][0] ?? '';
+
+    const report = (connectionId: string) => {
+      const conn = state.extensionConnections.get(connectionId);
+      if (!conn) return;
+      const tabs = [...openTabs]
+        .filter(key => key.startsWith(`${connectionId}:`))
+        .map(key => {
+          const tabId = Number(key.slice(connectionId.length + 1));
+          return { tabId, url: HOMEPAGE, title: 'Example', ready: readyTabs.has(key) };
+        });
+      conn.tabMapping.set('testplugin', {
+        state: tabs.some(t => t.ready) ? 'ready' : tabs.length > 0 ? 'unavailable' : 'closed',
+        tabs,
+      });
+      notifyPluginTabsChanged(state, conn);
+    };
+
+    const markReady = (connectionId: string, tabId: number) => {
+      readyTabs.add(tabKey(connectionId, tabId));
+      report(connectionId);
+    };
+
+    const closeTab = (connectionId: string, tabId: number) => {
+      openTabs.delete(tabKey(connectionId, tabId));
+      readyTabs.delete(tabKey(connectionId, tabId));
+      report(connectionId);
+    };
+
+    vi.mocked(dispatchToExtension).mockImplementation((_state, method, params) => {
+      const connectionId = typeof params.connectionId === 'string' ? params.connectionId : defaultConnectionId();
+      const tabId = typeof params.tabId === 'number' ? params.tabId : undefined;
+      if (method === 'browser.openTab') {
+        const id = nextTabId++;
+        openTabs.add(tabKey(connectionId, id));
+        setTimeout(() => report(connectionId), 10);
+        if (readyAfterMs !== null) setTimeout(() => markReady(connectionId, id), readyAfterMs);
+        return Promise.resolve({ id, url: params.url });
+      }
+      if (method === 'browser.getTabInfo') {
+        return tabId !== undefined && openTabs.has(tabKey(connectionId, tabId))
+          ? Promise.resolve({ id: tabId })
+          : Promise.reject(new Error(`No tab with id: ${tabId}`));
+      }
+      if (tabId !== undefined && readyTabs.has(tabKey(connectionId, tabId))) {
+        return Promise.resolve({ output: { ranInTab: tabId } });
+      }
+      return Promise.reject(noMatchingTabError());
+    });
+
+    return { markReady, closeTab };
+  };
+
+  const dispatchCalls = (method: string) =>
+    vi
+      .mocked(dispatchToExtension)
+      .mock.calls.filter(call => call[1] === method)
+      .map(call => call[2]);
+
+  const startCall = (
+    state: ServerState,
+    args: Record<string, unknown> = {},
+    extra: RequestHandlerExtra = createMockExtra(),
+  ) =>
+    handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      args,
+      'testplugin',
+      'test_action',
+      createMockLookup(),
+      extra,
+      createMockCallbacks(),
+    );
+
+  const callTool = async (state: ServerState, args: Record<string, unknown> = {}, extra?: RequestHandlerExtra) => {
+    const call = startCall(state, args, extra);
+    await vi.runAllTimersAsync();
+    return call;
+  };
+
+  const textOf = (result: { content: Array<{ text: string }> }) => result.content[0]?.text;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    vi.mocked(isDispatchError).mockImplementation(
+      (err: unknown) => err !== null && typeof err === 'object' && (err as { name?: unknown }).name === 'DispatchError',
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('preconditions', () => {
+    test('setting off returns the Tab closed error unchanged and opens nothing', async () => {
+      const state = createAutoOpenState({ overrides: { pluginTabAutoOpen: false } });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('skipPermissions returns the Tab closed error unchanged and opens nothing', async () => {
+      const state = createAutoOpenState({ overrides: { skipPermissions: true } });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('tabId given returns the Tab closed error unchanged and opens nothing', async () => {
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      const result = await callTool(state, { tabId: 7 });
+
+      expect(textOf(result)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('instance given returns the Tab closed error unchanged and opens nothing', async () => {
+      const state = createAutoOpenState({
+        plugin: makePlugin({ instanceMap: { prod: '*://example.com/*' } }),
+      });
+      createFakeBrowser(state);
+      vi.mocked(getMergedTabMapping).mockReturnValueOnce(
+        new Map([
+          ['testplugin', { state: 'ready', tabs: [{ tabId: 7, url: HOMEPAGE, title: 'Example', ready: true }] }],
+        ]),
+      );
+
+      const result = await callTool(state, { instance: 'prod' });
+
+      expect(textOf(result)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('plugin without a homepage returns the Tab closed error unchanged and opens nothing', async () => {
+      const state = createAutoOpenState({ plugin: makePlugin({ homepage: undefined }) });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('a -32001 without the no_matching_tab discriminator opens nothing', async () => {
+      const state = createAutoOpenState();
+      const navigatedAway = Object.assign(new Error('Tab navigated away from matching URL'), {
+        name: 'DispatchError',
+        code: -32001,
+        data: undefined,
+      });
+      vi.mocked(dispatchToExtension).mockRejectedValue(navigatedAway);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe('Tab closed: Tab navigated away from matching URL');
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('a matching tab that is not ready opens nothing', async () => {
+      const state = createAutoOpenState();
+      const notReady = Object.assign(new Error('Adapter not ready'), { name: 'DispatchError', code: -32002 });
+      vi.mocked(dispatchToExtension).mockRejectedValue(notReady);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe('Tab unavailable: Adapter not ready');
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('a homepage with a disallowed scheme appends the reason and opens nothing', async () => {
+      const state = createAutoOpenState({ plugin: makePlugin({ homepage: 'http://example.com/app' }) });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(
+        `${CLOSED_TEXT} No tab was opened automatically: the plugin homepage http://example.com/app is not allowed (only https, or http on localhost or 127.0.0.1).`,
+      );
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('an http homepage on localhost is allowed', async () => {
+      const homepage = 'http://localhost:9516/';
+      const state = createAutoOpenState({
+        plugin: makePlugin({ homepage, urlPatterns: ['*://localhost:9516/*'] }),
+      });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBeUndefined();
+      expect(dispatchCalls('browser.openTab')).toEqual([{ url: homepage, active: false, connectionId: 'conn-a' }]);
+    });
+
+    test('a homepage outside the URL patterns appends the reason and opens nothing', async () => {
+      const state = createAutoOpenState({ plugin: makePlugin({ homepage: 'https://other.com/' }) });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(
+        `${CLOSED_TEXT} No tab was opened automatically: the plugin homepage https://other.com/ does not match the plugin's URL patterns.`,
+      );
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('a homepage hitting an exclude pattern appends the reason and opens nothing', async () => {
+      const state = createAutoOpenState({ plugin: makePlugin({ excludePatterns: ['*://example.com/app*'] }) });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(
+        `${CLOSED_TEXT} No tab was opened automatically: the plugin homepage ${HOMEPAGE} does not match the plugin's URL patterns.`,
+      );
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+  });
+
+  describe('permission gate', () => {
+    test('permission off opens nothing', async () => {
+      vi.mocked(getToolPermission).mockReturnValue('off');
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBe(true);
+      expect(dispatchToExtension).not.toHaveBeenCalled();
+    });
+
+    test('denied approval opens nothing', async () => {
+      vi.mocked(getToolPermission).mockReturnValue('ask');
+      vi.mocked(sendConfirmationRequest).mockResolvedValue({ action: 'deny', alwaysAllow: false });
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      await callTool(state);
+
+      expect(dispatchToExtension).not.toHaveBeenCalled();
+    });
+
+    test('approval timeout opens nothing', async () => {
+      vi.mocked(getToolPermission).mockReturnValue('ask');
+      vi.mocked(sendConfirmationRequest).mockRejectedValue(new ApprovalTimeoutError(5_000));
+      const state = createAutoOpenState({ overrides: { approvalTimeoutSeconds: 5 } });
+      createFakeBrowser(state);
+
+      await callTool(state);
+
+      expect(dispatchToExtension).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('open, wait and retry', () => {
+    test('opens the homepage in a background tab and retries once in it on the same connection', async () => {
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBeUndefined();
+      expect(JSON.parse(textOf(result) ?? '')).toEqual({ ranInTab: 100 });
+      expect(dispatchCalls('browser.openTab')).toEqual([{ url: HOMEPAGE, active: false, connectionId: 'conn-a' }]);
+      const toolDispatches = dispatchCalls('tool.dispatch');
+      expect(toolDispatches).toHaveLength(2);
+      expect(toolDispatches[1]).toMatchObject({ tabId: 100, connectionId: 'conn-a' });
+    });
+
+    test('opens the plugin homepage even when the tool input contains a URL', async () => {
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      await callTool(state, { url: 'https://attacker.example/' });
+
+      expect(dispatchCalls('browser.openTab')).toEqual([{ url: HOMEPAGE, active: false, connectionId: 'conn-a' }]);
+    });
+
+    test('a tool call that succeeds opens nothing', async () => {
+      const state = createAutoOpenState();
+      vi.mocked(dispatchToExtension).mockResolvedValue({ output: { ok: true } });
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBeUndefined();
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('concurrent calls share one open and both run in the opened tab', async () => {
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+
+      const first = startCall(state);
+      const second = startCall(state);
+      await vi.runAllTimersAsync();
+      const results = await Promise.all([first, second]);
+
+      expect(dispatchCalls('browser.openTab')).toHaveLength(1);
+      for (const result of results) {
+        expect(JSON.parse(textOf(result) ?? '')).toEqual({ ranInTab: 100 });
+      }
+    });
+
+    test('wait expiry returns the not-ready error naming the tab and leaves the tab open', async () => {
+      const state = createAutoOpenState({ overrides: { pluginTabAutoOpenWaitSeconds: 5 } });
+      createFakeBrowser(state, { readyAfterMs: null });
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toBe(
+        `Tab 100 was opened at ${HOMEPAGE} but plugin "testplugin" is not ready in it. Sign in there if needed, then retry.`,
+      );
+      expect(dispatchCalls('browser.closeTab')).toHaveLength(0);
+    });
+
+    test('a remembered tab that still exists blocks a second open and returns the not-ready error', async () => {
+      const state = createAutoOpenState({ overrides: { pluginTabAutoOpenWaitSeconds: 5 } });
+      createFakeBrowser(state, { readyAfterMs: null });
+
+      await callTool(state);
+      await vi.advanceTimersByTimeAsync(PLUGIN_TAB_AUTO_OPEN_COOLDOWN_MS);
+      const second = await callTool(state);
+
+      expect(dispatchCalls('browser.openTab')).toHaveLength(1);
+      expect(textOf(second)).toContain('Tab 100 was opened at');
+    });
+
+    test('a remembered tab in one profile does not block an open in another', async () => {
+      const state = createAutoOpenState({
+        connectionIds: ['conn-a', 'conn-b'],
+        overrides: { pluginTabAutoOpenProfile: 'conn-a', pluginTabAutoOpenWaitSeconds: 5 },
+      });
+      createFakeBrowser(state, { readyAfterMs: null });
+
+      await callTool(state);
+      state.pluginTabAutoOpenProfile = 'conn-b';
+      for (const conn of state.extensionConnections.values()) conn.tabMapping.clear();
+      await callTool(state);
+
+      expect(dispatchCalls('browser.openTab')).toEqual([
+        { url: HOMEPAGE, active: false, connectionId: 'conn-a' },
+        { url: HOMEPAGE, active: false, connectionId: 'conn-b' },
+      ]);
+    });
+
+    test('a tab closed during the wait returns the Tab closed error, and the cooldown blocks a new open', async () => {
+      const state = createAutoOpenState();
+      const browser = createFakeBrowser(state, { readyAfterMs: null });
+
+      const first = startCall(state);
+      await vi.advanceTimersByTimeAsync(100);
+      browser.closeTab('conn-a', 100);
+      await vi.runAllTimersAsync();
+      expect(textOf(await first)).toBe(CLOSED_TEXT);
+
+      const second = await callTool(state);
+      expect(textOf(second)).toBe(CLOSED_TEXT);
+      expect(dispatchCalls('browser.openTab')).toHaveLength(1);
+    });
+
+    test('after the cooldown a closed tab is replaced by a new open', async () => {
+      const state = createAutoOpenState();
+      const browser = createFakeBrowser(state, { readyAfterMs: null });
+
+      const first = startCall(state);
+      await vi.advanceTimersByTimeAsync(100);
+      browser.closeTab('conn-a', 100);
+      await vi.runAllTimersAsync();
+      await first;
+
+      await vi.advanceTimersByTimeAsync(PLUGIN_TAB_AUTO_OPEN_COOLDOWN_MS);
+      await callTool(state);
+
+      expect(dispatchCalls('browser.openTab')).toHaveLength(2);
+    });
+  });
+
+  describe('browser profile choice', () => {
+    test('with several profiles and a default, the call and the open target the default', async () => {
+      const state = createAutoOpenState({
+        connectionIds: ['conn-a', 'conn-b'],
+        overrides: { pluginTabAutoOpenProfile: 'conn-b' },
+      });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBeUndefined();
+      expect(dispatchCalls('tool.dispatch')[0]).toMatchObject({ connectionId: 'conn-b' });
+      expect(dispatchCalls('browser.openTab')).toEqual([{ url: HOMEPAGE, active: false, connectionId: 'conn-b' }]);
+    });
+
+    test('with several profiles and no default, returns the profile error and opens nothing', async () => {
+      const state = createAutoOpenState({ connectionIds: ['conn-a', 'conn-b'] });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(result.isError).toBe(true);
+      expect(textOf(result)).toBe(
+        'No matching tab for plugin "testplugin", and several browser profiles are connected, so no tab was opened automatically. Set pluginTabAutoOpenProfile to the connectionId of the profile to open plugin tabs in (it is not set). Connected profiles: conn-a, conn-b.',
+      );
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+
+    test('with several profiles and a default that is not connected, returns the profile error', async () => {
+      const state = createAutoOpenState({
+        connectionIds: ['conn-a', 'conn-b'],
+        overrides: { pluginTabAutoOpenProfile: 'conn-x' },
+      });
+      createFakeBrowser(state);
+
+      const result = await callTool(state);
+
+      expect(textOf(result)).toContain('pluginTabAutoOpenProfile');
+      expect(textOf(result)).toContain('"conn-x" is not connected');
+      expect(textOf(result)).toContain('Connected profiles: conn-a, conn-b.');
+      expect(dispatchCalls('browser.openTab')).toHaveLength(0);
+    });
+  });
+
+  describe('progress', () => {
+    test('progress stays strictly increasing across approval heartbeats, the open notice and tool progress', async () => {
+      vi.mocked(getToolPermission).mockReturnValue('ask');
+      vi.mocked(sendConfirmationRequest).mockImplementation(
+        () => new Promise(resolve => setTimeout(() => resolve({ action: 'allow', alwaysAllow: false }), 15_000)),
+      );
+      const state = createAutoOpenState();
+      createFakeBrowser(state);
+      const fakeDispatch = vi.mocked(dispatchToExtension).getMockImplementation();
+      vi.mocked(dispatchToExtension).mockImplementation((s, method, params, opts) => {
+        if (method === 'tool.dispatch' && params.tabId !== undefined && typeof opts === 'object') {
+          opts.onProgress?.(1, 2, 'halfway');
+        }
+        return fakeDispatch?.(s, method, params, opts) ?? Promise.resolve(undefined);
+      });
+      const sendNotification = vi.fn().mockResolvedValue(undefined);
+      const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+      await callTool(state, {}, extra);
+
+      const params = sendNotification.mock.calls.map(
+        call => (call[0] as { params: { progress: number; message?: string } }).params,
+      );
+      expect(params.map(p => p.message)).toEqual([
+        'Waiting for user approval in the OpenTabs side panel',
+        'Still waiting for user approval in the OpenTabs side panel (10s elapsed)',
+        `Opening ${HOMEPAGE} in a background tab`,
+        'halfway',
+      ]);
+      const values = params.map(p => p.progress);
+      for (let i = 1; i < values.length; i++) {
+        expect(values[i]).toBeGreaterThan(values[i - 1] ?? Number.NEGATIVE_INFINITY);
+      }
+    });
   });
 });

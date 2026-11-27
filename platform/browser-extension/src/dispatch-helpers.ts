@@ -1,4 +1,5 @@
-import { toErrorMessage } from '@opentabs-dev/shared';
+import { NO_MATCHING_TAB_REASON, toErrorMessage } from '@opentabs-dev/shared';
+import { urlMatchesPatterns } from '@opentabs-dev/shared/url-patterns';
 import type { PluginMeta } from './extension-messages.js';
 import {
   JSONRPC_ADAPTER_NOT_READY,
@@ -9,7 +10,7 @@ import {
 import { sendToServer } from './messaging.js';
 import { getPluginMeta } from './plugin-storage.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
-import { findAllMatchingTabs, urlMatchesPatterns } from './tab-matching.js';
+import { findAllMatchingTabs } from './tab-matching.js';
 
 /**
  * Structured result from a MAIN-world adapter script execution.
@@ -113,7 +114,11 @@ const dispatchWithTabFallback = async (config: TabFallbackConfig): Promise<void>
   if (matchingTabs.length === 0) {
     sendToServer({
       jsonrpc: '2.0',
-      error: { code: JSONRPC_NO_USABLE_TAB, message: `No matching tab for plugin "${pluginName}" (state: closed)` },
+      error: {
+        code: JSONRPC_NO_USABLE_TAB,
+        message: `No matching tab for plugin "${pluginName}" (state: closed)`,
+        data: { reason: NO_MATCHING_TAB_REASON },
+      },
       id,
     });
     return;

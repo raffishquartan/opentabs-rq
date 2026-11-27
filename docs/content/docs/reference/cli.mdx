@@ -686,6 +686,21 @@ opentabs config set <key> [value]
       <Table.Cell>Seconds a plugin tool call waits for approval in the side panel before failing. `0` (the default) waits until the user responds.</Table.Cell>
     </Table.Row>
     <Table.Row>
+      <Table.Cell className="font-medium">`pluginTabAutoOpen`</Table.Cell>
+      <Table.Cell>`true | false`</Table.Cell>
+      <Table.Cell>Open a plugin's homepage in a background tab when a permitted tool call finds no matching tab.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`pluginTabAutoOpenProfile`</Table.Cell>
+      <Table.Cell>non-empty string</Table.Cell>
+      <Table.Cell>`connectionId` of the browser profile that receives auto-opened tabs when several profiles are connected.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`pluginTabAutoOpenWaitSeconds`</Table.Cell>
+      <Table.Cell>positive integer</Table.Cell>
+      <Table.Cell>Seconds to wait for an auto-opened tab to become ready (default `15`).</Table.Cell>
+    </Table.Row>
+    <Table.Row>
       <Table.Cell className="font-medium">`localPlugins.add`</Table.Cell>
       <Table.Cell>path</Table.Cell>
       <Table.Cell>Add a local plugin path to the `localPlugins` array. Relative paths are resolved to absolute.</Table.Cell>
@@ -733,6 +748,9 @@ opentabs config set port 3000
 
 # Fail plugin tool calls that are not approved within 2 minutes
 opentabs config set approvalTimeoutSeconds 120
+
+# Open a plugin's site in a background tab when a tool call finds no tab
+opentabs config set pluginTabAutoOpen true
 
 # Register a local plugin
 opentabs config set localPlugins.add /path/to/my-plugin

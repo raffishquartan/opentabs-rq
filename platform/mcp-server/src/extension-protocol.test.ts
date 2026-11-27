@@ -17,6 +17,7 @@ import {
   writeAdapterFile,
   writeAllAdapterFiles,
 } from './extension-protocol.js';
+import { waitForPluginTabReady } from './plugin-tab-readiness.js';
 import { buildRegistry } from './registry.js';
 import type { ConfirmationDecision, ExtensionConnection, PendingDispatch, RegisteredPlugin } from './state.js';
 import { createState, DISPATCH_TIMEOUT_MS, getMergedTabMapping, MAX_DISPATCH_TIMEOUT_MS } from './state.js';
@@ -429,6 +430,72 @@ describe('handleExtensionMessage — tab.syncAll', () => {
     expect(getMergedTabMapping(state).size).toBe(1);
     expect(getMergedTabMapping(state).has('old-plugin')).toBe(false);
     expect(getMergedTabMapping(state).get('slack')).toEqual({ state: 'closed', tabs: [] });
+  });
+});
+
+describe('handleExtensionMessage — plugin tab readiness waiters', () => {
+  const target = { connectionId: 'test-conn', pluginName: 'slack', tabId: 10 };
+  const readyTab = { tabId: 10, url: 'https://app.slack.com', title: 'Slack', ready: true };
+
+  const connect = () => {
+    const state = createState();
+    state.extensionConnections.set('test-conn', {
+      ws: createMockWs(),
+      connectionId: 'test-conn',
+      profileLabel: 'test-conn',
+      tabMapping: new Map(),
+      activeNetworkCaptures: new Set(),
+    });
+    return state;
+  };
+
+  test('tab.syncAll resolves a waiter for a tab it reports ready', async () => {
+    const state = connect();
+    const wait = waitForPluginTabReady(state, target, 5_000);
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tab.syncAll',
+        params: { tabs: { slack: { state: 'ready', tabs: [readyTab] } } },
+      }),
+      noopCallbacks,
+    );
+
+    await expect(wait).resolves.toBe('ready');
+  });
+
+  test('tab.stateChanged resolves a waiter for a tab it reports ready', async () => {
+    const state = connect();
+    state.registry = buildRegistry(
+      [
+        {
+          name: 'slack',
+          version: '1.0.0',
+          displayName: 'slack',
+          urlPatterns: [],
+          excludePatterns: [],
+          source: 'local' as const,
+          iife: '// noop',
+          tools: [],
+        },
+      ],
+      [],
+    );
+    const wait = waitForPluginTabReady(state, target, 5_000);
+
+    handleExtensionMessage(
+      state,
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tab.stateChanged',
+        params: { plugin: 'slack', state: 'ready', tabs: [readyTab] },
+      }),
+      noopCallbacks,
+    );
+
+    await expect(wait).resolves.toBe('ready');
   });
 });
 

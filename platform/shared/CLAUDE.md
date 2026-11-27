@@ -10,6 +10,7 @@ Shared types and utilities used across platform packages (`@opentabs-dev/shared`
 platform/shared/src/
 ├── index.ts        # Barrel — re-exports everything
 ├── manifest.ts     # Plugin manifest types (PluginPackageJson, ConfigSchema, etc.)
+├── url-patterns.ts # Chrome match-pattern matching (urlMatchesPatterns, matchPattern), browser-safe subpath export
 └── cross-platform.ts # Cross-platform utilities (uses Node.js APIs — never import in browser contexts)
 ```
 
@@ -38,5 +39,6 @@ These types appear in `PluginOpentabsField` (parsed from `package.json`), `Plugi
 
 ```ts
 import { BROWSER_TOOLS_CATALOG } from '@opentabs-dev/shared/browser-tools-catalog';
+import { urlMatchesPatterns } from '@opentabs-dev/shared/url-patterns';
 import type { TabState } from '@opentabs-dev/shared'; // type-only: safe, erased at compile time
 ```

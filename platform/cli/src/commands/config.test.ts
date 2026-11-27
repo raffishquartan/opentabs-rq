@@ -435,31 +435,31 @@ describe('handleSetSetting', () => {
 // approvalTimeoutSeconds
 // ---------------------------------------------------------------------------
 
+/** Run `opentabs <args>` through the real command tree, capturing stdout and help output */
+const runCli = async (...args: string[]): Promise<string> => {
+  let out = '';
+  vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
+    out += `${parts.join(' ')}\n`;
+  });
+  const program = new Command().exitOverride().configureOutput({
+    writeOut: str => {
+      out += str;
+    },
+    writeErr: () => {},
+  });
+  registerConfigCommand(program);
+  await program.parseAsync(['node', 'opentabs', ...args]).catch((err: unknown) => {
+    if ((err as { code?: string }).code !== 'commander.helpDisplayed') throw err;
+  });
+  return out;
+};
+
 describe('approvalTimeoutSeconds', () => {
   let testDir: string;
   let exitSpy: MockInstance;
   const savedConfigDir = process.env.OPENTABS_CONFIG_DIR;
   const configFile = () => join(testDir, 'config.json');
   const readConfigFile = async () => JSON.parse(await readFile(configFile(), 'utf-8')) as Record<string, unknown>;
-
-  /** Run `opentabs <args>` through the real command tree, capturing stdout and help output */
-  const runCli = async (...args: string[]): Promise<string> => {
-    let out = '';
-    vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
-      out += `${parts.join(' ')}\n`;
-    });
-    const program = new Command().exitOverride().configureOutput({
-      writeOut: str => {
-        out += str;
-      },
-      writeErr: () => {},
-    });
-    registerConfigCommand(program);
-    await program.parseAsync(['node', 'opentabs', ...args]).catch((err: unknown) => {
-      if ((err as { code?: string }).code !== 'commander.helpDisplayed') throw err;
-    });
-    return out;
-  };
 
   beforeEach(() => {
     testDir = mkdtempSync(join(tmpdir(), 'opentabs-approval-timeout-test-'));
@@ -516,5 +516,119 @@ describe('approvalTimeoutSeconds', () => {
     const out = await runCli('config', 'set', '--help');
 
     expect(out).toContain('approvalTimeoutSeconds');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pluginTabAutoOpen, pluginTabAutoOpenProfile, pluginTabAutoOpenWaitSeconds
+// ---------------------------------------------------------------------------
+
+describe('pluginTabAutoOpen keys', () => {
+  let testDir: string;
+  let exitSpy: MockInstance;
+  const savedConfigDir = process.env.OPENTABS_CONFIG_DIR;
+  const configFile = () => join(testDir, 'config.json');
+  const readConfigFile = async () => JSON.parse(await readFile(configFile(), 'utf-8')) as Record<string, unknown>;
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'opentabs-tab-auto-open-test-'));
+    process.env.OPENTABS_CONFIG_DIR = testDir;
+    writeFileSync(configFile(), `${JSON.stringify({ localPlugins: [] })}\n`, 'utf-8');
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number | string | null) => {
+      throw new Error(`process.exit(${_code ?? ''})`);
+    });
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+    if (savedConfigDir !== undefined) {
+      process.env.OPENTABS_CONFIG_DIR = savedConfigDir;
+    } else {
+      delete process.env.OPENTABS_CONFIG_DIR;
+    }
+    vi.restoreAllMocks();
+  });
+
+  test.each([
+    ['true', true],
+    ['false', false],
+  ])('pluginTabAutoOpen writes %s', async (value, expected) => {
+    await runCli('config', 'set', 'pluginTabAutoOpen', value);
+
+    expect((await readConfigFile()).pluginTabAutoOpen).toBe(expected);
+  });
+
+  test.each(['yes', '1', 'TRUE', ''])('pluginTabAutoOpen rejects %j and leaves config.json unchanged', async value => {
+    await expect(runCli('config', 'set', 'pluginTabAutoOpen', value)).rejects.toThrow('process.exit(1)');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect((await readConfigFile()).pluginTabAutoOpen).toBeUndefined();
+  });
+
+  test('pluginTabAutoOpenProfile writes a non-empty string', async () => {
+    await runCli('config', 'set', 'pluginTabAutoOpenProfile', 'profile-a');
+
+    expect((await readConfigFile()).pluginTabAutoOpenProfile).toBe('profile-a');
+  });
+
+  test('pluginTabAutoOpenProfile rejects an empty string and leaves config.json unchanged', async () => {
+    await expect(runCli('config', 'set', 'pluginTabAutoOpenProfile', '')).rejects.toThrow('process.exit(1)');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect((await readConfigFile()).pluginTabAutoOpenProfile).toBeUndefined();
+  });
+
+  test('pluginTabAutoOpenWaitSeconds writes a positive integer', async () => {
+    await runCli('config', 'set', 'pluginTabAutoOpenWaitSeconds', '30');
+
+    expect((await readConfigFile()).pluginTabAutoOpenWaitSeconds).toBe(30);
+  });
+
+  test.each([
+    '0',
+    '-5',
+    '2.5',
+    'abc',
+    '',
+    '1e3',
+  ])('pluginTabAutoOpenWaitSeconds rejects %j and leaves config.json unchanged', async value => {
+    await expect(runCli('config', 'set', 'pluginTabAutoOpenWaitSeconds', value)).rejects.toThrow('process.exit(1)');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect((await readConfigFile()).pluginTabAutoOpenWaitSeconds).toBeUndefined();
+  });
+
+  test('config show displays the values', async () => {
+    writeFileSync(
+      configFile(),
+      `${JSON.stringify({
+        localPlugins: [],
+        pluginTabAutoOpen: true,
+        pluginTabAutoOpenProfile: 'profile-a',
+        pluginTabAutoOpenWaitSeconds: 20,
+      })}\n`,
+      'utf-8',
+    );
+
+    const out = await runCli('config', 'show');
+
+    expect(out).toMatch(/pluginTabAutoOpen\b.*true/);
+    expect(out).toMatch(/pluginTabAutoOpenProfile.*profile-a/);
+    expect(out).toMatch(/pluginTabAutoOpenWaitSeconds.*20/);
+  });
+
+  test('are known keys for typo suggestions', () => {
+    expect(KNOWN_KEYS).toEqual(
+      expect.arrayContaining(['pluginTabAutoOpen', 'pluginTabAutoOpenProfile', 'pluginTabAutoOpenWaitSeconds']),
+    );
+    expect(suggestKey('pluginTabAutoOpenWaitSecond')).toBe('pluginTabAutoOpenWaitSeconds');
+  });
+
+  test('config set help text lists the keys', async () => {
+    const out = await runCli('config', 'set', '--help');
+
+    expect(out).toContain('pluginTabAutoOpen ');
+    expect(out).toContain('pluginTabAutoOpenProfile');
+    expect(out).toContain('pluginTabAutoOpenWaitSeconds');
   });
 });

@@ -21,6 +21,7 @@ import {
   sendInvocationStart,
 } from './extension-protocol.js';
 import { log } from './logger.js';
+import { autoOpenInitialConnectionId, autoOpenPluginTab, isNoMatchingTabError } from './plugin-tab-auto-open.js';
 import { sanitizeErrorMessage } from './sanitize-error.js';
 import type { AuditEntry, CachedBrowserTool, ServerState, ToolLookupEntry } from './state.js';
 import {
@@ -594,17 +595,47 @@ const handlePluginToolCall = async (
     const progressToken = extra._meta?.progressToken;
     const onProgress = reporter?.forwardToolProgress;
 
-    const result = await dispatchToExtension(
-      state,
-      'tool.dispatch',
-      {
-        plugin: pluginName,
-        tool: toolBaseName,
-        input: pluginArgs,
+    const dispatchTool = (target: { tabId?: number; connectionId?: string }): Promise<unknown> =>
+      dispatchToExtension(
+        state,
+        'tool.dispatch',
+        { plugin: pluginName, tool: toolBaseName, input: pluginArgs, ...target },
+        { label: `${pluginName}/${toolBaseName}`, pluginName, progressToken, onProgress },
+      );
+
+    // Plugin tab auto-open applies only to permitted calls that name neither a tab nor an instance,
+    // never while permissions are skipped, and only for plugins that declare a homepage.
+    const registeredPlugin = state.registry.plugins.get(pluginName);
+    const autoOpenPlugin =
+      state.pluginTabAutoOpen &&
+      !state.skipPermissions &&
+      rawTabId === undefined &&
+      rawInstance === undefined &&
+      registeredPlugin?.homepage !== undefined
+        ? { ...registeredPlugin, homepage: registeredPlugin.homepage }
+        : undefined;
+    const initialConnectionId = autoOpenPlugin ? autoOpenInitialConnectionId(state, pluginName) : undefined;
+
+    let result: unknown;
+    try {
+      result = await dispatchTool({
         ...(resolvedTabId !== undefined && { tabId: resolvedTabId }),
-      },
-      { label: `${pluginName}/${toolBaseName}`, pluginName, progressToken, onProgress },
-    );
+        ...(initialConnectionId !== undefined && { connectionId: initialConnectionId }),
+      });
+    } catch (err) {
+      if (!autoOpenPlugin || !isNoMatchingTabError(err)) throw err;
+
+      const autoOpen = await autoOpenPluginTab(state, autoOpenPlugin, err.message, homepage =>
+        reporter?.notice(`Opening ${homepage} in a background tab`),
+      );
+      if (autoOpen.kind === 'closed') throw err;
+      if (autoOpen.kind === 'error') {
+        success = false;
+        errorInfo = { code: String(err.code), message: autoOpen.text };
+        return { content: [{ type: 'text' as const, text: autoOpen.text }], isError: true };
+      }
+      result = await dispatchTool({ tabId: autoOpen.tabId, connectionId: autoOpen.connectionId });
+    }
     const rawOutput = (result as Record<string, unknown>).output ?? result;
     const cleaned = sanitizeOutput(rawOutput);
     return {
@@ -731,6 +762,8 @@ Provide a clear, honest summary to the user:
 
 Do not downplay concerns. If anything is suspicious, say so clearly.
 
+The response also lists the plugin's homepage and urlPatterns. When the user enables the pluginTabAutoOpen setting, the platform may open this homepage automatically in a background tab when a permitted tool call finds no matching tab, so check that the homepage belongs to the service the plugin claims to target.
+
 If preScriptSource is present, REVIEW IT WITH SPECIAL SCRUTINY:
 - Pre-scripts run at document_start in MAIN world, strictly before any page
   JavaScript — they have earlier execution than the adapter and can observe
@@ -820,6 +853,8 @@ const handlePluginInspect = async (state: ServerState, args: Record<string, unkn
     version: plugin.version,
     ...(author ? { author } : {}),
     ...(plugin.npmPackageName ? { npmPackage: plugin.npmPackageName } : {}),
+    homepage: plugin.homepage ?? null,
+    urlPatterns: plugin.urlPatterns,
     lineCount,
     byteSize,
     ...(preScriptSource ? { preScriptSource } : {}),

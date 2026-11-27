@@ -19,9 +19,11 @@ vi.mock('./plugin-storage.js', () => ({
   invalidatePluginCache: vi.fn(),
 }));
 
-vi.mock('./tab-matching.js', () => ({
+vi.mock('@opentabs-dev/shared/url-patterns', () => ({
   urlMatchesPatterns: vi.fn(),
-  matchPattern: vi.fn(),
+}));
+
+vi.mock('./tab-matching.js', () => ({
   findAllMatchingTabs: vi.fn(),
   findMatchingTab: vi.fn(),
 }));

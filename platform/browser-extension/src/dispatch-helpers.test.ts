@@ -28,10 +28,12 @@ vi.mock('./plugin-storage.js', () => ({
   invalidatePluginCache: vi.fn(),
 }));
 
+vi.mock('@opentabs-dev/shared/url-patterns', () => ({
+  urlMatchesPatterns: mockUrlMatchesPatterns,
+}));
+
 vi.mock('./tab-matching.js', () => ({
   findAllMatchingTabs: mockFindAllMatchingTabs,
-  urlMatchesPatterns: mockUrlMatchesPatterns,
-  matchPattern: vi.fn(),
   findMatchingTab: vi.fn(),
 }));
 
@@ -158,8 +160,45 @@ describe('dispatchWithTabFallback', () => {
     expect(firstSentMessage()).toMatchObject({
       jsonrpc: '2.0',
       id: 'req-20',
-      error: { code: -32001 },
+      error: { code: -32001, data: { reason: 'no_matching_tab' } },
     });
+  });
+
+  test('omits the no_matching_tab discriminator when the only tab navigated away', async () => {
+    const tab = { id: 1, url: 'https://example.com/a' } as chrome.tabs.Tab;
+    mockFindAllMatchingTabs.mockResolvedValue([tab]);
+    mockTabsGet.mockResolvedValue({ id: 1, url: 'https://other.com/page' } as chrome.tabs.Tab);
+    mockUrlMatchesPatterns.mockReturnValue(false);
+
+    await dispatchWithTabFallback({
+      id: 'req-20a',
+      pluginName: 'test-plugin',
+      plugin,
+      operationName: 'tool dispatch',
+      executeOnTab: vi.fn(),
+    });
+
+    const error = (firstSentMessage() as { error: { code: number; message: string; data?: unknown } }).error;
+    expect(error).toMatchObject({ code: -32001, message: 'Tab navigated away from matching URL' });
+    expect(error.data).toBeUndefined();
+  });
+
+  test('omits the no_matching_tab discriminator when the only tab closed before dispatch', async () => {
+    const tab = { id: 1, url: 'https://example.com/a' } as chrome.tabs.Tab;
+    mockFindAllMatchingTabs.mockResolvedValue([tab]);
+    mockTabsGet.mockRejectedValue(new Error('No tab with id: 1'));
+
+    await dispatchWithTabFallback({
+      id: 'req-20b',
+      pluginName: 'test-plugin',
+      plugin,
+      operationName: 'tool dispatch',
+      executeOnTab: vi.fn(),
+    });
+
+    const error = (firstSentMessage() as { error: { code: number; message: string; data?: unknown } }).error;
+    expect(error).toMatchObject({ code: -32001, message: 'Tab closed before tool dispatch' });
+    expect(error.data).toBeUndefined();
   });
 
   test('calls executeOnTab for matching tab and sends success result', async () => {

@@ -82,6 +82,8 @@ describe('loadConfig / saveConfig round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(custom);
 
@@ -217,6 +219,8 @@ describe('savePluginPermissions round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(initial);
 
@@ -244,6 +248,8 @@ describe('savePluginPermissions round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(initial);
 
@@ -269,6 +275,8 @@ describe('savePluginPermissions round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(initial);
 
@@ -297,6 +305,8 @@ describe('savePluginSettings round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(initial);
 
@@ -321,6 +331,8 @@ describe('savePluginSettings round-trip', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await saveConfigWrapped(initial);
 
@@ -364,6 +376,8 @@ describe('saveConfig error propagation', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
 
     await expect(saveConfig(state, config)).rejects.toThrow();
@@ -384,6 +398,8 @@ describe('saveConfig error propagation', () => {
       version: 3,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
 
     // First write fails
@@ -628,6 +644,75 @@ describe('approvalTimeoutSeconds', () => {
   });
 });
 
+describe('pluginTabAutoOpen settings', () => {
+  beforeEach(async () => {
+    process.env.OPENTABS_CONFIG_DIR = TEST_BASE_DIR;
+    await removeConfig();
+  });
+
+  const loadWith = async (fields: Record<string, unknown>) => {
+    await writeFile(configPath, JSON.stringify({ localPlugins: [], permissions: {}, ...fields }));
+    return loadConfig();
+  };
+
+  test('defaults when not set', async () => {
+    const config = await loadWith({});
+    expect(config.pluginTabAutoOpen).toBe(false);
+    expect(config.pluginTabAutoOpenProfile).toBeUndefined();
+    expect(config.pluginTabAutoOpenWaitSeconds).toBe(15);
+  });
+
+  test('defaults in a newly created config', async () => {
+    const config = await loadConfig();
+    expect(config.pluginTabAutoOpen).toBe(false);
+    expect(config.pluginTabAutoOpenProfile).toBeUndefined();
+    expect(config.pluginTabAutoOpenWaitSeconds).toBe(15);
+  });
+
+  test('accepts valid values', async () => {
+    const config = await loadWith({
+      pluginTabAutoOpen: true,
+      pluginTabAutoOpenProfile: 'profile-a',
+      pluginTabAutoOpenWaitSeconds: 30,
+    });
+    expect(config.pluginTabAutoOpen).toBe(true);
+    expect(config.pluginTabAutoOpenProfile).toBe('profile-a');
+    expect(config.pluginTabAutoOpenWaitSeconds).toBe(30);
+  });
+
+  test('pluginTabAutoOpen falls back to false for non-boolean values', async () => {
+    expect((await loadWith({ pluginTabAutoOpen: 'true' })).pluginTabAutoOpen).toBe(false);
+    expect((await loadWith({ pluginTabAutoOpen: 1 })).pluginTabAutoOpen).toBe(false);
+  });
+
+  test('pluginTabAutoOpenProfile is unset for empty or non-string values', async () => {
+    expect((await loadWith({ pluginTabAutoOpenProfile: '' })).pluginTabAutoOpenProfile).toBeUndefined();
+    expect((await loadWith({ pluginTabAutoOpenProfile: 42 })).pluginTabAutoOpenProfile).toBeUndefined();
+  });
+
+  test('pluginTabAutoOpenWaitSeconds falls back to 15 for zero, negative, fractional and string values', async () => {
+    expect((await loadWith({ pluginTabAutoOpenWaitSeconds: 0 })).pluginTabAutoOpenWaitSeconds).toBe(15);
+    expect((await loadWith({ pluginTabAutoOpenWaitSeconds: -3 })).pluginTabAutoOpenWaitSeconds).toBe(15);
+    expect((await loadWith({ pluginTabAutoOpenWaitSeconds: 2.5 })).pluginTabAutoOpenWaitSeconds).toBe(15);
+    expect((await loadWith({ pluginTabAutoOpenWaitSeconds: '20' })).pluginTabAutoOpenWaitSeconds).toBe(15);
+  });
+
+  test('are preserved when permissions and settings are persisted', async () => {
+    await loadWith({
+      pluginTabAutoOpen: true,
+      pluginTabAutoOpenProfile: 'profile-a',
+      pluginTabAutoOpenWaitSeconds: 40,
+    });
+    const state = { configWriteMutex: Promise.resolve() };
+    await savePluginPermissions(state, { slack: { permission: 'ask' } });
+    await savePluginSettings(state, { slack: { team: 'x' } });
+    const config = await loadConfig();
+    expect(config.pluginTabAutoOpen).toBe(true);
+    expect(config.pluginTabAutoOpenProfile).toBe('profile-a');
+    expect(config.pluginTabAutoOpenWaitSeconds).toBe(40);
+  });
+});
+
 describe('KNOWN_CONFIG_KEYS', () => {
   test('contains all OpentabsConfig fields', () => {
     expect(KNOWN_CONFIG_KEYS).toContain('version');
@@ -638,7 +723,10 @@ describe('KNOWN_CONFIG_KEYS', () => {
     expect(KNOWN_CONFIG_KEYS).toContain('additionalAllowedDirectories');
     expect(KNOWN_CONFIG_KEYS).toContain('updateCheckIntervalMinutes');
     expect(KNOWN_CONFIG_KEYS).toContain('approvalTimeoutSeconds');
-    expect(KNOWN_CONFIG_KEYS.size).toBe(8);
+    expect(KNOWN_CONFIG_KEYS).toContain('pluginTabAutoOpen');
+    expect(KNOWN_CONFIG_KEYS).toContain('pluginTabAutoOpenProfile');
+    expect(KNOWN_CONFIG_KEYS).toContain('pluginTabAutoOpenWaitSeconds');
+    expect(KNOWN_CONFIG_KEYS.size).toBe(11);
   });
 });
 
