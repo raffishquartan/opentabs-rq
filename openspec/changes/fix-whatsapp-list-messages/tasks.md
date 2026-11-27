@@ -2,8 +2,8 @@
 
 - [ ] 1.1 Create `f/fix-whatsapp-list-messages` from the synced `main` (v0.0.115), copy `openspec/changes/fix-whatsapp-list-messages/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base f/fix-whatsapp-list-messages main` equals `main`; `openspec validate fix-whatsapp-list-messages` passes on the branch; the privacy grep over the folder has no hits.
 - [ ] 1.2 Confirm `plugins/whatsapp/package.json` is 0.0.88 and run `npm install` in `plugins/whatsapp`. Verify: install exits 0.
-- [ ] 1.3 On the open WhatsApp Web tab, reproduce the `waitForChatLoading` error and identify the current exports and call shape of the history-loading module, and the page size of one load, using short calls only. Verify: module names and shapes recorded in the PR description; no message content or chat names there.
-- [ ] 1.4 Identify the caption, author and contact-name fields on a media message, a group message and an own message in a designated test group chat. Verify: field names recorded in private session notes and mirrored as anonymised test fixtures.
+- [x] 1.3 On the open WhatsApp Web tab, reproduce the `waitForChatLoading` error and identify the current exports and call shape of the history-loading module, and the page size of one load, using short calls only. Verify: module names and shapes recorded in the PR description; no message content or chat names there.
+- [x] 1.4 Identify the caption, author and contact-name fields on a media message, a group message and an own message in a designated test group chat. Verify: field names recorded in private session notes and mirrored as anonymised test fixtures.
 
 ## 2. Test setup
 
