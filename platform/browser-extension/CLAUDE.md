@@ -132,6 +132,10 @@ When the MCP server dispatches a tool call, the extension receives the `tool.dis
 - **Targeted dispatch** (tabId present): Dispatches directly to the specified tab. Validates the tab exists via `chrome.tabs.get()` and that its URL matches the plugin's URL patterns (security check to prevent cross-origin abuse). Returns an error if the tab doesn't exist, the URL doesn't match, or the adapter isn't ready — no fallback to other tabs.
 - **Auto-select dispatch** (tabId absent): Uses `dispatchWithTabFallback` — ranks matching tabs (active tab in focused window > active tab in any window > any tab in focused window > other tabs) and tries each in order until one succeeds.
 
+### Approval Prompts
+
+The server broadcasts `confirmation.request` to every connected profile when a tool with permission `'ask'` is called, and `confirmation.cancel { id }` once that request settles (answered in any profile, timed out, or cancelled by disconnect or shutdown). Both are `PASSTHROUGH_METHODS` (`known-methods.ts`) forwarded to the side panel (`SIDE_PANEL_METHODS` in `message-router.ts`). On `confirmation.request` the background raises the badge and notification (`confirmation-badge.ts`); on `confirmation.cancel` it calls `clearConfirmationBadge(id)`, which also removes the id from the map the side panel re-hydrates from when it opens, so a withdrawn prompt does not come back. The side panel (`useServerNotifications.ts`) removes the prompt from its list. A click on a prompt that has already settled (a delivery race, or a panel that missed the cancel) is ignored by the server.
+
 ### Port Configuration
 
 The MCP server port is configured in the side panel footer, stored in `chrome.storage.local` under the `serverPort` key (number, default 9515). The side panel footer displays the current port on the right side and supports inline editing — click to edit, Enter to save, Escape to cancel. When the port changes, the side panel sends a `port-changed` message through the background script to the offscreen document, which closes the current WebSocket and reconnects to the new port. The port is not stored in `auth.json` — auth.json contains only the secret.

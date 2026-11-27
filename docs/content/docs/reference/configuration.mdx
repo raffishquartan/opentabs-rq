@@ -74,6 +74,12 @@ Override the config directory with the `OPENTABS_CONFIG_DIR` environment variabl
       <Table.Cell className="*:text-xs">`30`</Table.Cell>
       <Table.Cell>Minutes between automatic npm plugin update checks. Set to `0` to disable update checks entirely.</Table.Cell>
     </Table.Row>
+    <Table.Row>
+      <Table.Cell className="font-medium">`approvalTimeoutSeconds`</Table.Cell>
+      <Table.Cell className="*:text-xs">`number`</Table.Cell>
+      <Table.Cell className="*:text-xs">`0`</Table.Cell>
+      <Table.Cell>Seconds a plugin tool call with permission `'ask'` waits for approval in the side panel. When it elapses, the call fails with an error saying the tool was not approved in time and did not run, and the prompt is withdrawn. `0` waits until the user responds. Browser tools never time out. Invalid values (negative, fractional or non-numeric) are treated as `0`. A change applies to calls started after the next config reload; no restart is needed. Set with `opentabs config set approvalTimeoutSeconds <seconds>`.</Table.Cell>
+    </Table.Row>
   </Table.Body>
 </Table>
 
@@ -178,6 +184,8 @@ Controls which tools require human approval before executing. The `permissions` 
 </Table>
 
 Resolution order: `skipPermissions` (`OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS` env var) → per-tool override → plugin default → `'off'`.
+
+While a plugin tool call waits for `'ask'` approval, the server sends the MCP client a progress notification straight away and then every 10 seconds, stating how long it has waited (and how long remains when [`approvalTimeoutSeconds`](#config-fields) is set), so the agent can tell an approval wait from a slow tool. Once a prompt is answered or times out, it is removed from the side panel of every connected browser profile.
 
 Example — set Slack tools to require approval by default, but auto-approve `send_message` and disable `delete_message`:
 

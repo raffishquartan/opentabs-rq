@@ -681,6 +681,11 @@ opentabs config set <key> [value]
       <Table.Cell>Set the server port.</Table.Cell>
     </Table.Row>
     <Table.Row>
+      <Table.Cell className="font-medium">`approvalTimeoutSeconds`</Table.Cell>
+      <Table.Cell>non-negative integer</Table.Cell>
+      <Table.Cell>Seconds a plugin tool call waits for approval in the side panel before failing. `0` (the default) waits until the user responds.</Table.Cell>
+    </Table.Row>
+    <Table.Row>
       <Table.Cell className="font-medium">`localPlugins.add`</Table.Cell>
       <Table.Cell>path</Table.Cell>
       <Table.Cell>Add a local plugin path to the `localPlugins` array. Relative paths are resolved to absolute.</Table.Cell>
@@ -725,6 +730,9 @@ opentabs config set plugin-permission.slack ask
 
 # Change the server port
 opentabs config set port 3000
+
+# Fail plugin tool calls that are not approved within 2 minutes
+opentabs config set approvalTimeoutSeconds 120
 
 # Register a local plugin
 opentabs config set localPlugins.add /path/to/my-plugin

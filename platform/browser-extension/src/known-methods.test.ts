@@ -12,6 +12,7 @@ const { asyncNoop } = vi.hoisted(() => ({
 
 vi.mock('./confirmation-badge.js', () => ({
   notifyConfirmationRequest: vi.fn(),
+  clearConfirmationBadge: vi.fn(),
 }));
 
 vi.mock('./messaging.js', () => ({
@@ -148,6 +149,11 @@ describe('known-methods sync', () => {
     const expected = new Set([...DISPATCH_METHODS, ...PASSTHROUGH_METHODS]);
     const actual = new Set<string>(ALL_ALLOWED_METHODS);
     expect(actual).toEqual(expected);
+  });
+
+  test('confirmation.cancel passes the offscreen filter without a dispatch handler', () => {
+    expect(PASSTHROUGH_METHODS).toContain('confirmation.cancel');
+    expect(ALL_ALLOWED_METHODS).toContain('confirmation.cancel');
   });
 
   test('no duplicate entries in ALL_ALLOWED_METHODS', () => {

@@ -13,6 +13,7 @@ import type { ZodError } from 'zod';
 import { savePluginPermissions } from './config.js';
 import { buildConfigStatePayload, sendToExtension } from './extension-handlers.js';
 import {
+  ApprovalTimeoutError,
   dispatchToExtension,
   isDispatchError,
   sendConfirmationRequest,
@@ -177,12 +178,79 @@ interface DispatchCallbacks {
   onToolConfigChanged: () => void;
 }
 
+/** Interval between heartbeat progress notifications while a plugin tool call awaits approval */
+const APPROVAL_HEARTBEAT_INTERVAL_MS = 10_000;
+
+const APPROVAL_WAIT_MESSAGE = 'Waiting for user approval in the OpenTabs side panel';
+
+/**
+ * Sends MCP progress notifications for one tool call under the client's progress
+ * token. MCP requires progress values to increase per token, so the reporter
+ * numbers approval notices 0, 1, 2, ... and offsets the tool's own progress (and
+ * total) by the number of notices already sent, keeping tool progress above any
+ * approval notices. Without an approval wait the offset is 0 and tool progress
+ * is forwarded unchanged.
+ */
+interface ProgressReporter {
+  /** Send an approval-wait notice at the next progress value */
+  notice: (message: string, total?: number) => void;
+  /** Forward the tool's own progress, continuing above any approval notices */
+  forwardToolProgress: (progress: number, total: number, message?: string) => void;
+}
+
+/** Create the progress reporter for a call, or undefined when the client supplied no progress token. */
+const createProgressReporter = (extra: RequestHandlerExtra): ProgressReporter | undefined => {
+  const progressToken = extra._meta?.progressToken;
+  if (progressToken === undefined) return undefined;
+
+  let noticesSent = 0;
+
+  const send = (progress: number, total: number | undefined, message: string | undefined): void => {
+    const params: Record<string, unknown> = { progressToken, progress };
+    if (total !== undefined) params.total = total;
+    if (message !== undefined) params.message = message;
+    extra.sendNotification({ method: 'notifications/progress', params }).catch(() => {
+      // Fire-and-forget — errors in the progress chain must not affect the tool call
+    });
+  };
+
+  return {
+    notice: (message, total) => {
+      send(noticesSent, total, message);
+      noticesSent++;
+    },
+    forwardToolProgress: (progress, total, message) => {
+      send(noticesSent + progress, noticesSent + total, message);
+    },
+  };
+};
+
+/** Heartbeat text for an approval wait, with the time remaining when a timeout is set */
+const formatApprovalHeartbeat = (elapsedSeconds: number, timeoutSeconds: number): string => {
+  const remaining = timeoutSeconds > 0 ? `, ${Math.max(0, timeoutSeconds - elapsedSeconds)}s until timeout` : '';
+  return `Still waiting for user approval in the OpenTabs side panel (${elapsedSeconds}s elapsed${remaining})`;
+};
+
+/** Plugin-tool options for runAskFlow: heartbeat progress and the approval timeout */
+interface AskFlowOptions {
+  /** The call's progress reporter, or undefined when the client supplied no progress token */
+  reporter: ProgressReporter | undefined;
+  /** Seconds to wait for a decision before failing; 0 waits until the user responds or the extension disconnects */
+  timeoutSeconds: number;
+}
+
 /**
  * Run the 'ask' confirmation flow for a tool call.
  * Sends a confirmation request to the extension, waits for the user's decision,
  * and persists the permission change if alwaysAllow is selected.
  *
- * @returns 'allow' if the user approved, or a ToolCallResult error if denied/failed.
+ * An initial progress notice is sent when the client supplied a progress token.
+ * With `options` (plugin tools), a heartbeat notice follows every
+ * APPROVAL_HEARTBEAT_INTERVAL_MS until the approval settles, and the request
+ * fails after `options.timeoutSeconds` when that is non-zero. Without `options`
+ * (browser tools) only the initial notice is sent and there is no timeout.
+ *
+ * @returns 'allow' if the user approved, or a ToolCallResult error if denied, timed out or failed.
  */
 const runAskFlow = async (
   state: ServerState,
@@ -191,35 +259,47 @@ const runAskFlow = async (
   params: Record<string, unknown>,
   extra: RequestHandlerExtra,
   callbacks: DispatchCallbacks,
+  options?: AskFlowOptions,
 ): Promise<'allow' | ToolCallResult> => {
-  // Send MCP progress notification to let the agent know we're waiting for approval
-  const progressToken = extra._meta?.progressToken;
-  if (progressToken !== undefined) {
-    extra
-      .sendNotification({
-        method: 'notifications/progress',
-        params: {
-          progressToken,
-          progress: 0,
-          total: 1,
-          message: 'Waiting for user approval in the OpenTabs side panel',
-        },
-      })
-      .catch(() => {
-        // Fire-and-forget
-      });
+  const reporter = options ? options.reporter : createProgressReporter(extra);
+  reporter?.notice(APPROVAL_WAIT_MESSAGE, 1);
+
+  let heartbeatId: ReturnType<typeof setInterval> | undefined;
+  if (options && reporter) {
+    const startTs = Date.now();
+    heartbeatId = setInterval(() => {
+      const elapsedSeconds = Math.round((Date.now() - startTs) / 1000);
+      reporter.notice(formatApprovalHeartbeat(elapsedSeconds, options.timeoutSeconds));
+    }, APPROVAL_HEARTBEAT_INTERVAL_MS);
   }
 
   let decision: { action: 'allow' | 'deny'; alwaysAllow: boolean };
   try {
-    decision = await sendConfirmationRequest(state, toolName, pluginName, params);
-  } catch {
+    decision = options
+      ? await sendConfirmationRequest(state, toolName, pluginName, params, {
+          timeoutMs: options.timeoutSeconds * 1000,
+        })
+      : await sendConfirmationRequest(state, toolName, pluginName, params);
+  } catch (err) {
+    if (err instanceof ApprovalTimeoutError) {
+      return {
+        content: [
+          {
+            type: 'text' as const,
+            text: `Tool ${toolName} was not approved within ${err.timeoutMs / 1000}s; it did not run. Retry to prompt the user again.`,
+          },
+        ],
+        isError: true,
+      };
+    }
     return {
       content: [
         { type: 'text' as const, text: `Tool ${toolName} requires approval but the extension is not connected.` },
       ],
       isError: true,
     };
+  } finally {
+    clearInterval(heartbeatId);
   }
 
   if (decision.action === 'deny') {
@@ -340,6 +420,7 @@ const handlePluginToolCall = async (
 ): Promise<ToolCallResult> => {
   // Permission check — applies to all plugin tools
   const permission = getToolPermission(state, pluginName, toolBaseName);
+  const reporter = createProgressReporter(extra);
 
   if (permission === 'off') {
     const plugin = state.registry.plugins.get(pluginName);
@@ -366,7 +447,10 @@ const handlePluginToolCall = async (
   }
 
   if (permission === 'ask') {
-    const askResult = await runAskFlow(state, pluginName, toolBaseName, args, extra, callbacks);
+    const askResult = await runAskFlow(state, pluginName, toolBaseName, args, extra, callbacks, {
+      reporter,
+      timeoutSeconds: state.approvalTimeoutSeconds,
+    });
     if (askResult !== 'allow') return askResult;
   }
 
@@ -506,18 +590,9 @@ const handlePluginToolCall = async (
 
     log.debug('tool.call: dispatching', `${pluginName}/${toolBaseName}`);
 
-    // Extract progressToken from MCP request _meta and build onProgress callback
+    // Forward the tool's progress through the call's reporter so it continues above any approval notices
     const progressToken = extra._meta?.progressToken;
-    const onProgress =
-      progressToken !== undefined
-        ? (progress: number, total: number, message?: string) => {
-            const params: Record<string, unknown> = { progressToken, progress, total };
-            if (message !== undefined) params.message = message;
-            extra.sendNotification({ method: 'notifications/progress', params }).catch(() => {
-              // Fire-and-forget — errors in the progress chain must not affect tool execution
-            });
-          }
-        : undefined;
+    const onProgress = reporter?.forwardToolProgress;
 
     const result = await dispatchToExtension(
       state,

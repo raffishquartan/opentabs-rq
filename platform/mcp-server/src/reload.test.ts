@@ -534,6 +534,23 @@ describe('performConfigReload', () => {
     }
   });
 
+  test('copies approvalTimeoutSeconds onto state without restart', async () => {
+    expect(state.approvalTimeoutSeconds).toBe(0);
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({ localPlugins: [], permissions: {}, approvalTimeoutSeconds: 90 }),
+    );
+
+    await performConfigReload(state, [], emptyTransports());
+
+    expect(state.approvalTimeoutSeconds).toBe(90);
+
+    writeConfig(configDir);
+    await performConfigReload(state, [], emptyTransports());
+
+    expect(state.approvalTimeoutSeconds).toBe(0);
+  });
+
   test('returns plugin count and duration', async () => {
     const pluginDir = createPluginDir(configDir, 'my-plugin');
     writeConfig(configDir, [pluginDir]);

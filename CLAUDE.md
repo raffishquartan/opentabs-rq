@@ -95,7 +95,7 @@ Each subdirectory has its own `CLAUDE.md` with package-specific details.
 
 **Plugin discovery**: npm auto-discovery + local plugins from `~/.opentabs/config.json`. Four-phase pipeline: resolve npm → resolve local → load all → merge (local overrides npm) → build immutable registry. See `platform/mcp-server/CLAUDE.md` for details.
 
-**Permission model**: Every tool has a 3-state permission: `'off'` (disabled, returns error), `'ask'` (requires human approval via dialog), or `'auto'` (executes immediately). Permissions are configured per-plugin and per-tool in `~/.opentabs/config.json` under the `permissions` map. Resolution order: `skipPermissions` (`OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS` env var) → per-tool override → plugin default → `'off'`.
+**Permission model**: Every tool has a 3-state permission: `'off'` (disabled, returns error), `'ask'` (requires human approval via dialog), or `'auto'` (executes immediately). Permissions are configured per-plugin and per-tool in `~/.opentabs/config.json` under the `permissions` map. Resolution order: `skipPermissions` (`OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS` env var) → per-tool override → plugin default → `'off'`. While a plugin tool awaits `'ask'` approval the server sends progress heartbeats; the optional top-level `approvalTimeoutSeconds` (default `0`, no timeout) fails unanswered plugin calls, and every settled prompt is withdrawn from all profiles via `confirmation.cancel`. See `platform/mcp-server/CLAUDE.md`.
 
 **Lifecycle hooks**: `onActivate`, `onDeactivate`, `onNavigate`, `onToolInvocationStart`, `onToolInvocationEnd`. See `platform/plugin-sdk/CLAUDE.md` for details.
 

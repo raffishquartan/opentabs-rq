@@ -21,7 +21,7 @@ interface UseServerNotificationsResult {
 
 /**
  * Returns a stable callback that processes server notification messages
- * (confirmation.request, tab.stateChanged, tool.invocationStart, tool.invocationEnd).
+ * (confirmation.request, confirmation.cancel, tab.stateChanged, tool.invocationStart, tool.invocationEnd).
  */
 const useServerNotifications = ({
   setPlugins,
@@ -61,6 +61,17 @@ const useServerNotifications = ({
         };
 
         setPendingConfirmations(prev => (prev.some(c => c.id === confirmation.id) ? prev : [...prev, confirmation]));
+      }
+    }
+
+    // The server withdraws a prompt once it settles elsewhere (another profile
+    // answered it, or it timed out). The id stays in seenConfirmationIds so a
+    // late replay of the same request is not shown again.
+    if (data.method === 'confirmation.cancel' && data.params) {
+      const params = data.params as Record<string, unknown>;
+      if (typeof params.id === 'string') {
+        const cancelledId = params.id;
+        setPendingConfirmations(prev => prev.filter(c => c.id !== cancelledId));
       }
     }
 

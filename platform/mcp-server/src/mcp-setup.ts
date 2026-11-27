@@ -283,6 +283,8 @@ Multiple tabs may match a plugin. Use plugin_list_tabs to discover tabs and IDs.
 - "Tab closed" / "Tab unavailable" → Open or log into the web application
 - "has not been reviewed yet" → Follow the plugin review flow above
 - "was denied by the user" → Do not retry without asking
+- "was not approved within" → The user did not respond in time and the tool did not run; retry to prompt again, or ask the user
+- Progress notices "Waiting for user approval" / "Still waiting for user approval" → The call is blocked on the user approving it in the OpenTabs side panel, not hung
 - "Too many concurrent dispatches" → Wait briefly and retry
 - Errors with retryAfterMs → Wait the specified duration before retrying
 

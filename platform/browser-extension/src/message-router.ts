@@ -81,7 +81,7 @@ import {
   handleExtensionGetSidePanel,
   handleExtensionGetState,
 } from './browser-commands/index.js';
-import { notifyConfirmationRequest } from './confirmation-badge.js';
+import { clearConfirmationBadge, notifyConfirmationRequest } from './confirmation-badge.js';
 import { isValidPluginName, RELOAD_FLUSH_DELAY_MS, WS_CONNECTED_KEY } from './constants.js';
 import type { PluginMeta } from './extension-messages.js';
 import { cleanupAdaptersInMatchingTabs, injectPluginIntoMatchingTabs, queryMatchingTabIds } from './iife-injection.js';
@@ -157,6 +157,7 @@ const SIDE_PANEL_METHODS = new Set([
   'tool.invocationEnd',
   'plugins.changed',
   'confirmation.request',
+  'confirmation.cancel',
 ]);
 
 // ---------------------------------------------------------------------------
@@ -884,6 +885,14 @@ const handleServerMessage = (message: Record<string, unknown>): void => {
   // browser tool needs approval, especially when the side panel is closed.
   if (method === 'confirmation.request') {
     notifyConfirmationRequest(params);
+  }
+
+  // The server withdraws a prompt once it settles (answered in any profile,
+  // timed out or cancelled). Clearing the badge entry also removes it from the
+  // map the side panel re-hydrates from, so reopening the panel does not bring
+  // it back.
+  if (method === 'confirmation.cancel' && typeof params.id === 'string') {
+    clearConfirmationBadge(params.id);
   }
 
   if (!method) return;

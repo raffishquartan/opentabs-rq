@@ -187,12 +187,14 @@ const LOCAL_PLUGINS_REMOVE = 'localPlugins.remove';
 const ALLOWED_DIRS_ADD = 'allowedDirectories.add';
 const ALLOWED_DIRS_REMOVE = 'allowedDirectories.remove';
 const PORT_KEY = 'port';
+const APPROVAL_TIMEOUT_KEY = 'approvalTimeoutSeconds';
 
 const SUPPORTED_KEYS = `Supported keys:
   tool-permission.<plugin>.<tool>   Set a per-tool permission (value: off | ask | auto)
   plugin-permission.<plugin>        Set a plugin-level default permission (value: off | ask | auto)
   setting.<plugin>.<key>            Set a plugin setting (e.g., setting.sqlpad.instanceUrl)
   port                              Set the server port (value: 1-65535)
+  approvalTimeoutSeconds            Seconds a plugin tool call waits for approval before failing (value: non-negative integer, 0 = no timeout)
   localPlugins.add                  Add a local plugin path (value: absolute or relative path)
   localPlugins.remove               Remove a local plugin path (value: path to remove)
   allowedDirectories.add            Add an allowed directory for local plugins (value: absolute path)
@@ -444,6 +446,21 @@ const handleSetPort = async (value: string, options: { port?: number }): Promise
   }
 };
 
+const handleSetApprovalTimeoutSeconds = async (value: string, options: { port?: number }): Promise<void> => {
+  if (!/^\d+$/.test(value)) {
+    console.error(pc.red(`Invalid ${APPROVAL_TIMEOUT_KEY}: ${value}`));
+    console.error('Value must be a non-negative integer number of seconds (0 = no timeout).');
+    process.exit(1);
+  }
+  const seconds = Number(value);
+
+  const { config, configPath } = await loadConfig();
+  config[APPROVAL_TIMEOUT_KEY] = seconds;
+  await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
+  console.log(`${APPROVAL_TIMEOUT_KEY}: ${pc.cyan(String(seconds))}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
+};
+
 /**
  * Resolve a stored plugin path to its absolute form for comparison.
  * Handles both absolute paths and relative paths (resolved against configDir).
@@ -587,6 +604,7 @@ const KNOWN_KEYS = [
   'plugin-permission.',
   'setting.',
   PORT_KEY,
+  APPROVAL_TIMEOUT_KEY,
   LOCAL_PLUGINS_ADD,
   LOCAL_PLUGINS_REMOVE,
   ALLOWED_DIRS_ADD,
@@ -639,6 +657,9 @@ const handleConfigSet = async (
   }
   if (key === PORT_KEY) {
     return handleSetPort(value, options);
+  }
+  if (key === APPROVAL_TIMEOUT_KEY) {
+    return handleSetApprovalTimeoutSeconds(value, options);
   }
   if (key === LOCAL_PLUGINS_ADD) {
     return handleSetLocalPluginsAdd(value, options);
@@ -804,6 +825,7 @@ Examples:
   $ opentabs config set setting.sqlpad.instanceUrl https://sqlpad.example.com
   $ opentabs config set setting.sqlpad.instanceUrl ''   # remove a setting
   $ opentabs config set port 9515
+  $ opentabs config set approvalTimeoutSeconds 120   # 0 disables the approval timeout
   $ opentabs config set localPlugins.add /path/to/plugin
   $ opentabs config set localPlugins.add /future/path --force
   $ opentabs config set localPlugins.remove /path/to/plugin`,
@@ -870,6 +892,7 @@ Examples:
 };
 
 export {
+  handleSetApprovalTimeoutSeconds,
   handleSetLocalPluginsAdd,
   handleSetSetting,
   KNOWN_KEYS,

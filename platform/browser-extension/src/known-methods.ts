@@ -99,6 +99,7 @@ export const PASSTHROUGH_METHODS = [
   'tool.invocationStart',
   'tool.invocationEnd',
   'confirmation.request',
+  'confirmation.cancel',
   'plugins.changed',
 ] as const;
 

@@ -43,10 +43,17 @@ import {
   sendJsonRpcError,
   sendToExtension,
   serializePluginForExtension,
+  settlePendingConfirmation,
 } from './extension-handlers.js';
 import { log } from './logger.js';
 import { resolvePluginSettings } from './settings-resolver.js';
-import type { ConfirmationDecision, ExtensionConnection, PendingDispatch, ServerState } from './state.js';
+import type {
+  ConfirmationDecision,
+  ExtensionConnection,
+  PendingConfirmation,
+  PendingDispatch,
+  ServerState,
+} from './state.js';
 import {
   DISPATCH_TIMEOUT_MS,
   findConnectionByWs,
@@ -402,28 +409,37 @@ const sendInvocationEnd = (
   });
 };
 
+/** Rejection reason when a confirmation request is not answered within its timeout */
+class ApprovalTimeoutError extends Error {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
+    super(`Approval not given within ${timeoutMs}ms`);
+    this.name = 'ApprovalTimeoutError';
+    this.timeoutMs = timeoutMs;
+  }
+}
+
 /**
- * Send a confirmation request to the extension and return a promise that resolves
- * with the user's decision. The promise rejects on extension disconnect.
- * There is no timeout — the request hangs until the user responds or the
- * WebSocket disconnects (at which point rejectAllPendingConfirmations fires).
+ * Send a confirmation request to every connected extension profile and return a
+ * promise that resolves with the user's decision. The promise rejects when the
+ * extension is not connected, when the last connection drops
+ * (rejectAllPendingConfirmations), or with ApprovalTimeoutError once
+ * `timeoutMs` elapses without a decision. A missing or zero `timeoutMs` means
+ * the request waits until the user responds or the extension disconnects.
  */
 const sendConfirmationRequest = (
   state: ServerState,
   tool: string,
   plugin: string,
   params: Record<string, unknown>,
+  options: { timeoutMs?: number } = {},
 ): Promise<ConfirmationDecision> => {
   const id = crypto.randomUUID();
 
   return new Promise<ConfirmationDecision>((resolve, reject) => {
-    state.pendingConfirmations.set(id, {
-      resolve,
-      reject,
-      tool,
-      plugin,
-      params,
-    });
+    const pending: PendingConfirmation = { resolve, reject, tool, plugin, params };
+    state.pendingConfirmations.set(id, pending);
 
     const sent = sendToExtension(state, {
       jsonrpc: '2.0',
@@ -434,6 +450,14 @@ const sendConfirmationRequest = (
     if (!sent) {
       state.pendingConfirmations.delete(id);
       reject(new Error('Extension not connected — cannot request confirmation'));
+      return;
+    }
+
+    const { timeoutMs = 0 } = options;
+    if (timeoutMs > 0) {
+      pending.timerId = setTimeout(() => {
+        settlePendingConfirmation(state, id, { error: new ApprovalTimeoutError(timeoutMs) });
+      }, timeoutMs);
     }
   });
 };
@@ -753,6 +777,7 @@ const sendExtensionReload = (state: ServerState): boolean =>
 
 export type { McpCallbacks };
 export {
+  ApprovalTimeoutError,
   cleanupStaleExecFiles,
   deleteExecFile,
   dispatchToAllConnections,

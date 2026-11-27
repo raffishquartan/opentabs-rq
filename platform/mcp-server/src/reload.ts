@@ -345,6 +345,7 @@ const reloadCore = async ({ state, sessionServers, transports }: ReloadCoreArgs)
     state.skipPermissions = newSkipPermissions;
     state.cachedBrowserTools = newCachedBrowserTools;
     state.updateCheckIntervalMinutes = config.updateCheckIntervalMinutes;
+    state.approvalTimeoutSeconds = config.approvalTimeoutSeconds;
 
     // Prune stale entries against the updated registry.
     pruneStaleState(state);
