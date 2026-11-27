@@ -1,5 +1,5 @@
 import type { WsHandle } from '@opentabs-dev/shared';
-import { beforeAll, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import type { HotHandlers } from './http-routes.js';
 import {
@@ -1116,84 +1116,186 @@ describe('WebSocket upgrade origin check', () => {
   });
 });
 
-describe('/mcp session creation rate limiting', () => {
-  test('returns 429 after 5 new session attempts per minute', async () => {
-    const { handlers, state } = createTestHandlers();
-    state.wsSecret = null; // Disable auth for simpler test
+const INITIALIZE_REQUEST_BODY = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-03-26',
+    capabilities: {},
+    clientInfo: { name: 'rate-limit-test', version: '1.0.0' },
+  },
+};
 
-    // Send 5 POST requests without session ID — each passes rate limit and gets 400 (not initialize)
+/** POST a JSON-RPC body to an MCP endpoint, optionally carrying an mcp-session-id header */
+const postMcp = async (handlers: HotHandlers, path: string, body: unknown, sessionId?: string): Promise<Response> => {
+  const headers: Record<string, string> = {
+    Host: 'localhost:9876',
+    'Content-Type': 'application/json',
+    Accept: 'application/json, text/event-stream',
+  };
+  if (sessionId) headers['mcp-session-id'] = sessionId;
+  const req = new Request(`http://localhost:9876${path}`, { method: 'POST', headers, body: JSON.stringify(body) });
+  return (await handlers.fetch(req, mockServer)) as Response;
+};
+
+/** Shape of the JSON-RPC error body returned by the MCP endpoints */
+interface JsonRpcErrorBody {
+  jsonrpc: string;
+  error: { code: number; message: string };
+  id: null;
+}
+
+const MCP_SESSION_ENDPOINTS = [
+  { path: '/mcp', windowKey: '/mcp-session-create' },
+  { path: '/mcp/gateway', windowKey: '/mcp/gateway-session-create' },
+] as const;
+
+describe.each(MCP_SESSION_ENDPOINTS)('$path session creation rate limiting', ({ path, windowKey }) => {
+  const NOW = 1_800_000_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('admits 5 initialize requests and answers the 6th with 503, a JSON-RPC error and Retry-After', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+
     for (let i = 0; i < 5; i++) {
-      const req = new Request('http://localhost:9876/mcp', {
-        method: 'POST',
-        headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ not: 'an initialize request' }),
-      });
-      const res = (await handlers.fetch(req, mockServer)) as Response;
+      vi.setSystemTime(NOW + i * 10_000);
+      const res = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+      expect(res.status).toBe(200);
+    }
+
+    // The oldest admitted initialize is 45.5 s old, so its slot frees in 14.5 s, rounded up to 15.
+    vi.setSystemTime(NOW + 45_500);
+    const res = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('15');
+    expect(res.headers.get('Content-Type')).toContain('application/json');
+    const body = (await res.json()) as JsonRpcErrorBody;
+    expect(body.jsonrpc).toBe('2.0');
+    expect(body.id).toBeNull();
+    expect(body.error.code).toBe(-32000);
+    expect(body.error.message).toContain('15s');
+    expect(state.endpointCallTimestamps.get(windowKey)).toHaveLength(5);
+  });
+
+  test('Retry-After is 1 when the oldest counted request is about to leave the window', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+    state.endpointCallTimestamps.set(windowKey, [NOW - 59_500, NOW - 1_000, NOW - 1_000, NOW - 1_000, NOW - 1_000]);
+
+    const res = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('1');
+  });
+
+  test('admits an initialize once the window frees a slot', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+    state.endpointCallTimestamps.set(windowKey, [NOW, NOW, NOW, NOW, NOW]);
+
+    const refused = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+    expect(refused.status).toBe(503);
+    expect(refused.headers.get('Retry-After')).toBe('60');
+
+    vi.setSystemTime(NOW + 60_000);
+    const admitted = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+
+    expect(admitted.status).toBe(200);
+    expect(admitted.headers.get('mcp-session-id')).toBeTruthy();
+  });
+
+  test('answers a stale-session POST with 404 while the window is full, without counting it', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+    state.endpointCallTimestamps.set(windowKey, [NOW, NOW, NOW, NOW, NOW]);
+
+    const res = await postMcp(handlers, path, { jsonrpc: '2.0', id: 2, method: 'tools/list' }, 'non-existent-session');
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as JsonRpcErrorBody;
+    expect(body.error.message).toBe('Session not found');
+    expect(state.endpointCallTimestamps.get(windowKey)).toHaveLength(5);
+  });
+
+  test('answers a non-initialize POST without a session with 400 while the window is full, without counting it', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+    state.endpointCallTimestamps.set(windowKey, [NOW, NOW, NOW, NOW, NOW]);
+
+    const res = await postMcp(handlers, path, { jsonrpc: '2.0', id: 3, method: 'server/discover' });
+
+    expect(res.status).toBe(400);
+    expect(state.endpointCallTimestamps.get(windowKey)).toHaveLength(5);
+  });
+
+  test('non-initialize POSTs do not use up the limit', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+
+    for (let i = 0; i < 10; i++) {
+      const res = await postMcp(handlers, path, { jsonrpc: '2.0', id: i, method: 'server/discover' });
       expect(res.status).toBe(400);
     }
+    for (let i = 0; i < 3; i++) {
+      const res = await postMcp(handlers, path, { jsonrpc: '2.0', id: i, method: 'tools/list' }, `stale-${i}`);
+      expect(res.status).toBe(404);
+    }
 
-    // 6th request should be rate-limited
-    const req = new Request('http://localhost:9876/mcp', {
+    const res = await postMcp(handlers, path, INITIALIZE_REQUEST_BODY);
+
+    expect(res.status).toBe(200);
+    expect(state.endpointCallTimestamps.get(windowKey)).toHaveLength(1);
+  });
+
+  test('does not rate-limit GET requests', async () => {
+    const { handlers, state } = createTestHandlers();
+    state.wsSecret = null;
+    state.endpointCallTimestamps.set(windowKey, [NOW, NOW, NOW, NOW, NOW]);
+
+    const req = new Request(`http://localhost:9876${path}`, { method: 'GET', headers: { Host: 'localhost:9876' } });
+    const res = (await handlers.fetch(req, mockServer)) as Response;
+
+    // GET without session ID returns 405 whatever the window holds
+    expect(res.status).toBe(405);
+  });
+});
+
+describe('administrative endpoint rate limits', () => {
+  const fillWindow = (state: ReturnType<typeof createState>, key: string, count: number): void => {
+    state.endpointCallTimestamps.set(
+      key,
+      Array.from({ length: count }, () => Date.now()),
+    );
+  };
+
+  test.each([
+    { path: '/tools/some_tool/call', windowKey: '/tools/call', limit: 30 },
+    { path: '/extension/reload', windowKey: '/extension/reload', limit: 10 },
+    { path: '/plugin-settings', windowKey: '/plugin-settings', limit: 10 },
+  ])('$path answers 429 with Retry-After: 60 when over its limit', async ({ path, windowKey, limit }) => {
+    const { handlers, state } = createTestHandlers();
+    fillWindow(state, windowKey, limit);
+
+    const req = new Request(`http://localhost:9876${path}`, {
       method: 'POST',
       headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ not: 'an initialize request' }),
+      body: JSON.stringify({}),
     });
     const res = (await handlers.fetch(req, mockServer)) as Response;
+
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('60');
-  });
-
-  test('unknown session IDs fall through to rate-limited new session path', async () => {
-    const { handlers, state } = createTestHandlers();
-    state.wsSecret = null;
-
-    // Exhaust the rate limit with new session attempts
-    for (let i = 0; i < 5; i++) {
-      const req = new Request('http://localhost:9876/mcp', {
-        method: 'POST',
-        headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ not: 'an initialize request' }),
-      });
-      await handlers.fetch(req, mockServer);
-    }
-
-    // A request with an unknown session ID falls through to the new session path
-    // and is subject to the same rate limit
-    const req = new Request('http://localhost:9876/mcp', {
-      method: 'POST',
-      headers: {
-        Host: 'localhost:9876',
-        'Content-Type': 'application/json',
-        'mcp-session-id': 'non-existent-session',
-      },
-      body: JSON.stringify({ method: 'tools/list' }),
-    });
-    const res = (await handlers.fetch(req, mockServer)) as Response;
-    expect(res.status).toBe(429);
-  });
-
-  test('does not rate-limit GET requests to /mcp', async () => {
-    const { handlers, state } = createTestHandlers();
-    state.wsSecret = null;
-
-    // Exhaust the rate limit with new session attempts
-    for (let i = 0; i < 5; i++) {
-      const req = new Request('http://localhost:9876/mcp', {
-        method: 'POST',
-        headers: { Host: 'localhost:9876', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ not: 'an initialize request' }),
-      });
-      await handlers.fetch(req, mockServer);
-    }
-
-    // GET requests should not be rate-limited
-    const req = new Request('http://localhost:9876/mcp', {
-      method: 'GET',
-      headers: { Host: 'localhost:9876' },
-    });
-    const res = (await handlers.fetch(req, mockServer)) as Response;
-    // GET without session ID returns 405, not 429
-    expect(res.status).toBe(405);
   });
 });
 
