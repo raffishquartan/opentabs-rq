@@ -98,3 +98,9 @@ Caveats for implementation (task 4):
 - Start-up retries last only about 6 s and are not followed by background retries. With a 60 s window, a 503 at start-up recovers only if a slot frees within about 6 s; otherwise the server ends `failed` for that session, though it can be revived by naming it, which a 429-failed one cannot. 503 therefore turns a permanent loss into a recoverable one but does not by itself guarantee start-up success during a burst.
 - Counting only `initialize` (task 4.2) removes the probe and stale-session POSTs from the budget, raising the steady-state capacity from 2 to 5 Claude Code connections a minute, and makes a stale session always get the 404 that triggers re-initialization. The duplicate concurrent reconnect still costs 2 `initialize` requests per reconnecting session after a restart, so 3 or more sessions reconnecting within a minute still see 503s; the mid-session path recovers from those in the background.
 - Whether the start-up gap needs more (a larger limit, or holding an `initialize` briefly until a slot frees) is a separate decision; the design keeps both out of scope.
+
+## 5.4 Live smoke test (2026-11-27, `exec-branch` build, version 0.0.115)
+
+Eight bearer-authenticated `initialize` POSTs to `/mcp` within one minute: the first 5 answered 200, the 6th to 8th answered `503` with `Retry-After: 60` and the JSON-RPC error `-32000` "Server busy: too many new MCP sessions; retry after 60s", `id: null`. The behaviour matches the spec.
+
+Not exercised live: starting a fresh Claude Code session inside the busy window. The measured start-up policy above (about 6 s of retries, no background retry) already shows such a session connects only if a slot frees within about 6 s; the design keeps that gap out of scope.
