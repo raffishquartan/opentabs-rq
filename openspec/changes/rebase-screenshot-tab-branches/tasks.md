@@ -8,8 +8,8 @@
 ## 2. Recreate the integration branch (only if kept)
 
 - [ ] 2.1 With user confirmation, recreate `f/screenshot-tab-integrated` from `main` (`git branch -f`, from the admin worktree), copy this folder from the holding folder and commit it with `gate.md` as the first commit. Verify: `git merge-base f/screenshot-tab-integrated main` equals `main`; `openspec validate rebase-screenshot-tab-branches` passes.
-- [ ] 2.2 Cherry-pick the single fork commit of `f/screenshot-image-content-part-v2` (`f9e48a93`; its other history is upstream v0.0.111), the `filePath` I/O-error test from `f/restore-screenshot-tab-filepath` if upstream lacks it, and the integration commit, resolving conflicts against current upstream. Verify: `git log main..f/screenshot-tab-integrated` lists only fork screenshot commits and the change-folder commit.
-- [ ] 2.3 Regenerate `platform/shared/src/generated/browser-tools-catalog.ts` with its generator (never hand-merged). Verify: re-running the generator gives an empty diff.
+- [x] 2.2 Cherry-pick the single fork commit of `f/screenshot-image-content-part-v2` (`f9e48a93`; its other history is upstream v0.0.111), the `filePath` I/O-error test from `f/restore-screenshot-tab-filepath` if upstream lacks it, and the integration commit, resolving conflicts against current upstream. Verify: `git log main..f/screenshot-tab-integrated` lists only fork screenshot commits and the change-folder commit.
+- [x] 2.3 Regenerate `platform/shared/src/generated/browser-tools-catalog.ts` with its generator (never hand-merged). Verify: re-running the generator gives an empty diff.
 - [ ] 2.4 Run the screenshot unit and e2e tests (default image content part, `filePath` mode, malformed payload, non-writable path, CLI rendering) against the compact tool-output format. Verify: all pass.
 - [ ] 2.5 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Force-push after user confirmation with `--force-with-lease=f/screenshot-tab-integrated:<backup-tag-sha>`; optionally open a PR for review only (never merged into `main`). No version bump.
 
