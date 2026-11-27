@@ -162,10 +162,13 @@ const isLocalhostHost = (hostHeader: string): boolean => {
   return ALLOWED_HOSTS.has(hostname);
 };
 
-// --- Rate limiting for administrative endpoints ---
+// --- Rate limiting for administrative endpoints and MCP session creation ---
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const MCP_SESSION_CREATION_LIMIT_PER_MINUTE = 5;
+
 const checkEndpointRateLimit = (state: ServerState, endpoint: string, maxPerMinute: number): boolean => {
   const now = Date.now();
-  const timestamps = (state.endpointCallTimestamps.get(endpoint) ?? []).filter(t => now - t < 60_000);
+  const timestamps = (state.endpointCallTimestamps.get(endpoint) ?? []).filter(t => now - t < RATE_LIMIT_WINDOW_MS);
   // Remove stale map entries when all timestamps have expired to prevent unbounded map growth.
   if (timestamps.length === 0) {
     state.endpointCallTimestamps.delete(endpoint);
@@ -180,6 +183,46 @@ const checkEndpointRateLimit = (state: ServerState, endpoint: string, maxPerMinu
   timestamps.push(now);
   state.endpointCallTimestamps.set(endpoint, timestamps);
   return true;
+};
+
+/**
+ * Counts an MCP `initialize` against the session-creation limit of `endpoint`.
+ * Returns null when the session may be created, or the busy response to send.
+ *
+ * The busy response is 503 Service Unavailable, not 429, because MCP clients
+ * treat a 4xx on the connection POST as permanent and a 5xx as transient.
+ * Measured against Claude Code 2.1.332 (openspec change
+ * mcp-rate-limit-retryable-status, findings.md): a 429 on `initialize` at
+ * session start is never retried, so the server is marked failed and every
+ * OpenTabs tool disappears until the user runs /mcp by hand; a 503 is retried
+ * with backoff at start-up and in the background mid-session, so the client
+ * reconnects on its own once a slot frees. The administrative endpoints keep
+ * 429 because their callers are the CLI and plugin tooling.
+ *
+ * `Retry-After` is the whole number of seconds until the oldest counted
+ * request leaves the window (at least 1). Claude Code ignores it; clients that
+ * honour it are admitted on their first retry. The JSON-RPC error body matches
+ * the handler's sibling 400 and 404 responses.
+ */
+const checkMcpSessionCreationLimit = (state: ServerState, endpoint: string): Response | null => {
+  if (checkEndpointRateLimit(state, endpoint, MCP_SESSION_CREATION_LIMIT_PER_MINUTE)) return null;
+
+  const oldest = state.endpointCallTimestamps.get(endpoint)?.[0];
+  if (oldest === undefined) {
+    throw new Error(`Session-creation window for ${endpoint} is full but holds no timestamps`);
+  }
+  const retryAfterSeconds = Math.max(1, Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - Date.now()) / 1000));
+  return Response.json(
+    {
+      jsonrpc: '2.0',
+      error: {
+        code: -32000,
+        message: `Server busy: too many new MCP sessions; retry after ${retryAfterSeconds}s`,
+      },
+      id: null,
+    },
+    { status: 503, headers: { 'Retry-After': String(retryAfterSeconds) } },
+  );
 };
 
 /** Compute aggregate audit statistics from the audit log buffer */
@@ -725,14 +768,14 @@ const handleMcp = async (
       }
     }
 
-    // New session — rate-limit session creation to prevent resource exhaustion
-    if (!checkEndpointRateLimit(state, '/mcp-session-create', 5)) {
-      return new Response('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
-    }
-
-    // Check if it's an initialize request
+    // Only an initialize creates a session, so only an initialize is counted
+    // against the session-creation limit. Stale-session and other POSTs fall
+    // through to their 404 and 400 responses whatever the window holds.
     const body: unknown = await req.json().catch(() => null);
     if (body && isInitializeRequest(body)) {
+      const busyResponse = checkMcpSessionCreationLimit(state, '/mcp-session-create');
+      if (busyResponse) return busyResponse;
+
       let sessionServer: McpServerInstance | null = null;
 
       const removeSession = (): void => {
@@ -851,12 +894,11 @@ const handleGatewayMcp = async (
       }
     }
 
-    if (!checkEndpointRateLimit(state, '/mcp/gateway-session-create', 5)) {
-      return new Response('Too Many Requests', { status: 429, headers: { 'Retry-After': '60' } });
-    }
-
     const body: unknown = await req.json().catch(() => null);
     if (body && isInitializeRequest(body)) {
+      const busyResponse = checkMcpSessionCreationLimit(state, '/mcp/gateway-session-create');
+      if (busyResponse) return busyResponse;
+
       let sessionServer: McpServerInstance | null = null;
 
       const removeSession = (): void => {
