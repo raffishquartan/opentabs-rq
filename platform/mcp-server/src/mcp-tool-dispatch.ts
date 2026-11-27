@@ -185,10 +185,11 @@ const APPROVAL_WAIT_MESSAGE = 'Waiting for user approval in the OpenTabs side pa
 
 /**
  * Sends MCP progress notifications for one tool call under the client's progress
- * token. MCP requires progress values to increase strictly per token, so the
- * reporter numbers approval notices 0, 1, 2, ... and offsets the tool's own
- * progress (and total) by the number of notices already sent. A value that does
- * not exceed the last one sent is dropped.
+ * token. MCP requires progress values to increase per token, so the reporter
+ * numbers approval notices 0, 1, 2, ... and offsets the tool's own progress (and
+ * total) by the number of notices already sent, keeping tool progress above any
+ * approval notices. Without an approval wait the offset is 0 and tool progress
+ * is forwarded unchanged.
  */
 interface ProgressReporter {
   /** Send an approval-wait notice at the next progress value */
@@ -203,11 +204,8 @@ const createProgressReporter = (extra: RequestHandlerExtra): ProgressReporter | 
   if (progressToken === undefined) return undefined;
 
   let noticesSent = 0;
-  let lastProgress = Number.NEGATIVE_INFINITY;
 
   const send = (progress: number, total: number | undefined, message: string | undefined): void => {
-    if (progress <= lastProgress) return;
-    lastProgress = progress;
     const params: Record<string, unknown> = { progressToken, progress };
     if (total !== undefined) params.total = total;
     if (message !== undefined) params.message = message;

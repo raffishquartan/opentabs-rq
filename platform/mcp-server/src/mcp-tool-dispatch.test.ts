@@ -2716,15 +2716,19 @@ describe('approval wait visibility', () => {
     ]);
   });
 
-  test('tool progress that does not advance is not forwarded', async () => {
+  test('without an approval wait, tool progress is forwarded verbatim, including repeated indeterminate values', async () => {
     vi.mocked(getToolPermission).mockReturnValue('auto');
-    dispatchReportingProgress([2, 5], [2, 5], [1, 5], [3, 5]);
+    dispatchReportingProgress([0, 0, 'one'], [0, 0, 'two'], [2, 5]);
     const sendNotification = vi.fn().mockResolvedValue(undefined);
     const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
 
     await callPluginTool(createMockState(), extra);
 
-    expect(progressParams(sendNotification).map(p => p.progress)).toEqual([2, 3]);
+    expect(progressParams(sendNotification)).toEqual([
+      { progressToken: 'tok', progress: 0, total: 0, message: 'one' },
+      { progressToken: 'tok', progress: 0, total: 0, message: 'two' },
+      { progressToken: 'tok', progress: 2, total: 5 },
+    ]);
   });
 
   test('without a progress token no notifications are sent', async () => {
