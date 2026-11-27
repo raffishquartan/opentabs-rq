@@ -130,7 +130,9 @@ The extension probes ALL matching tabs for readiness (not just the first ready o
 When the MCP server dispatches a tool call, the extension receives the `tool.dispatch` message and routes to one of two paths based on whether a `tabId` is present in the params:
 
 - **Targeted dispatch** (tabId present): Dispatches directly to the specified tab. Validates the tab exists via `chrome.tabs.get()` and that its URL matches the plugin's URL patterns (security check to prevent cross-origin abuse). Returns an error if the tab doesn't exist, the URL doesn't match, or the adapter isn't ready — no fallback to other tabs.
-- **Auto-select dispatch** (tabId absent): Uses `dispatchWithTabFallback` — ranks matching tabs (active tab in focused window > active tab in any window > any tab in focused window > other tabs) and tries each in order until one succeeds.
+- **Auto-select dispatch** (tabId absent): Uses `dispatchWithTabFallback` — ranks matching tabs (active tab in focused window > active tab in any window > any tab in focused window > other tabs) and tries each in order until one succeeds. When no tab matches at all it returns `-32001` with `data: { reason: NO_MATCHING_TAB_REASON }` (`'no_matching_tab'`); the "navigated away" and "closed before dispatch" variants of `-32001` carry no reason. The MCP server's plugin tab auto-open acts only on that discriminator.
+
+URL pattern matching (`urlMatchesPatterns`, `matchPattern`) lives in `@opentabs-dev/shared/url-patterns`, shared with the MCP server. `browser.openTab` accepts an optional `active` flag (default `true`); the server passes `active: false` to open a plugin's homepage in a background tab, which is not added to any tab group.
 
 ### Approval Prompts
 
