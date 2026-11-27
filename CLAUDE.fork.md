@@ -75,6 +75,7 @@ previous exec-branch state.
 | `f/fork-strategy-doc` | This file | 2 |
 | `f/improve-approval-ui` | Tool approval dialog usable for long parameters | 1 |
 | `f/openspec` | `openspec/` scaffold and the `sync-fork-with-upstream` change folder | 1 |
+| `chore/extension-common-foundations` | Foundations: `main` plus the five common-tooling branches listed below; merged into every new `f/<feature>` branch and into `exec-branch` | merges |
 | `f/biome-ignore-worktrees` | Excludes `.worktrees/` from Biome and git so lint works in the primary checkout and inside any worktree under `.worktrees/` | 2 |
 | `f/screenshot-tab-integrated`, `f/screenshot-image-content-part-v2`, `f/restore-screenshot-tab-filepath` | **Set aside.** Still on the pre-sync base and not rebased. The `rebase-screenshot-tab-branches` change recreates the integrated branch on the then-current `main` after checking upstream, and merges it into `exec-branch` only if it adds functionality upstream lacks. | - |
 
@@ -82,7 +83,36 @@ Each further OpenSpec change gets its own `f/<change>` branch whose first commit
 that change's folder under `openspec/changes/`; the spec and its implementation travel
 together. `f/openspec` is merged into `exec-branch`.
 
-**Every `f/<feature>` branch must also have `f/biome-ignore-worktrees` merged into it** (`git merge --no-ff f/biome-ignore-worktrees` right after creating the branch from `main`). Without it, a worktree under `<repo>/.worktrees/` makes `biome lint .` in the primary checkout fail with a nested-root-configuration error, which blocks pushes. Keep the branch itself; never delete it while the fork carries a `.worktrees/` layout.
+### Foundations branch: `chore/extension-common-foundations`
+
+The common tooling every extension needs sits on one branch, `chore/extension-common-foundations`
+(the `chore/` prefix is what the branch-name policy hook accepts). It is `main` plus
+`--no-ff` merges of the branches that make the fork workable as a development repository:
+
+- `f/biome-ignore-worktrees` (Biome and git ignore `.worktrees/`; knip ignores `cc-sessions/`),
+- `f/openspec` (`openspec/` scaffold),
+- `f/gitignore-superpowers`,
+- `f/fork-strategy-doc` (this file),
+- `f/fork-readme`.
+
+**Every new `f/<feature>` branch is created from the tag that `exec-branch` is based on
+(`main`), and `chore/extension-common-foundations` is merged into it right away**
+(`git merge --no-ff chore/extension-common-foundations`), so every extension shares the same
+CI/CD and tooling foundations. Without the biome part, a worktree under `<repo>/.worktrees/`
+makes `biome lint .` in the primary checkout fail with a nested-root-configuration error,
+which blocks pushes. Keep the foundations branches; never delete them while the fork carries
+a `.worktrees/` layout. Feature branches such as `f/improve-approval-ui` are not part of the
+foundations, so the foundations stay independent of any one extension.
+
+### Working with upstream
+
+- Stay current with upstream tags. On each new tag: reset `main` to the tag, rebuild
+  `chore/extension-common-foundations` on it (re-merge its component branches), rebase or rebuild
+  every `f/<feature>` branch on the new `main` and merge the foundations into it, then build a
+  new `exec-branch` from the tag with the foundations and all `f/*` branches merged in.
+- Test and verify `exec-branch` on the new version (the six root checks and a live smoke test)
+  before it replaces the running server.
+- Never carry an old `exec-branch` forward; always rebuild it from the tag.
 
 ---
 
@@ -167,6 +197,7 @@ git merge --no-ff f/fork-strategy-doc
 git merge --no-ff f/improve-approval-ui
 git merge --no-ff f/openspec
 git merge --no-ff f/biome-ignore-worktrees
+git merge --no-ff chore/extension-common-foundations
 # add any new f/* branches here in a stable, agreed order
 # (f/screenshot-tab-integrated joins only after the rebase-screenshot-tab-branches gate)
 ```
@@ -232,7 +263,7 @@ contributor sets up their own worktree layout.
 - **For each new feature, spin up an ad-hoc worktree** off `main`, under the primary checkout's `.worktrees/` directory (git-ignored and excluded from Biome by `f/biome-ignore-worktrees`):
   ```bash
   git worktree add .worktrees/<short> -b f/<feature> main
-  git -C .worktrees/<short> merge --no-ff f/biome-ignore-worktrees
+  git -C .worktrees/<short> merge --no-ff chore/extension-common-foundations
   ```
   Remove it when the feature has landed on `exec-branch`:
   ```bash
