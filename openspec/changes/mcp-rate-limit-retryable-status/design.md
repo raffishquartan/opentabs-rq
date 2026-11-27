@@ -14,6 +14,16 @@ The originating report (Claude Code 2.1.331, two occurrences) saw `opentabs (429
 - The claim is verified, not assumed: tasks 2 and 3 measure Claude Code against 429 and 5xx before the change, and the result is recorded in this change folder. If no status code is retried, the fallback is a server-side admission queue instead of a status change.
 - The code comments at the response site state this rationale in the same words so a later tidy-up does not revert it.
 
+## Measured findings that shape the design
+
+Full evidence is in `findings.md`. The points that change or confirm decisions:
+
+- Claude Code 2.1.332 never retries a 429 at session start (server marked failed, tool never returns) but retries 500 and 503 about 0.5, 1.5 and 4 s apart, and mid-session it retries 5xx in the background indefinitely while 429 gives up. This is the evidence for answering 503.
+- Claude Code ignores `Retry-After` in every case. The computed value still serves other clients and documents intent, but it does not shape Claude Code's retries.
+- Claude Code sends a `server/discover` probe before every `initialize`. The old limit counted that probe and stale-session POSTs, so only two connections fitted in a minute. Counting only `initialize` raises the steady-state capacity to five connections a minute and lets a stale session always receive the 404 that makes the client re-initialise (a 429 or 503 on a stale POST leaves the client connected to a dead session).
+- Start-up retries last only about 6 s against a 60 s window, so 503 turns a permanent loss into a recoverable one (revivable by naming the server) but does not guarantee success during a burst of three or more simultaneous reconnects. A larger limit or an admission delay is a separate decision and stays out of scope.
+- The stdio bridge ignores HTTP status and never re-initialises; recorded for a possible follow-up, not changed here.
+
 ## Goals / Non-Goals
 
 **Goals:**
