@@ -15,6 +15,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import type { McpClient, McpServer, TestServer } from './fixtures.js';
 import { expect, test } from './fixtures.js';
@@ -1215,6 +1216,47 @@ test.describe('browser_screenshot_tab', () => {
 
     // Clean up
     await mcpClient.callTool('browser_close_tab', { tabId });
+  });
+
+  test('with filePath writes the PNG to disk and returns a {savedTo, bytes} text part', async ({
+    mcpServer,
+    testServer,
+    extensionContext: _extensionContext,
+    mcpClient,
+  }) => {
+    await initAndListTools(mcpServer, mcpClient);
+    const tabId = await openTestServerTab(mcpClient, testServer);
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'opentabs-e2e-screenshot-'));
+    const filePath = path.join(dir, 'capture.png');
+
+    try {
+      let parts: Array<{ type: string; text?: string }> = [];
+      await waitFor(
+        async () => {
+          try {
+            const r = await mcpClient.callTool('browser_screenshot_tab', { tabId, filePath });
+            if (r.isError) return false;
+            parts = r.contentParts ?? [];
+            return parts.length === 1 && parts[0]?.type === 'text';
+          } catch {
+            return false;
+          }
+        },
+        10_000,
+        300,
+        'screenshot with filePath returns a text summary',
+      );
+
+      const summary = JSON.parse(parts[0]?.text ?? '') as { savedTo: string; bytes: number };
+      expect(summary.savedTo).toBe(filePath);
+      const onDisk = fs.readFileSync(filePath);
+      expect(summary.bytes).toBe(onDisk.byteLength);
+      // PNG magic header
+      expect(onDisk.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+      await mcpClient.callTool('browser_close_tab', { tabId });
+    }
   });
 });
 
