@@ -75,11 +75,14 @@ previous exec-branch state.
 | `f/fork-strategy-doc` | This file | 2 |
 | `f/improve-approval-ui` | Tool approval dialog usable for long parameters | 1 |
 | `f/openspec` | `openspec/` scaffold and the `sync-fork-with-upstream` change folder | 1 |
+| `f/biome-ignore-worktrees` | Excludes `.worktrees/` from Biome and git so lint works in the primary checkout and inside any worktree under `.worktrees/` | 2 |
 | `f/screenshot-tab-integrated`, `f/screenshot-image-content-part-v2`, `f/restore-screenshot-tab-filepath` | **Set aside.** Still on the pre-sync base and not rebased. The `rebase-screenshot-tab-branches` change recreates the integrated branch on the then-current `main` after checking upstream, and merges it into `exec-branch` only if it adds functionality upstream lacks. | - |
 
 Each further OpenSpec change gets its own `f/<change>` branch whose first commit adds
 that change's folder under `openspec/changes/`; the spec and its implementation travel
 together. `f/openspec` is merged into `exec-branch`.
+
+**Every `f/<feature>` branch must also have `f/biome-ignore-worktrees` merged into it** (`git merge --no-ff f/biome-ignore-worktrees` right after creating the branch from `main`). Without it, a worktree under `<repo>/.worktrees/` makes `biome lint .` in the primary checkout fail with a nested-root-configuration error, which blocks pushes. Keep the branch itself; never delete it while the fork carries a `.worktrees/` layout.
 
 ---
 
@@ -163,6 +166,7 @@ git merge --no-ff f/fork-readme
 git merge --no-ff f/fork-strategy-doc
 git merge --no-ff f/improve-approval-ui
 git merge --no-ff f/openspec
+git merge --no-ff f/biome-ignore-worktrees
 # add any new f/* branches here in a stable, agreed order
 # (f/screenshot-tab-integrated joins only after the rebase-screenshot-tab-branches gate)
 ```
@@ -225,13 +229,14 @@ contributor sets up their own worktree layout.
 ### Practical rule of thumb
 
 - **Keep the primary on `exec-branch` always.** That's what runs.
-- **For each new feature, spin up an ad-hoc worktree** off `main`:
+- **For each new feature, spin up an ad-hoc worktree** off `main`, under the primary checkout's `.worktrees/` directory (git-ignored and excluded from Biome by `f/biome-ignore-worktrees`):
   ```bash
-  git worktree add <primary-checkout>-<short> -b f/<feature> main
+  git worktree add .worktrees/<short> -b f/<feature> main
+  git -C .worktrees/<short> merge --no-ff f/biome-ignore-worktrees
   ```
   Remove it when the feature has landed on `exec-branch`:
   ```bash
-  git worktree remove <primary-checkout>-<short>
+  git worktree remove .worktrees/<short>
   ```
 - **The admin worktree is the one exception** — it's permanent because upstream-sync
   work is recurring. Don't repurpose it for feature work.

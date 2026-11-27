@@ -18,6 +18,7 @@ playwright-report/
 /.ralph/progress-*
 /.ralph/*.merge-conflict.txt
 .claude/worktrees/
+/.worktrees/
 .claude/scheduled_tasks.lock
 .tmp/
 opencode.json
