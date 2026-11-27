@@ -363,8 +363,11 @@ const resolveLoadEarlierMsgs = (): LoadEarlierMsgs => {
   return mod.loadEarlierMsgs;
 };
 
+/** Some messages WhatsApp Web holds (e.g. members of an album) carry no serialized id, so ties on `t` compare ids that may be empty. */
+const messageIdKey = (m: WAMsgModel): string => m.id._serialized ?? '';
+
 const compareMessages = (a: WAMsgModel, b: WAMsgModel): number =>
-  a.t - b.t || a.id._serialized.localeCompare(b.id._serialized);
+  a.t - b.t || messageIdKey(a).localeCompare(messageIdKey(b));
 
 export interface LoadedMessages {
   /** The most recent `limit` held messages, oldest first. */
