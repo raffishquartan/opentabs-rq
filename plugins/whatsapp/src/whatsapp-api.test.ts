@@ -1,6 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { MessageSerializationContext, WAChatModel, WAContactModel, WAMsgModel } from './whatsapp-api.js';
-import { formatLondonTimestamp, resolveSenderName, serializeChat, serializeMessage } from './whatsapp-api.js';
+import {
+  formatLondonTimestamp,
+  getMessageSerializationContext,
+  resolveSenderName,
+  serializeChat,
+  serializeMessage,
+} from './whatsapp-api.js';
 
 const OWN_ID = '447700900001@c.us';
 const ALICE_ID = '447700900002@c.us';
@@ -184,5 +190,22 @@ describe('resolveSenderName', () => {
 
   it('uses the message push name when the contact is unknown', () => {
     expect(resolveSenderName(undefined, 'Ali2')).toBe('Ali2');
+  });
+});
+
+describe('getMessageSerializationContext', () => {
+  it('throws an internal error when the current user id is unavailable', () => {
+    vi.stubGlobal('require', (name: string) => {
+      if (name !== 'WAWebUserPrefsMeUser') throw new Error(`Requiring unknown module "${name}"`);
+      return {
+        getMaybeMePnUser: () => undefined,
+        getMaybeMeLidUser: () => undefined,
+        getMaybeMeDisplayName: () => undefined,
+      };
+    });
+
+    expect(() => getMessageSerializationContext()).toThrow('Current user id not available');
+
+    vi.unstubAllGlobals();
   });
 });

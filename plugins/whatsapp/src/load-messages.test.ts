@@ -126,7 +126,7 @@ describe('loadMessages history loop', () => {
 });
 
 describe('loadMessages ordering with incomplete ids', () => {
-  it('keeps collection order for messages with equal timestamps when one has no serialized id', async () => {
+  it('orders messages with equal timestamps without throwing when one has no serialized id', async () => {
     const noSerializedId = { id: { fromMe: false }, t: 200 } as unknown as WAMsgModel;
     const held = [msgAt(300, 'C'), noSerializedId, msgAt(200, 'B1'), msgAt(100, 'A')];
     const { chat } = fakeChat(held);

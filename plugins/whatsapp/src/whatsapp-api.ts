@@ -299,12 +299,12 @@ export interface MessageSerializationContext {
 export const serializeMessage = (m: WAMsgModel, context: MessageSerializationContext): SerializedMessage => {
   const sender = m.id.fromMe ? context.ownId : (m.author?._serialized ?? m.from?._serialized ?? '');
   return {
-    id: m.id?._serialized ?? '',
-    from_me: m.id?.fromMe ?? false,
+    id: m.id._serialized ?? '',
+    from_me: m.id.fromMe,
     type: m.type ?? '',
     text: messageText(m),
     media_type: m.type === 'chat' ? null : m.type,
-    timestamp: m.t ?? 0,
+    timestamp: m.t,
     timestamp_local: formatLondonTimestamp(m.t),
     ack: m.ack ?? 0,
     starred: m.star ?? false,
