@@ -29,16 +29,20 @@ export const listMessages = defineTool({
   output: z.object({
     messages: z.array(messageSchema),
     total_loaded: z.number().int().describe('Total number of messages loaded in memory for this chat'),
+    history_complete: z
+      .boolean()
+      .describe('False when loading earlier history failed; the messages already held are still returned'),
+    history_error: z.string().optional().describe('Why loading earlier history failed; present only on failure'),
   }),
-  handle: async params => {
+  handle: async (params, context) => {
     const chat = findChatByIdOrThrow(params.chat_id);
-    const msgs = await loadMessages(chat);
-    const limit = params.limit ?? 20;
-    const recent = msgs.slice(-limit);
-    const context = getMessageSerializationContext();
+    const loaded = await loadMessages(chat, params.limit ?? 20, context?.reportProgress);
+    const serializationContext = getMessageSerializationContext();
     return {
-      messages: recent.map(m => serializeMessage(m, context)),
-      total_loaded: msgs.length,
+      messages: loaded.messages.map(m => serializeMessage(m, serializationContext)),
+      total_loaded: loaded.totalLoaded,
+      history_complete: loaded.historyComplete,
+      ...(loaded.historyError === undefined ? {} : { history_error: loaded.historyError }),
     };
   },
 });

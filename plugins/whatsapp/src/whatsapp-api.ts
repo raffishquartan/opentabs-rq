@@ -1,4 +1,5 @@
-import { ToolError, waitUntil } from '@opentabs-dev/plugin-sdk';
+import type { ToolHandlerContext } from '@opentabs-dev/plugin-sdk';
+import { log, ToolError, waitUntil } from '@opentabs-dev/plugin-sdk';
 
 // ---------------------------------------------------------------------------
 // WhatsApp Web internal module system access
@@ -350,14 +351,69 @@ export const getMessageSerializationContext = (): MessageSerializationContext =>
 // Message loading
 // ---------------------------------------------------------------------------
 
-export const loadMessages = async (chat: WAChatModel): Promise<WAMsgModel[]> => {
-  const loadMod = waRequire<{
-    loadEarlierMsgs: (chat: WAChatModel) => Promise<unknown>;
-  }>('WAWebChatLoadMessages');
-  if (loadMod) {
-    await loadMod.loadEarlierMsgs(chat);
+/** Upper bound on history loads per call, bounding runtime when each load adds only a few messages. */
+export const MAX_HISTORY_LOADS = 10;
+
+type LoadEarlierMsgs = (options: { chat: WAChatModel }) => Promise<unknown>;
+
+const resolveLoadEarlierMsgs = (): LoadEarlierMsgs => {
+  const mod = waRequire<{ loadEarlierMsgs?: LoadEarlierMsgs }>('WAWebChatLoadMessages');
+  if (!mod) throw new Error('WAWebChatLoadMessages module not available');
+  if (typeof mod.loadEarlierMsgs !== 'function') throw new Error('WAWebChatLoadMessages.loadEarlierMsgs not available');
+  return mod.loadEarlierMsgs;
+};
+
+const compareMessages = (a: WAMsgModel, b: WAMsgModel): number =>
+  a.t - b.t || a.id._serialized.localeCompare(b.id._serialized);
+
+export interface LoadedMessages {
+  /** The most recent `limit` held messages, oldest first. */
+  messages: WAMsgModel[];
+  /** Number of messages held in memory for the chat after loading. */
+  totalLoaded: number;
+  /** True when no history-loading error occurred, including when no load was needed. */
+  historyComplete: boolean;
+  /** Cause of the history-loading failure; present only when `historyComplete` is false. */
+  historyError?: string;
+}
+
+/**
+ * Loads earlier history until `limit` messages are held, a load adds none, or
+ * MAX_HISTORY_LOADS loads have run. The history loader is an internal WhatsApp
+ * Web module that changes without notice, so a loader failure ends loading and
+ * is reported in the result alongside the messages already held.
+ */
+export const loadMessages = async (
+  chat: WAChatModel,
+  limit: number,
+  reportProgress?: ToolHandlerContext['reportProgress'],
+): Promise<LoadedMessages> => {
+  let historyError: string | undefined;
+  let held = chat.msgs.getModelsArray().length;
+  for (let loads = 0; held < limit && loads < MAX_HISTORY_LOADS; loads++) {
+    try {
+      await resolveLoadEarlierMsgs()({ chat });
+    } catch (error) {
+      historyError = error instanceof Error ? error.message : String(error);
+      log.warn(`Loading earlier WhatsApp messages failed: ${historyError}`);
+      break;
+    }
+    const before = held;
+    held = chat.msgs.getModelsArray().length;
+    reportProgress?.({
+      progress: Math.min(held, limit),
+      total: limit,
+      message: `Loaded earlier messages (${held} held)`,
+    });
+    if (held === before) break;
   }
-  return chat.msgs.getModelsArray();
+  const all = [...chat.msgs.getModelsArray()].sort(compareMessages);
+  return {
+    messages: all.slice(-limit),
+    totalLoaded: all.length,
+    historyComplete: historyError === undefined,
+    ...(historyError === undefined ? {} : { historyError }),
+  };
 };
 
 // ---------------------------------------------------------------------------
