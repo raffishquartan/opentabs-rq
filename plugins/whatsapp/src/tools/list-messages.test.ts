@@ -57,6 +57,21 @@ afterEach(() => {
 });
 
 describe('list_messages', () => {
+  it('keeps its description under the 1000-character manifest limit', () => {
+    expect(listMessages.description.length).toBeLessThan(1000);
+  });
+
+  it.each([
+    'text',
+    'media_type',
+    'timestamp_local',
+    'sender_name',
+    'history_complete',
+    'history_error',
+  ])('describes the %s output field', field => {
+    expect(listMessages.description).toContain(field);
+  });
+
   it('returns serialized messages with complete history and no error when no load was needed', async () => {
     stubWhatsApp([chatWithMessages(25)]);
 

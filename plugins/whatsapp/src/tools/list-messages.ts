@@ -12,7 +12,12 @@ export const listMessages = defineTool({
   name: 'list_messages',
   displayName: 'List Messages',
   description:
-    'List recent messages in a WhatsApp chat. Messages are returned in chronological order (oldest first). Loads earlier messages from the server if needed.',
+    'List the most recent messages in a WhatsApp chat, oldest first. Loads earlier history from the server when fewer than `limit` messages are held. ' +
+    'Each message has `text` (the body of a text message, or the caption of an image, video or document; empty for other media such as voice notes, stickers and locations), ' +
+    '`media_type` (null for text, otherwise the raw WhatsApp type, e.g. "image" or "ptt" for a voice note), ' +
+    '`timestamp` (UTC Unix seconds) and `timestamp_local` (Europe/London ISO 8601 with offset), ' +
+    'and `sender` / `sender_name` (the author in groups, the other party for incoming 1:1 messages, the user for own messages). ' +
+    'If loading earlier history fails, the messages already held are returned with `history_complete` false and the cause in `history_error`.',
   summary: 'List messages in a chat',
   icon: 'messages-square',
   group: 'Messages',

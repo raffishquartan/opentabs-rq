@@ -67,6 +67,30 @@ npm install -g @opentabs-dev/opentabs-plugin-whatsapp
 | `get_group_invite_link` | Get group invite link | Read |
 | `revoke_group_invite_link` | Revoke and regenerate group invite link | Write |
 
+### `list_messages` output
+
+Returns the most recent `limit` messages (default 20, max 100), oldest first. When fewer messages are held in the tab, earlier history is loaded repeatedly, stopping at the limit, when a load adds nothing, or after 10 loads.
+
+Each message includes:
+
+| Field | Meaning |
+|---|---|
+| `text` | Body of a text message; caption of an image, video or document (empty if none); empty for all other media. Never contains thumbnail data. |
+| `media_type` | `null` for text messages, otherwise WhatsApp's raw message type (e.g. `image`, `video`, `document`, `ptt` for a voice note, `sticker`, `location`) |
+| `timestamp` | UTC Unix seconds |
+| `timestamp_local` | Europe/London local time, ISO 8601 with offset (e.g. `2026-07-01T12:00:00+01:00`) |
+| `sender` | Author in group chats, the other party for incoming 1:1 messages, the user for own messages |
+| `sender_name` | Saved contact name, else the sender's self-declared name, else short name, else empty |
+
+The raw `body` field is not returned. The response also includes `total_loaded`, `history_complete` (false only when loading earlier history failed) and, on failure, `history_error` with the cause; the messages already held are still returned.
+
+## Development
+
+```bash
+npm test             # unit tests (Vitest)
+npm run type-check   # source and test files
+```
+
 ## How It Works
 
 This plugin runs inside your WhatsApp tab through the [OpenTabs](https://opentabs.dev) Chrome extension. It uses your existing browser session — no API tokens or OAuth apps required. All operations happen as you, with your permissions.
