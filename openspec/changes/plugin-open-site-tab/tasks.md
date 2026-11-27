@@ -4,9 +4,9 @@
 
 ## 2. Shared and extension
 
-- [ ] 2.1 Move `urlMatchesPatterns` from `browser-extension/src/tab-matching.ts` to `platform/shared` (browser-safe entry point) and import it from there in the extension. Verify: existing tab-matching tests pass against the shared helper; knip reports no leftover export.
-- [ ] 2.2 Add `data: { reason: 'no_matching_tab' }` to the no-matching-tab `-32001` in `dispatch-helpers.ts`; leave the "navigated away" and "closed before" errors unchanged. Verify: extension unit test asserts the discriminator only on the no-match path.
-- [ ] 2.3 Add an optional `active` boolean to `browser.openTab` (default `true`) in `browser-commands/tab-commands.ts`. Verify: unit tests for default and `active: false`; `browser_open_tab` behaviour unchanged.
+- [x] 2.1 Move `urlMatchesPatterns` from `browser-extension/src/tab-matching.ts` to `platform/shared` (browser-safe entry point) and import it from there in the extension. Verify: existing tab-matching tests pass against the shared helper; knip reports no leftover export.
+- [x] 2.2 Add `data: { reason: 'no_matching_tab' }` to the no-matching-tab `-32001` in `dispatch-helpers.ts`; leave the "navigated away" and "closed before" errors unchanged. Verify: extension unit test asserts the discriminator only on the no-match path.
+- [x] 2.3 Add an optional `active` boolean to `browser.openTab` (default `true`) in `browser-commands/tab-commands.ts`. Verify: unit tests for default and `active: false`; `browser_open_tab` behaviour unchanged.
 
 ## 3. Server
 

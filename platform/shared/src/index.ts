@@ -275,6 +275,15 @@ export interface ToolDispatchParams {
   tabId?: number;
 }
 
+/**
+ * `error.data.reason` on the extension's `-32001` tool.dispatch error when no
+ * open tab matches the plugin at all. The "navigated away" and "closed before
+ * dispatch" variants of `-32001` carry no reason. The MCP server acts on this
+ * value (and never on message text) to decide whether to open the plugin's
+ * homepage automatically.
+ */
+export const NO_MATCHING_TAB_REASON = 'no_matching_tab';
+
 /** tool.invocationStart notification: server → extension (side panel animation) */
 export interface ToolInvocationStartParams {
   plugin: string;
@@ -421,6 +430,8 @@ export type ExtensionReloadParams = Record<string, never>;
 /** browser.openTab request params */
 export interface BrowserOpenTabParams {
   url: string;
+  /** Whether the new tab takes focus (default true); false opens a background tab */
+  active?: boolean;
 }
 
 /** browser.navigateTab request params */

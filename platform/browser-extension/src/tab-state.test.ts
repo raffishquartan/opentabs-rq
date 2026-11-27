@@ -42,10 +42,12 @@ vi.mock('./plugin-storage.js', () => ({
   invalidatePluginCache: vi.fn(),
 }));
 
+vi.mock('@opentabs-dev/shared/url-patterns', () => ({
+  urlMatchesPatterns: mockUrlMatchesPatterns,
+}));
+
 vi.mock('./tab-matching.js', () => ({
   findAllMatchingTabs: mockFindAllMatchingTabs,
-  urlMatchesPatterns: mockUrlMatchesPatterns,
-  matchPattern: vi.fn(),
   findMatchingTab: vi.fn(),
 }));
 

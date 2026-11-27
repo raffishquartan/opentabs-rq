@@ -1,10 +1,11 @@
 import type { PluginTabInfo, TabState } from '@opentabs-dev/shared';
+import { urlMatchesPatterns } from '@opentabs-dev/shared/url-patterns';
 import { IS_READY_TIMEOUT_MS, READINESS_POLL_INTERVAL_MS } from './constants.js';
 import type { PluginMeta, PluginTabStateInfo } from './extension-messages.js';
 import { setLastSeenUrl } from './last-seen-urls.js';
 import { forwardToSidePanel, sendTabStateNotification, sendToServer } from './messaging.js';
 import { getAllPluginMeta } from './plugin-storage.js';
-import { findAllMatchingTabs, urlMatchesPatterns } from './tab-matching.js';
+import { findAllMatchingTabs } from './tab-matching.js';
 
 /**
  * Serialize a PluginTabStateInfo to a deterministic string for diff detection.

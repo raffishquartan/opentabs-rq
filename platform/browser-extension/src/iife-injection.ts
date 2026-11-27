@@ -1,8 +1,8 @@
 import { toErrorMessage } from '@opentabs-dev/shared';
+import { urlMatchesPatterns } from '@opentabs-dev/shared/url-patterns';
 import { INJECTION_RETRY_DELAY_MS, isValidPluginName } from './constants.js';
 import { sendToServer } from './messaging.js';
 import { getAllPluginMeta } from './plugin-storage.js';
-import { urlMatchesPatterns } from './tab-matching.js';
 
 /** Names reserved for platform use — rejected at the injection layer as defense-in-depth */
 const RESERVED_NAMES = new Set(['system', 'browser', 'opentabs', 'extension', 'config', 'plugin', 'tool', 'mcp']);

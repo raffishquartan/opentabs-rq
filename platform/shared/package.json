@@ -29,6 +29,10 @@
     "./tab-group-colors": {
       "types": "./dist/tab-group-colors.d.ts",
       "import": "./dist/tab-group-colors.js"
+    },
+    "./url-patterns": {
+      "types": "./dist/url-patterns.d.ts",
+      "import": "./dist/url-patterns.js"
     }
   },
   "types": "./dist/index.d.ts",

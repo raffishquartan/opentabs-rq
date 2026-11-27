@@ -127,12 +127,36 @@ describe('handleBrowserOpenTab', () => {
       windowId: 1,
     } as chrome.tabs.Tab);
     await handleBrowserOpenTab({ url: 'about:blank' }, 'req-blank');
-    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'about:blank' });
+    expect(mockTabsCreate).toHaveBeenCalledWith({ url: 'about:blank', active: true });
     expect(firstSentMessage()).toMatchObject({
       jsonrpc: '2.0',
       id: 'req-blank',
       result: { id: 99, url: 'about:blank' },
     });
+  });
+
+  test('opens an active tab when active is omitted', async () => {
+    mockTabsCreate.mockResolvedValueOnce({
+      id: 7,
+      title: '',
+      url: 'https://example.com/',
+      windowId: 1,
+    } as chrome.tabs.Tab);
+    await handleBrowserOpenTab({ url: 'https://example.com/' }, 'req-active-default');
+    expect(mockTabsCreate).toHaveBeenLastCalledWith({ url: 'https://example.com/', active: true });
+    expect(firstSentMessage()).toMatchObject({ id: 'req-active-default', result: { id: 7 } });
+  });
+
+  test('opens a background tab when active is false', async () => {
+    mockTabsCreate.mockResolvedValueOnce({
+      id: 8,
+      title: '',
+      url: 'https://example.com/',
+      windowId: 1,
+    } as chrome.tabs.Tab);
+    await handleBrowserOpenTab({ url: 'https://example.com/', active: false }, 'req-background');
+    expect(mockTabsCreate).toHaveBeenLastCalledWith({ url: 'https://example.com/', active: false });
+    expect(firstSentMessage()).toMatchObject({ id: 'req-background', result: { id: 8 } });
   });
 
   test('rejects javascript: url', async () => {
