@@ -21,8 +21,8 @@
 
 ## 5. E2E
 
-- [ ] 5.1 Add E2E tests with `pluginTabAutoOpen: true` in the test config: close all `e2e-test` tabs, call an `e2e-test__*` tool, it succeeds in a newly opened background tab; a second call opens no further tab; with a simulated second profile and a configured default the tab opens in the default (extend `e2e/multi-profile-routing.e2e.ts`), and without a default the explicit error is returned; with skip-permissions active no tab opens.
-- [ ] 5.2 Confirm the existing closed-tab tests pass unchanged with the default off: `e2e/tool-dispatch.e2e.ts`, `e2e/iife-injection.e2e.ts`, `e2e/dispatch-resilience.e2e.ts`, `e2e/multi-profile-routing.e2e.ts`, `e2e/multi-tab-targeting.e2e.ts`, `e2e/multi-connection.e2e.ts`, `e2e/multi-instance-robust.e2e.ts`, `e2e/npm-discovery.e2e.ts`, `e2e/tab-state-sync.e2e.ts`, `e2e/side-panel-data-flow.e2e.ts`, `e2e/side-panel-open-tab.e2e.ts`. Verify: all pass.
+- [x] 5.1 Add E2E tests with `pluginTabAutoOpen: true` in the test config: close all `e2e-test` tabs, call an `e2e-test__*` tool, it succeeds in a newly opened background tab; a second call opens no further tab; with a simulated second profile and a configured default the tab opens in the default (extend `e2e/multi-profile-routing.e2e.ts`), and without a default the explicit error is returned; with skip-permissions active no tab opens.
+- [x] 5.2 Confirm the existing closed-tab tests pass unchanged with the default off: `e2e/tool-dispatch.e2e.ts`, `e2e/iife-injection.e2e.ts`, `e2e/dispatch-resilience.e2e.ts`, `e2e/multi-profile-routing.e2e.ts`, `e2e/multi-tab-targeting.e2e.ts`, `e2e/multi-connection.e2e.ts`, `e2e/multi-instance-robust.e2e.ts`, `e2e/npm-discovery.e2e.ts`, `e2e/tab-state-sync.e2e.ts`, `e2e/side-panel-data-flow.e2e.ts`, `e2e/side-panel-open-tab.e2e.ts`. Verify: all pass.
 
 ## 6. Docs and verification
 

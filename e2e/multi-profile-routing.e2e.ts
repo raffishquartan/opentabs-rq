@@ -3,10 +3,22 @@
  *
  * Verifies that plugin tool dispatch routes to the correct connection when
  * a plugin's tabs exist on only one of multiple connected profiles, using
- * raw WebSocket connections as fake extension profiles.
+ * raw WebSocket connections as fake extension profiles, and the browser profile
+ * chosen for plugin tab auto-open (pluginTabAutoOpenProfile).
  */
 
-import { createRawWsConnection, expect, test } from './fixtures.js';
+import type { McpClient, McpServer } from './fixtures.js';
+import {
+  cleanupTestConfigDir,
+  createMcpClient,
+  createRawWsConnection,
+  createTestConfigDir,
+  expect,
+  readTestConfig,
+  startMcpServer,
+  test,
+  writeTestConfig,
+} from './fixtures.js';
 import { waitForLog } from './helpers.js';
 
 // ---------------------------------------------------------------------------
@@ -281,6 +293,142 @@ test.describe('Multi-profile plugin-aware dispatch routing', () => {
     } finally {
       wsAlpha?.close();
       wsBeta?.close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Plugin tab auto-open across profiles
+// ---------------------------------------------------------------------------
+
+const NO_MATCHING_TAB_ERROR = {
+  code: -32001,
+  message: 'No matching tab for plugin "e2e-test" (state: closed)',
+  data: { reason: 'no_matching_tab' },
+};
+
+/**
+ * Start an MCP server with permission checks active (auto-open is off while
+ * permissions are skipped), pluginTabAutoOpen enabled and the given default
+ * profile, plus an initialized MCP client.
+ */
+const startAutoOpenServer = async (
+  pluginTabAutoOpenProfile?: string,
+): Promise<{ server: McpServer; client: McpClient; cleanup: () => Promise<void> }> => {
+  const configDir = createTestConfigDir();
+  const config = readTestConfig(configDir);
+  config.pluginTabAutoOpen = true;
+  if (pluginTabAutoOpenProfile !== undefined) config.pluginTabAutoOpenProfile = pluginTabAutoOpenProfile;
+  writeTestConfig(configDir, config);
+  // The bypass check is `=== '1'`, so an empty string keeps permission checks active.
+  const server = await startMcpServer(configDir, false, undefined, { OPENTABS_DANGEROUSLY_SKIP_PERMISSIONS: '' });
+  const client = createMcpClient(server.port, server.secret);
+  await client.initialize();
+  return {
+    server,
+    client,
+    cleanup: async () => {
+      await client.close();
+      await server.kill();
+      cleanupTestConfigDir(configDir);
+    },
+  };
+};
+
+/**
+ * Make a raw WebSocket behave like a browser profile with no e2e-test tab:
+ * tool.dispatch without a tab fails with no_matching_tab, browser.openTab
+ * opens tab `openedTabId` and reports it ready, and tool.dispatch to that tab
+ * succeeds. Returns the methods received, with their params.
+ */
+const simulateProfileWithoutPluginTab = (
+  ws: WebSocket,
+  openedTabId: number,
+): Array<{ method: string; params: Record<string, unknown> }> => {
+  const received: Array<{ method: string; params: Record<string, unknown> }> = [];
+  ws.addEventListener('message', (event: MessageEvent) => {
+    const msg = JSON.parse(String(event.data)) as {
+      method?: string;
+      id?: string | number;
+      params?: Record<string, unknown>;
+    };
+    if (!msg.method) return;
+    const params = msg.params ?? {};
+    received.push({ method: msg.method, params });
+    if (msg.id === undefined) return;
+
+    if (msg.method === 'browser.openTab') {
+      ws.send(JSON.stringify({ jsonrpc: '2.0', id: msg.id, result: { id: openedTabId, url: params.url } }));
+      sendJsonRpc(ws, 'tab.stateChanged', {
+        plugin: 'e2e-test',
+        state: 'ready',
+        tabs: [{ tabId: openedTabId, url: String(params.url), title: 'E2E', ready: true }],
+      });
+    } else if (msg.method === 'tool.dispatch') {
+      const reply =
+        params.tabId === openedTabId
+          ? { jsonrpc: '2.0', id: msg.id, result: { output: { ok: true, ranInTab: openedTabId } } }
+          : { jsonrpc: '2.0', id: msg.id, error: NO_MATCHING_TAB_ERROR };
+      ws.send(JSON.stringify(reply));
+    }
+  });
+  return received;
+};
+
+test.describe('Multi-profile plugin tab auto-open', () => {
+  test('with a default profile configured, the tab opens and the call runs in that profile', async () => {
+    const { server, client, cleanup } = await startAutoOpenServer('conn-open-beta');
+    let wsAlpha: WebSocket | undefined;
+    let wsBeta: WebSocket | undefined;
+    try {
+      wsAlpha = await createRawWsConnection(server.port, server.secret, 'conn-open-alpha');
+      wsBeta = await createRawWsConnection(server.port, server.secret, 'conn-open-beta');
+      await server.waitForHealth(h => h.extensionConnections >= 2, 10_000);
+      const alphaReceived = simulateProfileWithoutPluginTab(wsAlpha, 4001);
+      const betaReceived = simulateProfileWithoutPluginTab(wsBeta, 4002);
+
+      const result = await client.callTool('e2e-test__echo', { message: 'auto-open' }, { timeout: 30_000 });
+
+      expect(result.isError).toBe(false);
+      expect(result.content).toContain('4002');
+      const betaOpens = betaReceived.filter(m => m.method === 'browser.openTab');
+      expect(betaOpens).toHaveLength(1);
+      expect(betaOpens[0]?.params).toMatchObject({ url: 'http://localhost:9876', active: false });
+      expect(betaReceived.filter(m => m.method === 'tool.dispatch').map(m => m.params.tabId)).toEqual([
+        undefined,
+        4002,
+      ]);
+      expect(alphaReceived.some(m => m.method === 'browser.openTab' || m.method === 'tool.dispatch')).toBe(false);
+    } finally {
+      wsAlpha?.close();
+      wsBeta?.close();
+      await cleanup();
+    }
+  });
+
+  test('without a default profile, the call fails naming the setting and the profiles and opens no tab', async () => {
+    const { server, client, cleanup } = await startAutoOpenServer();
+    let wsAlpha: WebSocket | undefined;
+    let wsBeta: WebSocket | undefined;
+    try {
+      wsAlpha = await createRawWsConnection(server.port, server.secret, 'conn-open-alpha');
+      wsBeta = await createRawWsConnection(server.port, server.secret, 'conn-open-beta');
+      await server.waitForHealth(h => h.extensionConnections >= 2, 10_000);
+      const alphaReceived = simulateProfileWithoutPluginTab(wsAlpha, 4001);
+      const betaReceived = simulateProfileWithoutPluginTab(wsBeta, 4002);
+
+      const result = await client.callTool('e2e-test__echo', { message: 'no default' }, { timeout: 30_000 });
+
+      expect(result.isError).toBe(true);
+      expect(result.content).toContain('pluginTabAutoOpenProfile');
+      expect(result.content).toContain('conn-open-alpha');
+      expect(result.content).toContain('conn-open-beta');
+      const opens = [...alphaReceived, ...betaReceived].filter(m => m.method === 'browser.openTab');
+      expect(opens).toHaveLength(0);
+    } finally {
+      wsAlpha?.close();
+      wsBeta?.close();
+      await cleanup();
     }
   });
 });
