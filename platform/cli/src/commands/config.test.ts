@@ -2,14 +2,18 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Command } from 'commander';
 import type { MockInstance } from 'vitest';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  handleSetApprovalTimeoutSeconds,
   handleSetLocalPluginsAdd,
   handleSetSetting,
+  KNOWN_KEYS,
   levenshtein,
   maskSecret,
   normalizeConfigForDisplay,
+  registerConfigCommand,
   resolveStoredPluginPath,
   suggestKey,
 } from './config.js';
@@ -424,5 +428,93 @@ describe('handleSetSetting', () => {
     const settings = config.settings as Record<string, Record<string, unknown>>;
     expect(settings.other).toEqual({ key: 'val' });
     expect(settings.sqlpad).toEqual({ instanceUrl: 'https://sqlpad.example.com' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// approvalTimeoutSeconds
+// ---------------------------------------------------------------------------
+
+describe('approvalTimeoutSeconds', () => {
+  let testDir: string;
+  let exitSpy: MockInstance;
+  const savedConfigDir = process.env.OPENTABS_CONFIG_DIR;
+  const configFile = () => join(testDir, 'config.json');
+  const readConfigFile = async () => JSON.parse(await readFile(configFile(), 'utf-8')) as Record<string, unknown>;
+
+  /** Run `opentabs <args>` through the real command tree, capturing stdout and help output */
+  const runCli = async (...args: string[]): Promise<string> => {
+    let out = '';
+    vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
+      out += `${parts.join(' ')}\n`;
+    });
+    const program = new Command().exitOverride().configureOutput({
+      writeOut: str => {
+        out += str;
+      },
+      writeErr: () => {},
+    });
+    registerConfigCommand(program);
+    await program.parseAsync(['node', 'opentabs', ...args]).catch((err: unknown) => {
+      if ((err as { code?: string }).code !== 'commander.helpDisplayed') throw err;
+    });
+    return out;
+  };
+
+  beforeEach(() => {
+    testDir = mkdtempSync(join(tmpdir(), 'opentabs-approval-timeout-test-'));
+    process.env.OPENTABS_CONFIG_DIR = testDir;
+    writeFileSync(configFile(), `${JSON.stringify({ localPlugins: [] })}\n`, 'utf-8');
+    exitSpy = vi.spyOn(process, 'exit').mockImplementation((_code?: number | string | null) => {
+      throw new Error(`process.exit(${_code ?? ''})`);
+    });
+  });
+
+  afterEach(() => {
+    rmSync(testDir, { recursive: true, force: true });
+    if (savedConfigDir !== undefined) {
+      process.env.OPENTABS_CONFIG_DIR = savedConfigDir;
+    } else {
+      delete process.env.OPENTABS_CONFIG_DIR;
+    }
+    vi.restoreAllMocks();
+  });
+
+  test.each(['120', '0'])('writes a valid value (%s) to config.json', async value => {
+    await handleSetApprovalTimeoutSeconds(value, {});
+
+    expect((await readConfigFile()).approvalTimeoutSeconds).toBe(Number(value));
+  });
+
+  test.each(['-5', '10.5', 'abc', '', '1e3'])('rejects %j and leaves config.json unchanged', async value => {
+    await expect(handleSetApprovalTimeoutSeconds(value, {})).rejects.toThrow('process.exit(1)');
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect((await readConfigFile()).approvalTimeoutSeconds).toBeUndefined();
+  });
+
+  test('config set routes the key to the handler', async () => {
+    await runCli('config', 'set', 'approvalTimeoutSeconds', '45');
+
+    expect((await readConfigFile()).approvalTimeoutSeconds).toBe(45);
+  });
+
+  test('config show displays the value', async () => {
+    writeFileSync(configFile(), `${JSON.stringify({ localPlugins: [], approvalTimeoutSeconds: 90 })}\n`, 'utf-8');
+
+    const out = await runCli('config', 'show');
+
+    expect(out).toMatch(/approvalTimeoutSeconds.*90/);
+  });
+
+  test('is a known key for typo suggestions', () => {
+    expect(KNOWN_KEYS).toContain('approvalTimeoutSeconds');
+    expect(suggestKey('approvalTimeoutSecond')).toBe('approvalTimeoutSeconds');
+  });
+
+  test('config set help text lists the key', async () => {
+    const out = await runCli('config', 'set', '--help');
+
+    expect(out).toContain('approvalTimeoutSeconds');
   });
 });

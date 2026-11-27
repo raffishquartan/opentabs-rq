@@ -18,7 +18,7 @@
 
 ## 4. CLI
 
-- [ ] 4.1 Add a `handleSetApprovalTimeoutSeconds` branch to `handleConfigSet` (non-negative integer, otherwise rejected with an error) and add the key to the supported keys, `KNOWN_KEYS` and help text in `platform/cli/src/commands/config.ts`. Verify CLI tests: valid value written; negative, fractional and non-numeric values rejected; `config show` displays it; help text lists it.
+- [x] 4.1 Add a `handleSetApprovalTimeoutSeconds` branch to `handleConfigSet` (non-negative integer, otherwise rejected with an error) and add the key to the supported keys, `KNOWN_KEYS` and help text in `platform/cli/src/commands/config.ts`. Verify CLI tests: valid value written; negative, fractional and non-numeric values rejected; `config show` displays it; help text lists it.
 
 ## 5. E2E
 
