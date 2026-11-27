@@ -14,6 +14,7 @@
       "!**/.storybook/**/*.mjs",
       "!.ralph/worktrees",
       "!.claude/worktrees",
+      "!.worktrees",
       "!.tmp",
       "!.playwright-browsers",
       "!marketing/state.json",
