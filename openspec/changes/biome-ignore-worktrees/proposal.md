@@ -6,6 +6,7 @@ A git worktree under `<repo>/.worktrees/<name>` is a full checkout, so it contai
 
 - Add `!.worktrees` to `files.includes` in `biome.json`, beside the existing worktree exclusions.
 - Add `/.worktrees/` to the repo `.gitignore`.
+- Add `cc-sessions/**` to the `ignore` list in `knip.ts`, so session working files (stubs, scratch scripts) in a local `cc-sessions/` folder are not reported as unused files. The folder is hidden from git by the global gitignore, so a clean checkout never contains it.
 - Fork rule (documented in `CLAUDE.fork.md`): this branch is merged into every feature branch and into `exec-branch`, so lint works in the primary checkout and inside any worktree under `.worktrees/`.
 
 ## Capabilities
