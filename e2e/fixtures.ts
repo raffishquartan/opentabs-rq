@@ -216,6 +216,8 @@ interface OpentabsConfig {
   settings?: Record<string, Record<string, unknown>>;
   /** Extra directories allowed for local plugin resolution (beyond ~/). */
   additionalAllowedDirectories?: string[];
+  /** Seconds a plugin tool call waits for 'ask' approval before failing (0 or absent = no timeout). */
+  approvalTimeoutSeconds?: number;
 }
 
 /**

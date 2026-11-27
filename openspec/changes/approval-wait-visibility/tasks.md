@@ -22,8 +22,8 @@
 
 ## 5. E2E
 
-- [ ] 5.1 Add E2E tests with `approvalTimeoutSeconds` set to 2 in the test config: an unattended plugin `ask` call returns the timeout error and the dialog disappears; with a second profile simulated by a raw WebSocket (as in `e2e/multi-profile-routing.e2e.ts`), allowing in the real profile delivers `confirmation.cancel { id }` to the simulated one (badge and panel removal are covered by the unit tests in 3.2).
-- [ ] 5.2 Confirm the existing confirmation tests (`e2e/permissions.e2e.ts`, `e2e/security.e2e.ts` disconnect-during-ask cases) pass unchanged with the default of 0. Verify: both files pass.
+- [x] 5.1 Add E2E tests with `approvalTimeoutSeconds` set to 2 in the test config: an unattended plugin `ask` call returns the timeout error and the dialog disappears; with a second profile simulated by a raw WebSocket (as in `e2e/multi-profile-routing.e2e.ts`), allowing in the real profile delivers `confirmation.cancel { id }` to the simulated one (badge and panel removal are covered by the unit tests in 3.2).
+- [x] 5.2 Confirm the existing confirmation tests (`e2e/permissions.e2e.ts`, `e2e/security.e2e.ts` disconnect-during-ask cases) pass unchanged with the default of 0. Verify: both files pass.
 
 ## 6. Docs and verification
 
