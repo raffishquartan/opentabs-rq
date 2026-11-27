@@ -1,6 +1,6 @@
 ## 1. Branch
 
-- [ ] 1.1 Create `f/plugin-open-site-tab` from the tip of `f/approval-wait-visibility` (not from `main`), copy `openspec/changes/plugin-open-site-tab/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base` equals that tip; `openspec validate plugin-open-site-tab` passes on the branch; the privacy grep over the folder has no hits. If the base is later rebased, move this branch with `git rebase --onto <new-base-tip> <old-base-tip> f/plugin-open-site-tab`.
+- [x] 1.1 Create `f/plugin-open-site-tab` from the tip of `f/approval-wait-visibility` (not from `main`), copy `openspec/changes/plugin-open-site-tab/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base` equals that tip; `openspec validate plugin-open-site-tab` passes on the branch; the privacy grep over the folder has no hits. If the base is later rebased, move this branch with `git rebase --onto <new-base-tip> <old-base-tip> f/plugin-open-site-tab`.
 
 ## 2. Shared and extension
 
@@ -28,5 +28,5 @@
 
 - [x] 6.1 Update `platform/mcp-server/CLAUDE.md`, `platform/browser-extension/CLAUDE.md`, `platform/shared` docs if any, root `CLAUDE.md` (tab state and plugin review paragraphs), the docs site config reference, and the "Tab closed" guidance in `platform/mcp-server/src/mcp-setup.ts:283` with the setting, preconditions, skip-permissions exclusion, profile key, not-ready error and the note that background tabs are not grouped.
 - [x] 6.2 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Push the branch to the fork's `origin`; optionally open a PR for review only (never merged into `main`). No version bump: platform versions belong to upstream's release process.
-- [ ] 6.3 After both platform changes have landed on their branches, rebuild `exec-branch` per `CLAUDE.fork.md` with `f/approval-wait-visibility` then `f/plugin-open-site-tab` merged (no screenshot branch is on `exec-branch`); run the six checks there (all exit 0); restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`), reload the extension, and smoke-test a plugin call with no open tab and the setting enabled.
+- [x] 6.3 After both platform changes have landed on their branches, rebuild `exec-branch` per `CLAUDE.fork.md` with `f/approval-wait-visibility` then `f/plugin-open-site-tab` merged (no screenshot branch is on `exec-branch`); run the six checks there (all exit 0); restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`), reload the extension, and smoke-test a plugin call with no open tab and the setting enabled.
 
