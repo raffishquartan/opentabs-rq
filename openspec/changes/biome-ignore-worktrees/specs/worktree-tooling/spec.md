@@ -13,3 +13,10 @@ Lint and format checks run from the primary checkout SHALL ignore the contents o
 #### Scenario: Check from inside a worktree
 - **WHEN** `biome lint .` runs in `.worktrees/<name>`
 - **THEN** it checks that worktree's files and exits 0
+
+### Requirement: Session working files do not break unused-code checks
+The unused-code check (`knip`) SHALL ignore everything under `cc-sessions/`.
+
+#### Scenario: Stub files in a session folder
+- **WHEN** `cc-sessions/<tag>/` contains TypeScript files that nothing imports and `npm run knip` runs
+- **THEN** it exits 0 without reporting them as unused files
