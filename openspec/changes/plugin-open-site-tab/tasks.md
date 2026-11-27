@@ -17,7 +17,7 @@
 
 ## 4. CLI
 
-- [ ] 4.1 Add `handleConfigSet` branches for the three keys (boolean `true`/`false`; non-empty string; positive integer; other values rejected with an error) and add them to the supported keys, `KNOWN_KEYS` and help text in `platform/cli/src/commands/config.ts`. Verify CLI tests: valid values written; invalid values rejected; `config show` displays them; help text lists them.
+- [x] 4.1 Add `handleConfigSet` branches for the three keys (boolean `true`/`false`; non-empty string; positive integer; other values rejected with an error) and add them to the supported keys, `KNOWN_KEYS` and help text in `platform/cli/src/commands/config.ts`. Verify CLI tests: valid values written; invalid values rejected; `config show` displays them; help text lists them.
 
 ## 5. E2E
 

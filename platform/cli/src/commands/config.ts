@@ -188,6 +188,9 @@ const ALLOWED_DIRS_ADD = 'allowedDirectories.add';
 const ALLOWED_DIRS_REMOVE = 'allowedDirectories.remove';
 const PORT_KEY = 'port';
 const APPROVAL_TIMEOUT_KEY = 'approvalTimeoutSeconds';
+const TAB_AUTO_OPEN_KEY = 'pluginTabAutoOpen';
+const TAB_AUTO_OPEN_PROFILE_KEY = 'pluginTabAutoOpenProfile';
+const TAB_AUTO_OPEN_WAIT_KEY = 'pluginTabAutoOpenWaitSeconds';
 
 const SUPPORTED_KEYS = `Supported keys:
   tool-permission.<plugin>.<tool>   Set a per-tool permission (value: off | ask | auto)
@@ -195,6 +198,9 @@ const SUPPORTED_KEYS = `Supported keys:
   setting.<plugin>.<key>            Set a plugin setting (e.g., setting.sqlpad.instanceUrl)
   port                              Set the server port (value: 1-65535)
   approvalTimeoutSeconds            Seconds a plugin tool call waits for approval before failing (value: non-negative integer, 0 = no timeout)
+  pluginTabAutoOpen                 Open a plugin's homepage in a background tab when a permitted call finds no matching tab (value: true | false)
+  pluginTabAutoOpenProfile          connectionId of the browser profile that receives auto-opened tabs when several are connected (value: non-empty string)
+  pluginTabAutoOpenWaitSeconds      Seconds to wait for an auto-opened tab to become ready (value: positive integer, default 15)
   localPlugins.add                  Add a local plugin path (value: absolute or relative path)
   localPlugins.remove               Remove a local plugin path (value: path to remove)
   allowedDirectories.add            Add an allowed directory for local plugins (value: absolute path)
@@ -446,19 +452,53 @@ const handleSetPort = async (value: string, options: { port?: number }): Promise
   }
 };
 
+/** Write one top-level config key, print it, and notify a running server */
+const writeTopLevelConfigKey = async (
+  key: string,
+  value: boolean | string | number,
+  options: { port?: number },
+): Promise<void> => {
+  const { config, configPath } = await loadConfig();
+  config[key] = value;
+  await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
+  console.log(`${key}: ${pc.cyan(String(value))}`);
+  await notifyServer({ port: options.port, warnIfNotRunning: true });
+};
+
 const handleSetApprovalTimeoutSeconds = async (value: string, options: { port?: number }): Promise<void> => {
   if (!/^\d+$/.test(value)) {
     console.error(pc.red(`Invalid ${APPROVAL_TIMEOUT_KEY}: ${value}`));
     console.error('Value must be a non-negative integer number of seconds (0 = no timeout).');
     process.exit(1);
   }
-  const seconds = Number(value);
+  await writeTopLevelConfigKey(APPROVAL_TIMEOUT_KEY, Number(value), options);
+};
 
-  const { config, configPath } = await loadConfig();
-  config[APPROVAL_TIMEOUT_KEY] = seconds;
-  await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
-  console.log(`${APPROVAL_TIMEOUT_KEY}: ${pc.cyan(String(seconds))}`);
-  await notifyServer({ port: options.port, warnIfNotRunning: true });
+const handleSetPluginTabAutoOpen = async (value: string, options: { port?: number }): Promise<void> => {
+  if (value !== 'true' && value !== 'false') {
+    console.error(pc.red(`Invalid ${TAB_AUTO_OPEN_KEY}: ${value}`));
+    console.error('Value must be true or false.');
+    process.exit(1);
+  }
+  await writeTopLevelConfigKey(TAB_AUTO_OPEN_KEY, value === 'true', options);
+};
+
+const handleSetPluginTabAutoOpenProfile = async (value: string, options: { port?: number }): Promise<void> => {
+  if (value.length === 0) {
+    console.error(pc.red(`Invalid ${TAB_AUTO_OPEN_PROFILE_KEY}: value is empty`));
+    console.error('Value must be the connectionId of a connected browser profile (see extension_get_state).');
+    process.exit(1);
+  }
+  await writeTopLevelConfigKey(TAB_AUTO_OPEN_PROFILE_KEY, value, options);
+};
+
+const handleSetPluginTabAutoOpenWaitSeconds = async (value: string, options: { port?: number }): Promise<void> => {
+  if (!/^\d+$/.test(value) || Number(value) === 0) {
+    console.error(pc.red(`Invalid ${TAB_AUTO_OPEN_WAIT_KEY}: ${value}`));
+    console.error('Value must be a positive integer number of seconds.');
+    process.exit(1);
+  }
+  await writeTopLevelConfigKey(TAB_AUTO_OPEN_WAIT_KEY, Number(value), options);
 };
 
 /**
@@ -605,6 +645,9 @@ const KNOWN_KEYS = [
   'setting.',
   PORT_KEY,
   APPROVAL_TIMEOUT_KEY,
+  TAB_AUTO_OPEN_KEY,
+  TAB_AUTO_OPEN_PROFILE_KEY,
+  TAB_AUTO_OPEN_WAIT_KEY,
   LOCAL_PLUGINS_ADD,
   LOCAL_PLUGINS_REMOVE,
   ALLOWED_DIRS_ADD,
@@ -660,6 +703,15 @@ const handleConfigSet = async (
   }
   if (key === APPROVAL_TIMEOUT_KEY) {
     return handleSetApprovalTimeoutSeconds(value, options);
+  }
+  if (key === TAB_AUTO_OPEN_KEY) {
+    return handleSetPluginTabAutoOpen(value, options);
+  }
+  if (key === TAB_AUTO_OPEN_PROFILE_KEY) {
+    return handleSetPluginTabAutoOpenProfile(value, options);
+  }
+  if (key === TAB_AUTO_OPEN_WAIT_KEY) {
+    return handleSetPluginTabAutoOpenWaitSeconds(value, options);
   }
   if (key === LOCAL_PLUGINS_ADD) {
     return handleSetLocalPluginsAdd(value, options);
@@ -826,6 +878,9 @@ Examples:
   $ opentabs config set setting.sqlpad.instanceUrl ''   # remove a setting
   $ opentabs config set port 9515
   $ opentabs config set approvalTimeoutSeconds 120   # 0 disables the approval timeout
+  $ opentabs config set pluginTabAutoOpen true
+  $ opentabs config set pluginTabAutoOpenProfile <connectionId>
+  $ opentabs config set pluginTabAutoOpenWaitSeconds 30
   $ opentabs config set localPlugins.add /path/to/plugin
   $ opentabs config set localPlugins.add /future/path --force
   $ opentabs config set localPlugins.remove /path/to/plugin`,
