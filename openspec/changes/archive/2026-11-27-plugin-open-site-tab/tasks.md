@@ -1,6 +1,6 @@
 ## 1. Branch
 
-- [ ] 1.1 Create `f/plugin-open-site-tab` from the tip of `f/approval-wait-visibility` (not from `main`), copy `openspec/changes/plugin-open-site-tab/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base` equals that tip; `openspec validate plugin-open-site-tab` passes on the branch; the privacy grep over the folder has no hits. If the base is later rebased, move this branch with `git rebase --onto <new-base-tip> <old-base-tip> f/plugin-open-site-tab`.
+- [x] 1.1 Create `f/plugin-open-site-tab` from the tip of `f/approval-wait-visibility` (not from `main`), copy `openspec/changes/plugin-open-site-tab/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base` equals that tip; `openspec validate plugin-open-site-tab` passes on the branch; the privacy grep over the folder has no hits. If the base is later rebased, move this branch with `git rebase --onto <new-base-tip> <old-base-tip> f/plugin-open-site-tab`.
 
 ## 2. Shared and extension
 
