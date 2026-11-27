@@ -58,6 +58,8 @@ const config: KnipConfig = {
     'docs/**',
     'platform/browser-extension/side-panel/**/*.{js,css}',
     'platform/browser-extension/src/dev/*.js',
+    // Per-session working files of the fork's Claude Code workflow; not part of the build.
+    'cc-sessions/**',
   ],
   ignoreExportsUsedInFile: true,
 };
