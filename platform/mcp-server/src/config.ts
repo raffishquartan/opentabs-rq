@@ -57,6 +57,12 @@ interface OpentabsConfig {
   updateCheckIntervalMinutes: number;
   /** Seconds a plugin tool call waits for 'ask' approval before failing (0 = no timeout, default 0) */
   approvalTimeoutSeconds: number;
+  /** Open the plugin's homepage in a background tab when a permitted call finds no matching tab (default false) */
+  pluginTabAutoOpen: boolean;
+  /** Extension connectionId whose browser profile receives auto-opened tabs when several are connected (default unset) */
+  pluginTabAutoOpenProfile?: string;
+  /** Seconds to wait for an auto-opened tab to become ready before failing the call (default 15) */
+  pluginTabAutoOpenWaitSeconds: number;
 }
 
 /** Version marker file for the managed extension install */
@@ -171,6 +177,9 @@ const KNOWN_CONFIG_KEYS = new Set([
   'additionalAllowedDirectories',
   'updateCheckIntervalMinutes',
   'approvalTimeoutSeconds',
+  'pluginTabAutoOpen',
+  'pluginTabAutoOpenProfile',
+  'pluginTabAutoOpenWaitSeconds',
 ]);
 
 /** Compute Levenshtein edit distance between two strings */
@@ -258,6 +267,20 @@ const parseConfigRecord = (record: Record<string, unknown>): OpentabsConfig => {
       ? record.approvalTimeoutSeconds
       : 0;
 
+  const pluginTabAutoOpen = record.pluginTabAutoOpen === true;
+
+  const pluginTabAutoOpenProfile =
+    typeof record.pluginTabAutoOpenProfile === 'string' && record.pluginTabAutoOpenProfile.length > 0
+      ? record.pluginTabAutoOpenProfile
+      : undefined;
+
+  const pluginTabAutoOpenWaitSeconds =
+    typeof record.pluginTabAutoOpenWaitSeconds === 'number' &&
+    Number.isInteger(record.pluginTabAutoOpenWaitSeconds) &&
+    record.pluginTabAutoOpenWaitSeconds > 0
+      ? record.pluginTabAutoOpenWaitSeconds
+      : 15;
+
   return {
     localPlugins,
     localPluginDirs,
@@ -267,6 +290,9 @@ const parseConfigRecord = (record: Record<string, unknown>): OpentabsConfig => {
     version,
     updateCheckIntervalMinutes,
     approvalTimeoutSeconds,
+    pluginTabAutoOpen,
+    ...(pluginTabAutoOpenProfile !== undefined && { pluginTabAutoOpenProfile }),
+    pluginTabAutoOpenWaitSeconds,
   };
 };
 
@@ -300,6 +326,8 @@ const loadConfig = async (): Promise<OpentabsConfig> => {
       version: CURRENT_CONFIG_VERSION,
       updateCheckIntervalMinutes: 30,
       approvalTimeoutSeconds: 0,
+      pluginTabAutoOpen: false,
+      pluginTabAutoOpenWaitSeconds: 15,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(config, null, 2)}\n`);
     log.info(`Created default config at ${configPath}`);
@@ -374,6 +402,11 @@ const savePluginPermissions = async (
       version: current.version,
       updateCheckIntervalMinutes: current.updateCheckIntervalMinutes,
       approvalTimeoutSeconds: current.approvalTimeoutSeconds,
+      pluginTabAutoOpen: current.pluginTabAutoOpen,
+      ...(current.pluginTabAutoOpenProfile !== undefined && {
+        pluginTabAutoOpenProfile: current.pluginTabAutoOpenProfile,
+      }),
+      pluginTabAutoOpenWaitSeconds: current.pluginTabAutoOpenWaitSeconds,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(updated, null, 2)}\n`);
   })();
@@ -418,6 +451,11 @@ const savePluginSettings = async (
       version: current.version,
       updateCheckIntervalMinutes: current.updateCheckIntervalMinutes,
       approvalTimeoutSeconds: current.approvalTimeoutSeconds,
+      pluginTabAutoOpen: current.pluginTabAutoOpen,
+      ...(current.pluginTabAutoOpenProfile !== undefined && {
+        pluginTabAutoOpenProfile: current.pluginTabAutoOpenProfile,
+      }),
+      pluginTabAutoOpenWaitSeconds: current.pluginTabAutoOpenWaitSeconds,
     };
     await atomicWriteConfig(configPath, `${JSON.stringify(updated, null, 2)}\n`);
   })();

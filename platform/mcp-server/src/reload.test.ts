@@ -551,6 +551,35 @@ describe('performConfigReload', () => {
     expect(state.approvalTimeoutSeconds).toBe(0);
   });
 
+  test('copies the pluginTabAutoOpen settings onto state without restart', async () => {
+    expect(state.pluginTabAutoOpen).toBe(false);
+    expect(state.pluginTabAutoOpenProfile).toBeUndefined();
+    expect(state.pluginTabAutoOpenWaitSeconds).toBe(15);
+    writeFileSync(
+      join(configDir, 'config.json'),
+      JSON.stringify({
+        localPlugins: [],
+        permissions: {},
+        pluginTabAutoOpen: true,
+        pluginTabAutoOpenProfile: 'profile-a',
+        pluginTabAutoOpenWaitSeconds: 25,
+      }),
+    );
+
+    await performConfigReload(state, [], emptyTransports());
+
+    expect(state.pluginTabAutoOpen).toBe(true);
+    expect(state.pluginTabAutoOpenProfile).toBe('profile-a');
+    expect(state.pluginTabAutoOpenWaitSeconds).toBe(25);
+
+    writeConfig(configDir);
+    await performConfigReload(state, [], emptyTransports());
+
+    expect(state.pluginTabAutoOpen).toBe(false);
+    expect(state.pluginTabAutoOpenProfile).toBeUndefined();
+    expect(state.pluginTabAutoOpenWaitSeconds).toBe(15);
+  });
+
   test('returns plugin count and duration', async () => {
     const pluginDir = createPluginDir(configDir, 'my-plugin');
     writeConfig(configDir, [pluginDir]);
