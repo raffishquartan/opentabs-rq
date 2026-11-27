@@ -27,7 +27,7 @@
 
 ## 6. Docs and verification
 
-- [ ] 6.1 Update `platform/mcp-server/CLAUDE.md` (heartbeat, timeout key, timeout error, "applies on config reload", and correct the stale "production mode has no config watching" statement), `platform/browser-extension/CLAUDE.md`, root `CLAUDE.md` (permission model paragraph), the docs site config reference, and the MCP instructions "Error Handling" block in `platform/mcp-server/src/mcp-setup.ts`.
+- [x] 6.1 Update `platform/mcp-server/CLAUDE.md` (heartbeat, timeout key, timeout error, "applies on config reload", and correct the stale "production mode has no config watching" statement), `platform/browser-extension/CLAUDE.md`, root `CLAUDE.md` (permission model paragraph), the docs site config reference, and the MCP instructions "Error Handling" block in `platform/mcp-server/src/mcp-setup.ts`.
 - [ ] 6.2 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Push the branch to the fork's `origin`; optionally open a PR for review only (never merged into `main`). No version bump: platform versions belong to upstream's release process.
 - [ ] 6.3 Rebuild `exec-branch` per `CLAUDE.fork.md` with this branch merged (no screenshot branch is on `exec-branch`); run the six checks there (all exit 0); restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`), reload the extension, and smoke-test one `ask` plugin call showing heartbeats.
 
