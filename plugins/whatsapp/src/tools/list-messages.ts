@@ -1,6 +1,11 @@
 import { defineTool } from '@opentabs-dev/plugin-sdk';
 import { z } from 'zod';
-import { findChatByIdOrThrow, loadMessages, serializeMessage } from '../whatsapp-api.js';
+import {
+  findChatByIdOrThrow,
+  getMessageSerializationContext,
+  loadMessages,
+  serializeMessage,
+} from '../whatsapp-api.js';
 import { messageSchema } from './schemas.js';
 
 export const listMessages = defineTool({
@@ -30,8 +35,9 @@ export const listMessages = defineTool({
     const msgs = await loadMessages(chat);
     const limit = params.limit ?? 20;
     const recent = msgs.slice(-limit);
+    const context = getMessageSerializationContext();
     return {
-      messages: recent.map(serializeMessage),
+      messages: recent.map(m => serializeMessage(m, context)),
       total_loaded: msgs.length,
     };
   },

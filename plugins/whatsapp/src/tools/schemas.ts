@@ -29,13 +29,24 @@ export const messageSchema = z.object({
   id: z.string().describe('Message ID'),
   from_me: z.boolean().describe('Whether the message was sent by the current user'),
   type: z.string().describe('Message type (e.g., "chat", "image", "video", "ptt", "document")'),
-  body: z.string().describe('Message text content'),
-  timestamp: z.number().int().describe('Message timestamp (Unix seconds)'),
+  text: z
+    .string()
+    .describe('Message text: the body of a text message, the caption of an image, video or document, otherwise empty'),
+  media_type: z
+    .string()
+    .nullable()
+    .describe('Raw WhatsApp media type (e.g., "image", "ptt" for a voice note, "sticker"); null for text messages'),
+  timestamp: z.number().int().describe('Message timestamp (Unix seconds, UTC)'),
+  timestamp_local: z
+    .string()
+    .describe('Message time in Europe/London as ISO 8601 with offset (e.g., "2026-07-01T12:00:00+01:00")'),
   ack: z.number().int().describe('Delivery status (0=pending, 1=sent, 2=delivered, 3=read)'),
   starred: z.boolean().describe('Whether the message is starred'),
   from: z.string().describe('Sender ID'),
   to: z.string().describe('Recipient ID'),
   author: z.string().describe('Author ID (relevant in group chats)'),
+  sender: z.string().describe('Sender ID: the author in groups, the other party for incoming 1:1, the user for own'),
+  sender_name: z.string().describe('Sender name: saved contact name, else self-declared name, else short name'),
   is_forwarded: z.boolean().describe('Whether the message was forwarded'),
   has_media: z.boolean().describe('Whether the message contains media'),
   quoted_message_id: z.string().describe('ID of the quoted message, if any'),

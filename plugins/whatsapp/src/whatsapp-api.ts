@@ -28,7 +28,7 @@ interface WidLike {
   user: string;
 }
 
-interface WAChatModel {
+export interface WAChatModel {
   id: WidLike;
   name: string;
   formattedTitle: string;
@@ -63,21 +63,28 @@ interface WAGroupParticipant {
   isSuperAdmin: boolean;
 }
 
-interface WAMsgModel {
+export interface WAMsgModel {
   id: { _serialized: string; fromMe: boolean };
+  /** Message text for `chat` messages; a base64 thumbnail for media messages. */
   body: string;
+  /** Media caption, separate from `body`; present on captioned image, video and document messages. */
+  caption?: string;
+  /** Raw WhatsApp message type, e.g. 'chat', 'image', 'video', 'album', 'document', 'revoked', 'ptt', 'sticker', 'location'. */
   type: string;
+  /** Unix seconds. */
   t: number;
   ack: number;
   star: boolean;
   from: WidLike | null;
   to: WidLike | null;
-  author: WidLike | null;
+  /** Individual sender of a group message. */
+  author?: WidLike | null;
   isMedia: boolean;
   mediaKey?: string;
   isForwarded: boolean;
   quotedStanzaID?: string;
   quotedMsg?: { body?: string };
+  /** Sender's self-declared push name as carried on the message; may be empty. */
   notifyName?: string;
 }
 
@@ -85,7 +92,7 @@ interface WAMsgCollection {
   getModelsArray: () => WAMsgModel[];
 }
 
-interface WAContactModel {
+export interface WAContactModel {
   id: WidLike;
   name: string;
   shortName: string;
@@ -218,33 +225,98 @@ export interface SerializedMessage {
   id: string;
   from_me: boolean;
   type: string;
-  body: string;
+  text: string;
+  media_type: string | null;
   timestamp: number;
+  timestamp_local: string;
   ack: number;
   starred: boolean;
   from: string;
   to: string;
   author: string;
+  sender: string;
+  sender_name: string;
   is_forwarded: boolean;
   has_media: boolean;
   quoted_message_id: string;
 }
 
-export const serializeMessage = (m: WAMsgModel): SerializedMessage => ({
-  id: m.id?._serialized ?? '',
-  from_me: m.id?.fromMe ?? false,
-  type: m.type ?? '',
-  body: m.body ?? '',
-  timestamp: m.t ?? 0,
-  ack: m.ack ?? 0,
-  starred: m.star ?? false,
-  from: m.from?._serialized ?? '',
-  to: m.to?._serialized ?? '',
-  author: m.author?._serialized ?? '',
-  is_forwarded: m.isForwarded ?? false,
-  has_media: m.isMedia ?? !!m.mediaKey,
-  quoted_message_id: m.quotedStanzaID ?? '',
+const LONDON_TIME_PARTS = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
 });
+
+/** Formats a Unix timestamp as ISO 8601 local time in Europe/London with its numeric UTC offset. */
+export const formatLondonTimestamp = (unixSeconds: number): string => {
+  const parts = Object.fromEntries(
+    LONDON_TIME_PARTS.formatToParts(new Date(unixSeconds * 1000)).map(part => [part.type, part.value]),
+  );
+  const { year, month, day, hour, minute, second } = parts;
+  const localAsUtcMs = Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second),
+  );
+  const offsetMinutes = Math.round((localAsUtcMs - unixSeconds * 1000) / 60000);
+  const sign = offsetMinutes < 0 ? '-' : '+';
+  const offsetHours = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, '0');
+  const offsetRemainder = String(Math.abs(offsetMinutes) % 60).padStart(2, '0');
+  return `${year}-${month}-${day}T${hour}:${minute}:${second}${sign}${offsetHours}:${offsetRemainder}`;
+};
+
+/** Message types whose `caption` field holds user-written text. */
+const CAPTIONED_TYPES = new Set(['image', 'video', 'document']);
+
+/** User-visible text: the body of a text message, the caption of a captioned media message, otherwise empty. */
+const messageText = (m: WAMsgModel): string => {
+  if (m.type === 'chat') return m.body;
+  if (CAPTIONED_TYPES.has(m.type)) return m.caption ?? '';
+  return '';
+};
+
+type ContactNames = Pick<WAContactModel, 'name' | 'pushname' | 'shortName'>;
+
+/** Saved contact name, else the contact's push name, else the push name on the message, else the short name. */
+export const resolveSenderName = (contact: ContactNames | undefined, notifyName: string | undefined): string =>
+  contact?.name || contact?.pushname || notifyName || contact?.shortName || '';
+
+export interface MessageSerializationContext {
+  /** Serialized id of the current user, the sender of every `fromMe` message. */
+  ownId: string;
+  findContact: (id: string) => ContactNames | undefined;
+}
+
+export const serializeMessage = (m: WAMsgModel, context: MessageSerializationContext): SerializedMessage => {
+  const sender = m.id.fromMe ? context.ownId : (m.author?._serialized ?? m.from?._serialized ?? '');
+  return {
+    id: m.id?._serialized ?? '',
+    from_me: m.id?.fromMe ?? false,
+    type: m.type ?? '',
+    text: messageText(m),
+    media_type: m.type === 'chat' ? null : m.type,
+    timestamp: m.t ?? 0,
+    timestamp_local: formatLondonTimestamp(m.t),
+    ack: m.ack ?? 0,
+    starred: m.star ?? false,
+    from: m.from?._serialized ?? '',
+    to: m.to?._serialized ?? '',
+    author: m.author?._serialized ?? '',
+    sender,
+    sender_name: resolveSenderName(context.findContact(sender), m.notifyName),
+    is_forwarded: m.isForwarded ?? false,
+    has_media: m.isMedia ?? !!m.mediaKey,
+    quoted_message_id: m.quotedStanzaID ?? '',
+  };
+};
 
 export interface SerializedContact {
   id: string;
@@ -265,6 +337,14 @@ export const serializeContact = (c: WAContactModel): SerializedContact => ({
   is_me: c.isMe ?? false,
   type: c.type ?? '',
 });
+
+/** Builds the serialization context from the live current-user and contact modules. */
+export const getMessageSerializationContext = (): MessageSerializationContext => {
+  const ownId = getMeUser().pn;
+  if (!ownId) throw ToolError.internal('Current user id not available');
+  const contacts = new Map((getContactCollection()?.getModelsArray() ?? []).map(c => [c.id._serialized, c]));
+  return { ownId, findContact: id => contacts.get(id) };
+};
 
 // ---------------------------------------------------------------------------
 // Message loading
