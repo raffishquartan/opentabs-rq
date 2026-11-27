@@ -239,6 +239,51 @@ export interface PendingConfirmation {
   timerId?: ReturnType<typeof setTimeout>;
 }
 
+/** Outcome of provisioning a plugin tab automatically for one tool call */
+export type PluginTabProvisionOutcome =
+  /** The tab became ready; retry the call in it */
+  | { kind: 'ready'; tabId: number }
+  /** The tab exists but the plugin is not ready in it (wait expired, or it left the plugin's URL patterns) */
+  | { kind: 'not_ready'; tabId: number }
+  /** No usable tab: the opened tab was closed, or a new open is blocked by the cooldown */
+  | { kind: 'closed' };
+
+/** Whether a provisioning run has started opening a tab, and the calls to tell when it does */
+export interface PluginTabOpeningSignal {
+  /** True once a tab is being opened (as opposed to a remembered tab being probed) */
+  started: boolean;
+  /** Callbacks of the calls sharing the run, run when the open starts (each sends that call's progress notice) */
+  listeners: Array<() => void>;
+}
+
+/** An open (or the decision whether to open) shared by every concurrent call for one plugin and profile */
+export interface PluginTabProvisionInFlight {
+  promise: Promise<PluginTabProvisionOutcome>;
+  opening: PluginTabOpeningSignal;
+}
+
+/** A call waiting for an auto-opened plugin tab to report ready */
+export interface PluginTabReadyWaiter {
+  connectionId: string;
+  /** Re-evaluate against the connection's current tab mapping */
+  check: (conn: ExtensionConnection) => void;
+}
+
+/**
+ * Bookkeeping for plugin tab auto-open. Map keys combine the plugin name and
+ * the extension connectionId, because Chrome tab ids are per browser profile.
+ */
+export interface PluginTabAutoOpenRuntime {
+  /** In-flight provisioning per (plugin, connection), shared by concurrent calls */
+  inFlight: Map<string, PluginTabProvisionInFlight>;
+  /** Last auto-opened tab per (plugin, connection), remembered while the tab exists */
+  openedTabs: Map<string, { connectionId: string; tabId: number }>;
+  /** Timestamp (ms) of the last auto-open per (plugin, connection), for the cooldown */
+  lastOpenTs: Map<string, number>;
+  /** Calls waiting for an opened tab to become ready, re-checked on tab.syncAll and tab.stateChanged */
+  readyWaiters: Set<PluginTabReadyWaiter>;
+}
+
 /** Record of a single tool invocation for audit logging */
 export interface AuditEntry {
   /** ISO 8601 timestamp of the invocation */
@@ -331,6 +376,8 @@ export interface ServerState {
   pluginTabAutoOpenProfile: string | undefined;
   /** Seconds to wait for an auto-opened tab to become ready (from config, default 15) */
   pluginTabAutoOpenWaitSeconds: number;
+  /** In-flight opens, remembered tabs, cooldowns and readiness waiters for plugin tab auto-open */
+  pluginTabAutoOpenRuntime: PluginTabAutoOpenRuntime;
   /** Timestamp (ms since epoch) when the server process first started — survives hot reloads */
   startedAt: number;
   /** Discovery errors from the most recent reload — used by config.getState for the side panel */
@@ -422,6 +469,12 @@ export const createState = (): ServerState => ({
   pluginTabAutoOpen: false,
   pluginTabAutoOpenProfile: undefined,
   pluginTabAutoOpenWaitSeconds: 15,
+  pluginTabAutoOpenRuntime: {
+    inFlight: new Map(),
+    openedTabs: new Map(),
+    lastOpenTs: new Map(),
+    readyWaiters: new Set(),
+  },
   startedAt: Date.now(),
   discoveryErrors: [],
   auditLog: [],
