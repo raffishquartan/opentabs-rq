@@ -81,6 +81,7 @@ const {
   mockHandleExtensionCheckAdapter,
   mockHandleExtensionForceReconnect,
   mockNotifyConfirmationRequest,
+  mockClearConfirmationBadge,
   mockUpdateServerStateCache,
   mockGetServerStateCache,
   mockSendTabSyncAll,
@@ -273,6 +274,7 @@ const {
     ),
     mockHandleExtensionForceReconnect: vi.fn(asyncNoop as (id: string | number) => Promise<void>),
     mockNotifyConfirmationRequest: vi.fn<(params: Record<string, unknown>) => void>(),
+    mockClearConfirmationBadge: vi.fn<(id?: string) => void>(),
     mockUpdateServerStateCache: vi.fn<(partial: Record<string, unknown>) => void>(),
     mockGetServerStateCache: vi.fn(
       () =>
@@ -304,6 +306,7 @@ vi.mock('./server-state-cache.js', () => ({
 
 vi.mock('./confirmation-badge.js', () => ({
   notifyConfirmationRequest: mockNotifyConfirmationRequest,
+  clearConfirmationBadge: mockClearConfirmationBadge,
 }));
 
 vi.mock('./messaging.js', () => ({
@@ -803,6 +806,8 @@ describe('validatePluginPayload', () => {
 /** Reset routing-related mocks between tests */
 const resetRoutingMocks = (): void => {
   mockSendToServer.mockReset();
+  mockNotifyConfirmationRequest.mockReset();
+  mockClearConfirmationBadge.mockReset();
   mockForwardToSidePanel.mockReset();
   mockHandleToolDispatch.mockReset();
   mockHandleBrowserListTabs.mockReset();
@@ -1801,6 +1806,42 @@ describe('handleServerMessage', () => {
       handleServerMessage({ method: 'unknown.notification' });
 
       expect(mockSendToServer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('confirmation routing', () => {
+    test('confirmation.request is forwarded to the side panel and raises the badge', () => {
+      const message = {
+        method: 'confirmation.request',
+        params: { id: 'conf-1', tool: 'send_message', plugin: 'slack', params: {} },
+      };
+
+      handleServerMessage(message);
+
+      expect(mockForwardToSidePanel).toHaveBeenCalledWith({ type: 'sp:serverMessage', data: message });
+      expect(mockNotifyConfirmationRequest).toHaveBeenCalledWith(message.params);
+    });
+
+    test('confirmation.cancel is forwarded to the side panel and clears the badge for that id', () => {
+      const message = { jsonrpc: '2.0', method: 'confirmation.cancel', params: { id: 'conf-1' } };
+
+      handleServerMessage(message);
+
+      expect(mockForwardToSidePanel).toHaveBeenCalledWith({ type: 'sp:serverMessage', data: message });
+      expect(mockClearConfirmationBadge).toHaveBeenCalledWith('conf-1');
+      expect(mockNotifyConfirmationRequest).not.toHaveBeenCalled();
+    });
+
+    test('confirmation.cancel sends nothing to the server, so no decision or permission is recorded', () => {
+      handleServerMessage({ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id: 'conf-1' } });
+
+      expect(mockSendToServer).not.toHaveBeenCalled();
+    });
+
+    test('confirmation.cancel without a string id leaves the badge alone', () => {
+      handleServerMessage({ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id: 42 } });
+
+      expect(mockClearConfirmationBadge).not.toHaveBeenCalled();
     });
   });
 

@@ -13,8 +13,8 @@
 
 ## 3. Extension
 
-- [ ] 3.1 Add `confirmation.cancel` to `PASSTHROUGH_METHODS` (`known-methods.ts`) and `SIDE_PANEL_METHODS` (`message-router.ts`). Verify: the known-methods invariant test passes and a new test shows the method reaches the side panel.
-- [ ] 3.2 In `message-router.ts`, next to the `confirmation.request` handling, call `clearConfirmationBadge(params.id)` on `confirmation.cancel`; in `side-panel/hooks/useServerNotifications.ts`, remove the prompt. Verify unit tests: badge cleared, id removed from the `pendingConfirmations` map, prompt removed, prompt not re-hydrated on panel reopen, no permission persisted.
+- [x] 3.1 Add `confirmation.cancel` to `PASSTHROUGH_METHODS` (`known-methods.ts`) and `SIDE_PANEL_METHODS` (`message-router.ts`). Verify: the known-methods invariant test passes and a new test shows the method reaches the side panel.
+- [x] 3.2 In `message-router.ts`, next to the `confirmation.request` handling, call `clearConfirmationBadge(params.id)` on `confirmation.cancel`; in `side-panel/hooks/useServerNotifications.ts`, remove the prompt. Verify unit tests: badge cleared, id removed from the `pendingConfirmations` map, prompt removed, prompt not re-hydrated on panel reopen, no permission persisted.
 
 ## 4. CLI
 
