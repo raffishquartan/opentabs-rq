@@ -22,7 +22,7 @@
 
 ## 5. Docs and verification
 
-- [ ] 5.1 Update the "Rate Limiting" section of `docs/content/docs/reference/mcp-server.mdx` (MCP session creation returns `503` with a computed `Retry-After`; only `initialize` counts; administrative endpoints unchanged) and `platform/mcp-server/CLAUDE.md` if it describes the limit. Verify: `npm run build:docs` succeeds.
+- [x] 5.1 Update the "Rate Limiting" section of `docs/content/docs/reference/mcp-server.mdx` (MCP session creation returns `503` with a computed `Retry-After`; only `initialize` counts; administrative endpoints unchanged) and `platform/mcp-server/CLAUDE.md` if it describes the limit. Verify: `npm run build:docs` succeeds.
 - [ ] 5.2 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Push the branch to the fork's `origin`; optionally open a PR for review only (never merged into `main`). No version bump: platform versions belong to upstream's release process.
 - [ ] 5.3 Rebuild `exec-branch` per `CLAUDE.fork.md` with this branch merged after `f/plugin-open-site-tab`; run the six checks there (all exit 0); push after user confirmation; restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`) and reload the extension.
 - [ ] 5.4 Smoke test on the live server: send more than 5 `initialize` POSTs within a minute (bearer-authenticated script) and confirm the extra ones receive `503` with `Retry-After`, then start a Claude Code session during the busy window and confirm OpenTabs connects once a slot frees without the user typing `/mcp`. Verify: results appended to `findings.md`.

@@ -574,7 +574,9 @@ The server rejects all HTTP requests with a browser `Origin` header, except thos
 
 ## Rate Limiting
 
-Admin endpoints (`/reload`, `/extension/reload`) are rate-limited to 10 requests/minute. MCP session creation (`/mcp` initialize requests) is rate-limited to 5 per minute. Exceeding the limit returns HTTP 429 with `Retry-After: 60`.
+MCP session creation is limited to 5 `initialize` requests per rolling minute, counted separately for `/mcp` and `/mcp/gateway`. Only `initialize` requests count: a POST with an unknown session ID always receives `404 Session not found` and any other POST without a session always receives `400`, whatever the window holds. Over the limit, the server answers HTTP 503 with a JSON-RPC error body (`code: -32000`, `id: null`) and a `Retry-After` header giving the whole seconds, rounded up and at least 1, until the oldest counted request leaves the window. The status is 503 rather than 429 because MCP clients such as Claude Code treat a 429 on `initialize` as permanent and drop the server until it is reconnected by hand, while they retry 5xx responses automatically.
+
+The administrative endpoints keep HTTP 429 with `Retry-After: 60`: `POST /tools/:name/call` is limited to 30 requests per minute, and `POST /extension/reload` and `POST /plugin-settings` to 10 per minute each.
 
 ---
 
