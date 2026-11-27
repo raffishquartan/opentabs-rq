@@ -1,7 +1,7 @@
 ## 1. Branch and baseline
 
 - [x] 1.1 Create `f/approval-wait-visibility` from the synced `main` (v0.0.115), copy `openspec/changes/approval-wait-visibility/` from the holding folder and commit it as the branch's first commit. Verify: `git merge-base f/approval-wait-visibility main` equals `main`; `openspec validate approval-wait-visibility` passes on the branch; the privacy grep over the folder has no hits.
-- [ ] 1.2 Set an `e2e-test` or other test plugin tool to `ask`, call it from Claude Code without answering, and record: whether the client gives up and after how long, its `MCP_TOOL_TIMEOUT` value, and whether progress notifications reset its request timeout. Verify: findings recorded in the PR description (no personal data).
+- [x] 1.2 Set an `e2e-test` or other test plugin tool to `ask`, call it from Claude Code without answering, and record: whether the client gives up and after how long, its `MCP_TOOL_TIMEOUT` value, and whether progress notifications reset its request timeout. Verify: findings recorded in the PR description (no personal data).
 
 ## 2. Server
 
@@ -28,6 +28,6 @@
 ## 6. Docs and verification
 
 - [x] 6.1 Update `platform/mcp-server/CLAUDE.md` (heartbeat, timeout key, timeout error, "applies on config reload", and correct the stale "production mode has no config watching" statement), `platform/browser-extension/CLAUDE.md`, root `CLAUDE.md` (permission model paragraph), the docs site config reference, and the MCP instructions "Error Handling" block in `platform/mcp-server/src/mcp-setup.ts`.
-- [ ] 6.2 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Push the branch to the fork's `origin`; optionally open a PR for review only (never merged into `main`). No version bump: platform versions belong to upstream's release process.
-- [ ] 6.3 Rebuild `exec-branch` per `CLAUDE.fork.md` with this branch merged (no screenshot branch is on `exec-branch`); run the six checks there (all exit 0); restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`), reload the extension, and smoke-test one `ask` plugin call showing heartbeats.
+- [x] 6.2 On the branch, run `npm run build`, `npm run type-check`, `npm run lint`, `npm run knip`, `npm run test`, `npm run test:e2e` from the repo root; all exit 0. Push the branch to the fork's `origin`; optionally open a PR for review only (never merged into `main`). No version bump: platform versions belong to upstream's release process.
+- [x] 6.3 Rebuild `exec-branch` per `CLAUDE.fork.md` with this branch merged (no screenshot branch is on `exec-branch`); run the six checks there (all exit 0); restart the server by hand (`node <primary-checkout>/platform/cli/dist/cli.js stop`, then `start --background`), reload the extension, and smoke-test one `ask` plugin call showing heartbeats.
 
