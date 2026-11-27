@@ -29,7 +29,7 @@ import {
  */
 const textPart = (result: ToolCallResult, idx = 0): { type: 'text'; text: string } => {
   const part = result.content[idx];
-  if (!part || part.type !== 'text') {
+  if (part?.type !== 'text') {
     throw new Error(`Expected text content part at index ${idx}, got: ${JSON.stringify(part)}`);
   }
   return part;
