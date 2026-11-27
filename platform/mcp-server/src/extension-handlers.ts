@@ -37,7 +37,7 @@ import {
   updatePlugin,
 } from './plugin-management.js';
 import { resolvePluginSettings } from './settings-resolver.js';
-import type { ExtensionConnection, RegisteredPlugin, ServerState, TabMapping } from './state.js';
+import type { ConfirmationDecision, ExtensionConnection, RegisteredPlugin, ServerState, TabMapping } from './state.js';
 import {
   DISPATCH_TIMEOUT_MS,
   getConfiguredToolPermission,
@@ -856,9 +856,35 @@ const handlePluginLog = (params: Record<string, unknown> | undefined, callbacks:
 
 // --- Confirmation handler ---
 
+/** How a pending confirmation settles: with the user's decision, or with an error */
+type ConfirmationOutcome = { decision: ConfirmationDecision } | { error: Error };
+
+/**
+ * Settle a pending confirmation: clear its timeout timer, remove it from state,
+ * withdraw the prompt from every connected profile via `confirmation.cancel`,
+ * then resolve or reject the waiting promise. Every settlement path (user
+ * decision, timeout, disconnect) goes through here, so the first settlement
+ * wins and any later one for the same id is a no-op.
+ */
+const settlePendingConfirmation = (state: ServerState, id: string, outcome: ConfirmationOutcome): void => {
+  const pending = state.pendingConfirmations.get(id);
+  if (!pending) return;
+
+  clearTimeout(pending.timerId);
+  state.pendingConfirmations.delete(id);
+  sendToExtension(state, { jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } });
+
+  if ('decision' in outcome) {
+    pending.resolve(outcome.decision);
+  } else {
+    pending.reject(outcome.error);
+  }
+};
+
 /**
  * Handle a confirmation.response from the extension.
- * Resolves the pending confirmation promise with the user's decision ('allow' or 'deny').
+ * Settles the pending confirmation with the user's decision ('allow' or 'deny').
+ * A response for an id that is no longer pending is ignored.
  */
 const handleConfirmationResponse = (state: ServerState, params: Record<string, unknown> | undefined): void => {
   if (!params) return;
@@ -869,23 +895,17 @@ const handleConfirmationResponse = (state: ServerState, params: Record<string, u
   const decision = params.decision;
   if (decision !== 'allow' && decision !== 'deny') return;
 
-  const pending = state.pendingConfirmations.get(id);
-  if (!pending) return;
-
-  const alwaysAllow = params.alwaysAllow === true;
-
-  state.pendingConfirmations.delete(id);
-  pending.resolve({ action: decision, alwaysAllow });
+  settlePendingConfirmation(state, id, { decision: { action: decision, alwaysAllow: params.alwaysAllow === true } });
 };
 
 /**
- * Reject all pending confirmations. Called when the extension disconnects
- * to clean up any confirmation promises that can no longer be fulfilled.
+ * Reject all pending confirmations. Called when the last extension connection
+ * drops and at shutdown, to settle confirmation promises that can no longer be
+ * fulfilled.
  */
 const rejectAllPendingConfirmations = (state: ServerState): void => {
-  for (const [id, pending] of state.pendingConfirmations) {
-    pending.reject(new Error('Extension disconnected — confirmation cancelled'));
-    state.pendingConfirmations.delete(id);
+  for (const id of [...state.pendingConfirmations.keys()]) {
+    settlePendingConfirmation(state, id, { error: new Error('Extension disconnected — confirmation cancelled') });
   }
 };
 
@@ -1226,5 +1246,6 @@ export {
   sendToConnection,
   sendToExtension,
   serializePluginForExtension,
+  settlePendingConfirmation,
   VALID_LOG_LEVELS,
 };

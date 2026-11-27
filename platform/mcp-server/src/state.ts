@@ -235,6 +235,8 @@ export interface PendingConfirmation {
   tool: string;
   plugin: string;
   params: Record<string, unknown>;
+  /** Approval timeout timer; present only when the request was sent with a non-zero timeout */
+  timerId?: ReturnType<typeof setTimeout>;
 }
 
 /** Record of a single tool invocation for audit logging */
@@ -321,6 +323,8 @@ export interface ServerState {
   versionCheckTimerId: ReturnType<typeof setInterval> | null;
   /** Minutes between npm update checks (from config, default 30, 0 = disabled) */
   updateCheckIntervalMinutes: number;
+  /** Seconds a plugin tool call waits for 'ask' approval before failing (from config, default 0 = no timeout) */
+  approvalTimeoutSeconds: number;
   /** Timestamp (ms since epoch) when the server process first started — survives hot reloads */
   startedAt: number;
   /** Discovery errors from the most recent reload — used by config.getState for the side panel */
@@ -408,6 +412,7 @@ export const createState = (): ServerState => ({
   sweepTimerId: null,
   versionCheckTimerId: null,
   updateCheckIntervalMinutes: 30,
+  approvalTimeoutSeconds: 0,
   startedAt: Date.now(),
   discoveryErrors: [],
   auditLog: [],

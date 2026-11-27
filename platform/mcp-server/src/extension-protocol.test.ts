@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { WsHandle } from '@opentabs-dev/shared';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import {
+  ApprovalTimeoutError,
   dispatchToAllConnections,
   dispatchToExtension,
   handleExtensionMessage,
@@ -3278,7 +3279,7 @@ describe('sendConfirmationRequest', () => {
     expect(state.pendingConfirmations.size).toBe(0);
   });
 
-  test('hangs indefinitely until resolved (no timeout)', async () => {
+  test('hangs indefinitely until resolved when no timeout is given', async () => {
     const state = createState();
     const ws = createMockWs();
     state.extensionConnections.set('test-conn', {
@@ -3294,7 +3295,7 @@ describe('sendConfirmationRequest', () => {
     // The promise is pending with no timeout — the pending confirmation stays in the map
     expect(state.pendingConfirmations.size).toBe(1);
 
-    // Verify no timerId on the pending confirmation (simplified PendingConfirmation has no timerId)
+    // No timeout requested, so no timer is attached to the pending confirmation
     const pendingEntry = [...state.pendingConfirmations.values()][0];
     expect(pendingEntry).toBeDefined();
     expect('timerId' in (pendingEntry as unknown as Record<string, unknown>)).toBe(false);
@@ -3493,6 +3494,145 @@ const createMockConnection = (id: string): { conn: ExtensionConnection; ws: WsHa
   };
   return { conn, ws };
 };
+
+describe('sendConfirmationRequest — approval timeout and withdrawal', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Methods and params of every message a mock ws has received, parsed */
+  const messagesOf = (ws: { sent: string[] }) =>
+    ws.sent.map(raw => JSON.parse(raw) as { method?: string; params?: Record<string, unknown> });
+
+  const cancelsOf = (ws: { sent: string[] }) => messagesOf(ws).filter(m => m.method === 'confirmation.cancel');
+
+  /** State with two connected profiles and one pending confirmation */
+  const setup = (timeoutMs?: number) => {
+    const state = createState();
+    const { conn: connA, ws: wsA } = createMockConnection('conn-a');
+    const { conn: connB, ws: wsB } = createMockConnection('conn-b');
+    state.extensionConnections.set('conn-a', connA);
+    state.extensionConnections.set('conn-b', connB);
+    const promise =
+      timeoutMs === undefined
+        ? sendConfirmationRequest(state, 'send_message', 'slack', {})
+        : sendConfirmationRequest(state, 'send_message', 'slack', {}, { timeoutMs });
+    const id = (messagesOf(wsA)[0]?.params as { id: string }).id;
+    return { state, wsA, wsB, promise, id };
+  };
+
+  const respond = (state: ReturnType<typeof createState>, id: string, decision: 'allow' | 'deny') => {
+    handleExtensionMessage(
+      state,
+      JSON.stringify({ jsonrpc: '2.0', method: 'confirmation.response', params: { id, decision } }),
+      noopCallbacks,
+    );
+  };
+
+  test('rejects with ApprovalTimeoutError when no decision arrives within the timeout', async () => {
+    const { state, promise } = setup(2000);
+    const assertion = expect(promise).rejects.toBeInstanceOf(ApprovalTimeoutError);
+
+    vi.advanceTimersByTime(1999);
+    expect(state.pendingConfirmations.size).toBe(1);
+    vi.advanceTimersByTime(1);
+
+    await assertion;
+    expect(state.pendingConfirmations.size).toBe(0);
+  });
+
+  test('a decision before the timeout clears the timer', async () => {
+    const { state, promise, id } = setup(2000);
+
+    respond(state, id, 'allow');
+
+    await expect(promise).resolves.toEqual({ action: 'allow', alwaysAllow: false });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test('a disconnect clears the timer and rejects with the disconnect error', async () => {
+    const { state, promise } = setup(2000);
+
+    rejectAllPendingConfirmations(state);
+
+    await expect(promise).rejects.toThrow('Extension disconnected');
+    await expect(promise).rejects.not.toBeInstanceOf(ApprovalTimeoutError);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  test('a timeout of 0 sets no timer', async () => {
+    const { state, promise, id } = setup(0);
+
+    expect(vi.getTimerCount()).toBe(0);
+    expect('timerId' in (state.pendingConfirmations.get(id) as object)).toBe(false);
+
+    respond(state, id, 'allow');
+    await promise;
+  });
+
+  test.each(['allow', 'deny'] as const)('broadcasts confirmation.cancel to every profile on %s', async decision => {
+    const { state, wsA, wsB, promise, id } = setup(2000);
+
+    respond(state, id, decision);
+    await promise;
+
+    expect(cancelsOf(wsA)).toEqual([{ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } }]);
+    expect(cancelsOf(wsB)).toEqual([{ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } }]);
+  });
+
+  test('broadcasts confirmation.cancel to every profile on timeout', async () => {
+    const { wsA, wsB, promise, id } = setup(2000);
+    const assertion = expect(promise).rejects.toBeInstanceOf(ApprovalTimeoutError);
+
+    vi.advanceTimersByTime(2000);
+    await assertion;
+
+    expect(cancelsOf(wsA)).toEqual([{ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } }]);
+    expect(cancelsOf(wsB)).toEqual([{ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } }]);
+  });
+
+  test('broadcasts confirmation.cancel to remaining connections when all pending confirmations are rejected', async () => {
+    const { state, wsA, promise, id } = setup();
+
+    rejectAllPendingConfirmations(state);
+    await expect(promise).rejects.toThrow('Extension disconnected');
+
+    expect(cancelsOf(wsA)).toEqual([{ jsonrpc: '2.0', method: 'confirmation.cancel', params: { id } }]);
+  });
+
+  test('nothing is sent after settlement', async () => {
+    const { state, wsA, wsB, promise, id } = setup(2000);
+
+    respond(state, id, 'allow');
+    await promise;
+    const sentA = wsA.sent.length;
+    const sentB = wsB.sent.length;
+
+    vi.advanceTimersByTime(10_000);
+    respond(state, id, 'deny');
+
+    expect(wsA.sent.length).toBe(sentA);
+    expect(wsB.sent.length).toBe(sentB);
+  });
+
+  test('a decision for an unknown id is a no-op', async () => {
+    const { state, wsA, promise, id } = setup(2000);
+    const sentBefore = wsA.sent.length;
+
+    respond(state, 'unknown-id', 'allow');
+
+    expect(wsA.sent.length).toBe(sentBefore);
+    expect(state.pendingConfirmations.has(id)).toBe(true);
+    expect(vi.getTimerCount()).toBe(1);
+
+    respond(state, id, 'deny');
+    await promise;
+  });
+});
 
 describe('multi-connection — dispatch routing', () => {
   test('dispatchToExtension routes to the connection owning the target tabId', () => {

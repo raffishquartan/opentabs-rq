@@ -81,6 +81,7 @@ describe('loadConfig / saveConfig round-trip', () => {
       },
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(custom);
 
@@ -215,6 +216,7 @@ describe('savePluginPermissions round-trip', () => {
       settings: {},
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(initial);
 
@@ -241,6 +243,7 @@ describe('savePluginPermissions round-trip', () => {
       settings: {},
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(initial);
 
@@ -265,6 +268,7 @@ describe('savePluginPermissions round-trip', () => {
       },
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(initial);
 
@@ -292,6 +296,7 @@ describe('savePluginSettings round-trip', () => {
       settings: {},
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(initial);
 
@@ -315,6 +320,7 @@ describe('savePluginSettings round-trip', () => {
       settings: { old_plugin: { key: 'old-value' } },
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
     await saveConfigWrapped(initial);
 
@@ -357,6 +363,7 @@ describe('saveConfig error propagation', () => {
       settings: {},
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
 
     await expect(saveConfig(state, config)).rejects.toThrow();
@@ -376,6 +383,7 @@ describe('saveConfig error propagation', () => {
       settings: {},
       version: 3,
       updateCheckIntervalMinutes: 30,
+      approvalTimeoutSeconds: 0,
     };
 
     // First write fails
@@ -573,6 +581,53 @@ describe('updateCheckIntervalMinutes', () => {
   });
 });
 
+describe('approvalTimeoutSeconds', () => {
+  beforeEach(async () => {
+    process.env.OPENTABS_CONFIG_DIR = TEST_BASE_DIR;
+    await removeConfig();
+  });
+
+  const loadWith = async (approvalTimeoutSeconds: unknown) => {
+    await writeFile(configPath, JSON.stringify({ localPlugins: [], permissions: {}, approvalTimeoutSeconds }));
+    return loadConfig();
+  };
+
+  test('defaults to 0 when not set', async () => {
+    await writeFile(configPath, JSON.stringify({ localPlugins: [], permissions: {} }));
+    const config = await loadConfig();
+    expect(config.approvalTimeoutSeconds).toBe(0);
+  });
+
+  test('defaults to 0 in a newly created config', async () => {
+    const config = await loadConfig();
+    expect(config.approvalTimeoutSeconds).toBe(0);
+  });
+
+  test('accepts a valid non-negative integer', async () => {
+    expect((await loadWith(120)).approvalTimeoutSeconds).toBe(120);
+  });
+
+  test('falls back to 0 for negative numbers', async () => {
+    expect((await loadWith(-5)).approvalTimeoutSeconds).toBe(0);
+  });
+
+  test('falls back to 0 for fractional values', async () => {
+    expect((await loadWith(10.5)).approvalTimeoutSeconds).toBe(0);
+  });
+
+  test('falls back to 0 for string values', async () => {
+    expect((await loadWith('60')).approvalTimeoutSeconds).toBe(0);
+  });
+
+  test('is preserved when permissions and settings are persisted', async () => {
+    await loadWith(45);
+    const state = { configWriteMutex: Promise.resolve() };
+    await savePluginPermissions(state, { slack: { permission: 'ask' } });
+    await savePluginSettings(state, { slack: { team: 'x' } });
+    expect((await loadConfig()).approvalTimeoutSeconds).toBe(45);
+  });
+});
+
 describe('KNOWN_CONFIG_KEYS', () => {
   test('contains all OpentabsConfig fields', () => {
     expect(KNOWN_CONFIG_KEYS).toContain('version');
@@ -582,7 +637,8 @@ describe('KNOWN_CONFIG_KEYS', () => {
     expect(KNOWN_CONFIG_KEYS).toContain('settings');
     expect(KNOWN_CONFIG_KEYS).toContain('additionalAllowedDirectories');
     expect(KNOWN_CONFIG_KEYS).toContain('updateCheckIntervalMinutes');
-    expect(KNOWN_CONFIG_KEYS.size).toBe(7);
+    expect(KNOWN_CONFIG_KEYS).toContain('approvalTimeoutSeconds');
+    expect(KNOWN_CONFIG_KEYS.size).toBe(8);
   });
 });
 

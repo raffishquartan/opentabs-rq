@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import { savePluginPermissions } from './config.js';
 import { buildConfigStatePayload, sendToExtension } from './extension-handlers.js';
 import {
+  ApprovalTimeoutError,
   dispatchToExtension,
   isDispatchError,
   sendConfirmationRequest,
@@ -216,7 +217,8 @@ vi.mock('./extension-handlers.js', () => ({
     .mockReturnValue({ plugins: [], failedPlugins: [], browserTools: [], serverVersion: '0.0.0' }),
 }));
 
-vi.mock('./extension-protocol.js', () => ({
+vi.mock('./extension-protocol.js', async importOriginal => ({
+  ApprovalTimeoutError: (await importOriginal<typeof import('./extension-protocol.js')>()).ApprovalTimeoutError,
   dispatchToExtension: vi.fn(),
   isDispatchError: vi.fn(),
   sendInvocationStart: vi.fn(),
@@ -275,6 +277,7 @@ const createMockState = (overrides: Partial<ServerState> = {}): ServerState =>
     skipPermissions: false,
     pluginPermissions: {},
     pendingConfirmations: new Map(),
+    approvalTimeoutSeconds: 0,
     registry: { plugins: new Map(), toolLookup: new Map(), failures: [] },
     ...overrides,
   }) as unknown as ServerState;
@@ -692,7 +695,7 @@ describe('handlePluginToolCall', () => {
 
     expect(result.isError).toBe(true);
     expect(result.content[0]?.text).toContain('denied by the user');
-    expect(sendConfirmationRequest).toHaveBeenCalledWith(state, 'test_action', 'testplugin', {});
+    expect(sendConfirmationRequest).toHaveBeenCalledWith(state, 'test_action', 'testplugin', {}, { timeoutMs: 0 });
   });
 
   test('permission ask with allow executes tool', async () => {
@@ -2580,5 +2583,226 @@ describe('telemetry: plugin_reviewed', () => {
       expect(p).not.toHaveProperty('version');
       expect(p).not.toHaveProperty('review_token');
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Approval wait visibility: heartbeats, monotonic progress, approval timeout
+// ---------------------------------------------------------------------------
+
+describe('approval wait visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Make sendConfirmationRequest settle after `delayMs` with the given decision */
+  const decideAfter = (delayMs: number, action: 'allow' | 'deny' = 'allow') => {
+    vi.mocked(sendConfirmationRequest).mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve({ action, alwaysAllow: false }), delayMs)),
+    );
+  };
+
+  /** Make sendConfirmationRequest reject after `delayMs` with the given error */
+  const rejectAfter = (delayMs: number, error: Error) => {
+    vi.mocked(sendConfirmationRequest).mockImplementation(
+      () => new Promise((_resolve, reject) => setTimeout(() => reject(error), delayMs)),
+    );
+  };
+
+  /** Make dispatchToExtension report the given progress values through its onProgress callback, then succeed */
+  const dispatchReportingProgress = (...reports: Array<[progress: number, total: number, message?: string]>) => {
+    vi.mocked(dispatchToExtension).mockImplementation((_state, _method, _params, opts) => {
+      const onProgress = typeof opts === 'object' ? opts.onProgress : undefined;
+      for (const [progress, total, message] of reports) onProgress?.(progress, total, message);
+      return Promise.resolve({ output: {} });
+    });
+  };
+
+  /** Progress notification params sent through the given sendNotification mock */
+  const progressParams = (sendNotification: ReturnType<typeof vi.fn>) =>
+    sendNotification.mock.calls.map(
+      call => (call[0] as { params: { progress: number; total?: number; message?: string } }).params,
+    );
+
+  const callPluginTool = async (state: ServerState, extra: RequestHandlerExtra) => {
+    const call = handlePluginToolCall(
+      state,
+      'testplugin_test_action',
+      {},
+      'testplugin',
+      'test_action',
+      createMockLookup(),
+      extra,
+      createMockCallbacks(),
+    );
+    await vi.runAllTimersAsync();
+    return call;
+  };
+
+  test('sends the initial notice then a heartbeat every 10s with the elapsed time', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+    decideAfter(35_000);
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+    await callPluginTool(createMockState(), extra);
+
+    expect(progressParams(sendNotification)).toEqual([
+      { progressToken: 'tok', progress: 0, total: 1, message: 'Waiting for user approval in the OpenTabs side panel' },
+      {
+        progressToken: 'tok',
+        progress: 1,
+        message: 'Still waiting for user approval in the OpenTabs side panel (10s elapsed)',
+      },
+      {
+        progressToken: 'tok',
+        progress: 2,
+        message: 'Still waiting for user approval in the OpenTabs side panel (20s elapsed)',
+      },
+      {
+        progressToken: 'tok',
+        progress: 3,
+        message: 'Still waiting for user approval in the OpenTabs side panel (30s elapsed)',
+      },
+    ]);
+    expect(dispatchToExtension).toHaveBeenCalled();
+  });
+
+  test('heartbeat states the time remaining when a timeout is configured', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+    decideAfter(35_000);
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+    await callPluginTool(createMockState({ approvalTimeoutSeconds: 120 }), extra);
+
+    const messages = progressParams(sendNotification).map(p => p.message);
+    expect(messages).toContain(
+      'Still waiting for user approval in the OpenTabs side panel (30s elapsed, 90s until timeout)',
+    );
+    expect(sendConfirmationRequest).toHaveBeenCalledWith(
+      expect.anything(),
+      'test_action',
+      'testplugin',
+      {},
+      { timeoutMs: 120_000 },
+    );
+  });
+
+  test('tool progress after heartbeats continues strictly above them', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    decideAfter(35_000);
+    dispatchReportingProgress([0, 5, 'starting'], [1, 5, 'step one']);
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+    await callPluginTool(createMockState(), extra);
+
+    const params = progressParams(sendNotification);
+    const values = params.map(p => p.progress);
+    for (let i = 1; i < values.length; i++) {
+      expect(values[i]).toBeGreaterThan(values[i - 1] as number);
+    }
+    expect(params.slice(-2)).toEqual([
+      { progressToken: 'tok', progress: 4, total: 9, message: 'starting' },
+      { progressToken: 'tok', progress: 5, total: 9, message: 'step one' },
+    ]);
+  });
+
+  test('tool progress that does not advance is not forwarded', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('auto');
+    dispatchReportingProgress([2, 5], [2, 5], [1, 5], [3, 5]);
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+    await callPluginTool(createMockState(), extra);
+
+    expect(progressParams(sendNotification).map(p => p.progress)).toEqual([2, 3]);
+  });
+
+  test('without a progress token no notifications are sent', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+    decideAfter(35_000);
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ sendNotification });
+
+    const result = await callPluginTool(createMockState({ approvalTimeoutSeconds: 120 }), extra);
+
+    expect(result.isError).toBeUndefined();
+    expect(sendNotification).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['allow', () => decideAfter(15_000, 'allow')],
+    ['deny', () => decideAfter(15_000, 'deny')],
+    ['timeout', () => rejectAfter(15_000, new ApprovalTimeoutError(15_000))],
+    ['disconnect', () => rejectAfter(15_000, new Error('Extension disconnected — confirmation cancelled'))],
+  ])('heartbeat interval is cleared on %s', async (_label, arrange) => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    vi.mocked(dispatchToExtension).mockResolvedValue({ output: {} });
+    arrange();
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+
+    await callPluginTool(createMockState(), extra);
+    const sent = sendNotification.mock.calls.length;
+
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sendNotification.mock.calls.length).toBe(sent);
+  });
+
+  test('approval timeout returns a distinct error and the tool does not run', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    rejectAfter(2000, new ApprovalTimeoutError(2000));
+
+    const result = await callPluginTool(createMockState({ approvalTimeoutSeconds: 2 }), createMockExtra());
+
+    expect(result.isError).toBe(true);
+    const text = result.content[0]?.text ?? '';
+    expect(text).toBe('Tool test_action was not approved within 2s; it did not run. Retry to prompt the user again.');
+    expect(text).not.toContain('denied');
+    expect(text).not.toContain('not connected');
+    expect(dispatchToExtension).not.toHaveBeenCalled();
+  });
+
+  test('a non-timeout rejection still yields the "not connected" result', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    rejectAfter(1000, new Error('Extension disconnected — confirmation cancelled'));
+
+    const result = await callPluginTool(createMockState({ approvalTimeoutSeconds: 2 }), createMockExtra());
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0]?.text).toBe('Tool test_action requires approval but the extension is not connected.');
+    expect(dispatchToExtension).not.toHaveBeenCalled();
+  });
+
+  test('browser tools send only the initial notice and never time out', async () => {
+    vi.mocked(getToolPermission).mockReturnValue('ask');
+    decideAfter(35_000);
+    const handler = vi.fn().mockResolvedValue({ ok: true });
+    const bt = createMockBrowserTool({ schema: z.object({}), handler });
+    const sendNotification = vi.fn().mockResolvedValue(undefined);
+    const extra = createMockExtra({ _meta: { progressToken: 'tok' }, sendNotification });
+    const state = createMockState({ approvalTimeoutSeconds: 2 });
+
+    const call = handleBrowserToolCall(state, 'browser_test_tool', {}, bt, extra, createMockCallbacks());
+    await vi.runAllTimersAsync();
+    const result = await call;
+
+    expect(result.isError).toBeUndefined();
+    expect(handler).toHaveBeenCalled();
+    expect(sendConfirmationRequest).toHaveBeenCalledWith(state, 'browser_test_tool', 'browser', {});
+    expect(progressParams(sendNotification)).toEqual([
+      { progressToken: 'tok', progress: 0, total: 1, message: 'Waiting for user approval in the OpenTabs side panel' },
+    ]);
   });
 });
