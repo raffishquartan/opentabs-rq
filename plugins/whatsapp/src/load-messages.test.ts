@@ -125,6 +125,18 @@ describe('loadMessages history loop', () => {
   });
 });
 
+describe('loadMessages ordering with incomplete ids', () => {
+  it('keeps collection order for messages with equal timestamps when one has no serialized id', async () => {
+    const noSerializedId = { id: { fromMe: false }, t: 200 } as unknown as WAMsgModel;
+    const held = [msgAt(300, 'C'), noSerializedId, msgAt(200, 'B1'), msgAt(100, 'A')];
+    const { chat } = fakeChat(held);
+
+    const result = await loadMessages(chat, 4);
+
+    expect(result.messages.map(m => m.t)).toEqual([100, 200, 200, 300]);
+  });
+});
+
 describe('loadMessages loader failure', () => {
   it('returns held messages with the cause when the loader module is missing', async () => {
     const { chat } = fakeChat(heldMessages(3));
