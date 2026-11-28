@@ -230,8 +230,20 @@ The running MCP server is launched from:
 ```
 
 The primary checkout at `<primary-checkout>` tracks `exec-branch`. After
-rebuilding, restart the server manually: `node <primary-checkout>/platform/cli/dist/cli.js stop`,
-then `start --background`. The background daemon is not respawned automatically.
+rebuilding, restart the server manually with telemetry disabled:
+
+```bash
+node <primary-checkout>/platform/cli/dist/cli.js stop
+OPENTABS_TELEMETRY_DISABLED=1 node <primary-checkout>/platform/cli/dist/cli.js start --background
+```
+
+The background daemon is not respawned automatically. After a reboot the server is started by
+the Claude Code SessionStart hook `start-opentabs.sh` (in the `claude-code-config-sync` repo), which
+runs the same `start --background` from `<primary-checkout>` with `OPENTABS_TELEMETRY_DISABLED=1`
+when `status` fails. The right version therefore starts as long as the primary checkout stays on
+`exec-branch` with `npm run build` done. `npm run build` also copies the extension into
+`~/.opentabs/extension` (what Chrome loads), so after any build or push from a worktree, rebuild in
+the primary checkout and reload the extension.
 
 Build after any change:
 
